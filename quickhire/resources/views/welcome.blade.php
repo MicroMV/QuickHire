@@ -17,7 +17,7 @@
     <header class="topbar">
         <div class="topbar__inner">
             <a href="/" class="brand">
-                <img src="{{ asset('images/quickhire-logo.png') }}" alt="QuickHire" class="brand__logo">
+                <img src="{{ asset('images/quickhire-logo.jpg') }}" alt="QuickHire" class="brand__logo">
             </a>
 
             <div class="topbar__actions">
