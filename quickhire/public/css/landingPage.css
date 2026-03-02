@@ -1,0 +1,115 @@
+:root{
+  --bg: #F6F5F5;
+  --soft: #D3E0EA;
+  --primary: #1687A7;
+  --dark: #276678;
+  --text: #111;
+  --muted: #444;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* Top bar */
+.topbar{
+  padding: 28px 48px;
+}
+
+.topbar__inner{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.brand__logo{
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+/* Buttons */
+.btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 12px 22px;
+  transition: transform .08s ease, opacity .15s ease;
+}
+
+.btn:active{ transform: translateY(1px); }
+.btn:hover{ opacity: .95; }
+
+.topbar__actions{
+  display: flex;
+  gap: 14px;
+}
+
+.btn--outline{
+  color: #111;
+  background: transparent;
+  border: 2px solid #777;
+}
+
+.btn--primary{
+  color: #fff;
+  background: var(--primary);
+  border: 2px solid var(--primary);
+  min-width: 130px;
+}
+
+/* Hero */
+.hero{
+  min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  padding: 56px 16px 80px;
+}
+
+.hero__title{
+  font-family: Kalam, Inter, system-ui, sans-serif;
+  font-size: clamp(40px, 4.2vw, 64px);
+  line-height: 1.05;
+  margin: 40px 0 22px;
+  font-weight: 800;
+}
+
+.hero__brand{
+  color: var(--primary);
+}
+
+.hero__subtitle{
+  max-width: 720px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 44px;
+}
+
+.btn--cta{
+  color: #fff;
+  background: var(--dark);
+  border: 2px solid var(--dark);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
+/* Mobile tweaks */
+@media (max-width: 520px){
+  .topbar{ padding: 18px 18px; }
+  .brand__logo{ height: 34px; }
+  .btn{ padding: 10px 16px; border-radius: 10px; }
+  .btn--primary{ min-width: 110px; }
+}
