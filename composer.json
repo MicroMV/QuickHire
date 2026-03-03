@@ -1,0 +1,10 @@
+{
+  "name": "rongie/quick-hire",
+  "description": "QuickHire native PHP job recruitment platform",
+  "autoload": {
+    "psr-4": {
+      "Rongie\\QuickHire\\": "src/"
+    }
+  },
+  "require": {}
+}
