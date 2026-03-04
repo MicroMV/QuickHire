@@ -9,11 +9,15 @@ Session::start();
 $error = Session::flash('error');
 $success = Session::flash('success');
 
-$open = $_GET['open'] ?? ''; // login | register
+$open = $_GET['open'] ?? '';
+if (($error || $success) && $open === '') {
+  $open = $error ? 'login' : 'register';
+}
 $csrf = Csrf::token();
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -26,36 +30,6 @@ $csrf = Csrf::token();
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Kalam:wght@700&display=swap" rel="stylesheet">
 
-  <style>
-    /* Minimal modal CSS (keep or move into your landingPage.css) */
-    .modal { position: fixed; inset: 0; display: none; z-index: 50; }
-    .modal.is-open { display: block; }
-    .modal__backdrop { position:absolute; inset:0; background: rgba(0,0,0,.35); }
-    .modal__panel {
-      position: relative;
-      max-width: 440px;
-      margin: 8vh auto;
-      background: #fff;
-      border-radius: 16px;
-      padding: 22px;
-      box-shadow: 0 20px 50px rgba(0,0,0,.15);
-      font-family: Inter, sans-serif;
-    }
-    .modal__close { position:absolute; right:14px; top:10px; font-size: 22px; border:0; background: transparent; cursor: pointer; }
-    .modal__title { margin: 0 0 14px; font-weight: 800; }
-    .modal__label { display:block; margin: 10px 0 6px; font-weight: 600; }
-    .modal__input, .modal__select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; }
-    .modal__submit { width:100%; margin-top: 14px; padding: 12px; border:0; border-radius: 12px; background:#1f6f82; color:#fff; font-weight: 800; cursor:pointer; }
-    .modal__row { display:flex; justify-content: space-between; align-items:center; margin-top: 10px; }
-    .modal__link { color:#1f6f82; font-weight: 700; text-decoration: none; }
-    .notice { max-width: 820px; margin: 18px auto 0; padding: 12px 16px; border-radius: 12px; font-family: Inter, sans-serif; }
-    .notice.error { background: #ffe1e1; color:#7a0b0b; }
-    .notice.success { background: #e6ffef; color:#0c5a2a; }
-    .tabs { display:flex; gap:8px; margin-bottom: 12px; }
-    .tab { flex:1; border:1px solid #e5e5e5; padding:10px; border-radius:12px; background:#fff; cursor:pointer; font-weight:800; }
-    .tab.is-active { border-color:#1f6f82; color:#1f6f82; }
-    .hidden { display:none; }
-  </style>
 </head>
 
 <body>
@@ -63,7 +37,7 @@ $csrf = Csrf::token();
   <header class="topbar">
     <div class="topbar__inner">
       <a href="index.php" class="brand">
-        <img src="images/quickhire-logo.png" alt="QuickHire" class="brand__logo">
+        <img src="images/quickhire-logo.jpg" alt="QuickHire" class="brand__logo">
       </a>
 
       <div class="topbar__actions">
@@ -72,13 +46,6 @@ $csrf = Csrf::token();
       </div>
     </div>
   </header>
-
-  <?php if ($error): ?>
-    <div class="notice error"><?= htmlspecialchars($error) ?></div>
-  <?php endif; ?>
-  <?php if ($success): ?>
-    <div class="notice success"><?= htmlspecialchars($success) ?></div>
-  <?php endif; ?>
 
   <!-- hero -->
   <main class="hero">
@@ -108,6 +75,17 @@ $csrf = Csrf::token();
         <button class="tab" type="button" data-tab="login">Log in</button>
         <button class="tab" type="button" data-tab="register">Register</button>
       </div>
+      <?php if ($error): ?>
+        <div class="modal__alert modal__alert--error">
+          <?= htmlspecialchars($error) ?>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($success): ?>
+        <div class="modal__alert modal__alert--success">
+          <?= htmlspecialchars($success) ?>
+        </div>
+      <?php endif; ?>
 
       <!-- LOGIN FORM -->
       <form id="loginForm" method="POST" action="actions/login.php">
@@ -163,4 +141,5 @@ $csrf = Csrf::token();
     window.__OPEN_AUTH__ = "<?= htmlspecialchars($open) ?>";
   </script>
 </body>
+
 </html>
