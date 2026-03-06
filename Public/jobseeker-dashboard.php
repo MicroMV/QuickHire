@@ -22,12 +22,16 @@ $db = new Database($config['db']);
 $profileService = new ProfileService($db->pdo(), new FileUpload());
 $userId = Auth::userId();
 $profile = $profileService->getJobseeker($userId);
-
+$incomingStmt = $db->pdo()->prepare("
+  SELECT room_code FROM calls
+  WHERE jobseeker_user_id = ? AND status IN ('RINGING','IN_CALL')
+  ORDER BY id DESC LIMIT 1
+");
+$incomingStmt->execute([$userId]);
+$incoming = $incomingStmt->fetch();
+$incomingRoom = $incoming['room_code'] ?? null;
 $flashError = Session::flash('error');
 $flashSuccess = Session::flash('success');
-
-// (Temporary) Call room link placeholder. Later you’ll generate this from matches/job requests.
-$callLink = $profile['call_link'] ?? ''; // not in DB yet; can be empty for now
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -133,25 +137,6 @@ $callLink = $profile['call_link'] ?? ''; // not in DB yet; can be empty for now
     .btn.primary{ background:var(--primary); color:#fff; }
     .btn.outline{ background:#fff; border-color:var(--line); color:#111; }
 
-    /* Call modal */
-    .modal{ position:fixed; inset:0; display:none; z-index:60; }
-    .modal.is-open{ display:block; }
-    .backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.35); }
-    .panel{
-      position:relative;
-      max-width:520px;
-      margin:10vh auto;
-      background:#fff;
-      border-radius:18px;
-      padding:18px;
-      border:1px solid var(--line);
-      box-shadow:0 20px 60px rgba(0,0,0,.2);
-    }
-    .close{ position:absolute; right:12px; top:10px; border:0; background:transparent; font-size:22px; cursor:pointer; }
-    .field{ margin-top:10px; }
-    .field label{ display:block; font-weight:900; margin-bottom:6px; }
-    .field input{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--line); }
-
     @media (max-width: 980px){
       .grid{ grid-template-columns:1fr; }
       .side{ position:relative; height:auto; width:100%; border-right:0; border-bottom:1px solid var(--line); }
@@ -192,7 +177,7 @@ $callLink = $profile['call_link'] ?? ''; // not in DB yet; can be empty for now
     </div>
 
     <nav class="nav">
-      <a class="primary" href="#" id="openCall">Jump into Call</a>
+      <a class="primary" href="/QuickHire/Public/find-employer.php">🔍 Find Employer</a>
 
       <a href="/QuickHire/Public/complete-profile.php">Edit Profile</a>
       <a href="/QuickHire/Public/jobseeker-skills.php">Update Skills</a>
@@ -207,17 +192,26 @@ $callLink = $profile['call_link'] ?? ''; // not in DB yet; can be empty for now
 
   <!-- MAIN -->
   <main class="main">
+    <?php if ($incomingRoom): ?>
+      <div class="notice ok" style="margin-bottom:14px;">
+        🔔 Incoming call from employer! <a href="/QuickHire/Public/call.php?room=<?= urlencode($incomingRoom) ?>" style="font-weight:900; color:inherit;">Join now</a>
+      </div>
+    <?php else: ?>
+      <div class="notice" style="background:#f0f4f8; color:#1f6f82; margin-bottom:14px;">
+        ⏳ Waiting for employer matches... Make sure your profile is complete to receive calls.
+      </div>
+    <?php endif; ?>
+
     <div class="topbar">
       <div>
         <h1 class="title">Welcome back 👋</h1>
         <p class="subtitle">
-          Here’s your QuickHire home. Use the sidebar to update your profile, then join calls when employers invite you.
+          Your profile is live. Employers will automatically match with you based on your skills and availability.
         </p>
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
         <a class="btn outline" href="/QuickHire/Public/complete-profile.php">Update Profile</a>
-        <button class="btn primary" id="openCallTop" type="button">Jump into Call</button>
       </div>
     </div>
 
@@ -225,17 +219,16 @@ $callLink = $profile['call_link'] ?? ''; // not in DB yet; can be empty for now
     <?php if ($flashSuccess): ?><div class="notice ok"><?= htmlspecialchars($flashSuccess) ?></div><?php endif; ?>
 
     <div class="grid">
-      <!-- Call card -->
+      <!-- Status card -->
       <section class="card">
-        <h3>Call Center</h3>
+        <h3>📊 Your Status</h3>
         <p style="margin:0; color:var(--muted); line-height:1.5;">
-          When an employer matches with you, they’ll provide a call room link/code.  
-          You can paste it here and jump in instantly.
+          Your profile is active and visible to employers. When an employer finds a match, you'll receive an incoming call notification automatically.
         </p>
 
         <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn primary" type="button" id="openCallMain">Join a Call</button>
-          <a class="btn outline" href="/QuickHire/Public/matches.php">View Matches</a>
+          <a class="btn primary" href="/QuickHire/Public/complete-profile.php">Complete Profile</a>
+          <a class="btn outline" href="/QuickHire/Public/jobseeker-skills.php">Add Skills</a>
         </div>
       </section>
 
@@ -250,81 +243,12 @@ $callLink = $profile['call_link'] ?? ''; // not in DB yet; can be empty for now
 
         <div style="margin-top:14px; color:var(--muted); line-height:1.5;">
           <strong style="color:#111;">Overview:</strong><br>
-          <?= htmlspecialchars($profile['overview'] ?? 'No overview yet. Update your profile to attract employers.') ?>
+          <?= htmlspecialchars($profile['profile_description'] ?? 'No overview yet. Update your profile to attract employers.') ?>
         </div>
       </aside>
     </div>
   </main>
 </div>
 
-<!-- CALL MODAL -->
-<div class="modal" id="callModal" aria-hidden="true">
-  <div class="backdrop" id="closeCall"></div>
-  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="callTitle">
-    <button class="close" id="closeCallBtn" type="button" aria-label="Close">×</button>
-    <h3 id="callTitle" style="margin:0 0 8px; font-weight:1000;">Join a Call</h3>
-    <p style="margin:0 0 10px; color:var(--muted);">
-      Paste your call link or enter a call code provided by the employer.
-    </p>
-
-    <div class="field">
-      <label for="callLink">Call link</label>
-      <input id="callLink" type="text" placeholder="https://meet.google.com/..." value="<?= htmlspecialchars($callLink) ?>">
-      <div class="hint">If you only have a code, paste it here too.</div>
-    </div>
-
-    <div style="display:flex; gap:10px; margin-top:14px;">
-      <button class="btn primary" type="button" id="joinNow">Join Now</button>
-      <button class="btn outline" type="button" id="cancelCall">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  const callModal = document.getElementById('callModal');
-  const openBtns = [document.getElementById('openCall'), document.getElementById('openCallTop'), document.getElementById('openCallMain')].filter(Boolean);
-  const closeBackdrop = document.getElementById('closeCall');
-  const closeBtn = document.getElementById('closeCallBtn');
-  const cancelBtn = document.getElementById('cancelCall');
-  const joinNow = document.getElementById('joinNow');
-  const callLink = document.getElementById('callLink');
-
-  function openCallModal() {
-    callModal.classList.add('is-open');
-    callModal.setAttribute('aria-hidden','false');
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => callLink.focus(), 50);
-  }
-
-  function closeCallModal() {
-    callModal.classList.remove('is-open');
-    callModal.setAttribute('aria-hidden','true');
-    document.body.style.overflow = '';
-  }
-
-  openBtns.forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); openCallModal(); }));
-  closeBackdrop.addEventListener('click', closeCallModal);
-  closeBtn.addEventListener('click', closeCallModal);
-  cancelBtn.addEventListener('click', closeCallModal);
-
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && callModal.classList.contains('is-open')) closeCallModal();
-  });
-
-  joinNow.addEventListener('click', () => {
-    const link = callLink.value.trim();
-    if (!link) {
-      alert('Please enter a call link or code.');
-      return;
-    }
-    // For now: open link in new tab. Later: validate + store per match.
-    if (link.startsWith('http://') || link.startsWith('https://')) {
-      window.open(link, '_blank', 'noopener');
-    } else {
-      alert('Call code received: ' + link + '\n\nNext step: we can map codes to real call rooms.');
-    }
-    closeCallModal();
-  });
-</script>
 </body>
 </html>
