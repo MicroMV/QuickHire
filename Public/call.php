@@ -570,17 +570,38 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             try {
                 let response;
                 if (MY_ROLE === 'EMPLOYER') {
-                    // For employer, we need to create a new match with basic criteria
-                    const formData = new FormData();
-                    formData.append('role_title', 'Developer'); // Default criteria
-                    formData.append('country', 'Philippines');
-                    formData.append('employment_type', 'FULL_TIME');
-                    formData.append('skill_ids', []);
-                    
-                    response = await fetch('/QuickHire/Public/actions/find_match.php', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    // For employer, try to use saved preferences first
+                    const savedPrefs = localStorage.getItem('matchingPreferences');
+                    if (savedPrefs) {
+                        const preferences = JSON.parse(savedPrefs);
+                        const formData = new FormData();
+                        formData.append('role_title', preferences.role_title);
+                        formData.append('country', preferences.country);
+                        formData.append('employment_type', preferences.employment_type);
+                        
+                        if (preferences.skill_ids && preferences.skill_ids.length > 0) {
+                            preferences.skill_ids.forEach(skillId => {
+                                formData.append('skill_ids[]', skillId);
+                            });
+                        }
+                        
+                        response = await fetch('/QuickHire/Public/actions/find_match.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                    } else {
+                        // Fallback to default criteria if no preferences saved
+                        const formData = new FormData();
+                        formData.append('role_title', 'Developer');
+                        formData.append('country', 'Philippines');
+                        formData.append('employment_type', 'FULL_TIME');
+                        formData.append('skill_ids', []);
+                        
+                        response = await fetch('/QuickHire/Public/actions/find_match.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                    }
                 } else {
                     // For jobseeker
                     response = await fetch('/QuickHire/Public/actions/find_employer.php');

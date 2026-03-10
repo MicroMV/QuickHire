@@ -23,6 +23,25 @@ $profileService = new ProfileService($db->pdo(), new FileUpload());
 $userId = Auth::userId();
 $profile = $profileService->getEmployer($userId);
 
+// Get user's basic information (name, etc.)
+$userStmt = $db->pdo()->prepare("SELECT first_name, last_name, email FROM users WHERE id = ?");
+$userStmt->execute([$userId]);
+$userInfo = $userStmt->fetch();
+
+// Get available skills for matching preferences
+$skillsStmt = $db->pdo()->query("SELECT id, name, category FROM skills ORDER BY category ASC, name ASC");
+$allSkills = $skillsStmt->fetchAll();
+
+// Get employer's current required skills (from their preferences or profile)
+try {
+  $empSkillsStmt = $db->pdo()->prepare("SELECT skill_id FROM employer_required_skills WHERE employer_user_id = ?");
+  $empSkillsStmt->execute([$userId]);
+  $currentRequiredSkills = array_column($empSkillsStmt->fetchAll(), 'skill_id');
+} catch (Exception $e) {
+  // Table might not exist yet, use empty array
+  $currentRequiredSkills = [];
+}
+
 // Get active call if any
 $incomingStmt = $db->pdo()->prepare("
   SELECT room_code FROM calls
@@ -47,7 +66,7 @@ $historyStmt->execute([$userId]);
 $callHistory = $historyStmt->fetchAll();
 
 // Get available skills for matching
-$skillsStmt = $db->pdo()->query("SELECT id, name FROM skills ORDER BY name ASC");
+$skillsStmt = $db->pdo()->query("SELECT id, name, category FROM skills ORDER BY category ASC, name ASC");
 $allSkills = $skillsStmt->fetchAll();
 
 $flashError = Session::flash('error');
@@ -115,11 +134,19 @@ $flashSuccess = Session::flash('success');
       font-weight:800;
       text-decoration:none;
       cursor:pointer;
+      transition: all 0.2s ease;
     }
     .nav a:hover, .nav button:hover{ border-color:#cfe5ea; }
+    .nav a.active, .nav button.active{ 
+      background:var(--primary); 
+      border-color:var(--primary); 
+      color:#fff; 
+      box-shadow: 0 4px 12px rgba(31, 111, 130, 0.3);
+    }
 
     .nav .danger{ border-color:#ffd1d1; color:#7a0b0b; }
     .nav .primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
+    .nav .success{ background:#10b981; border-color:#10b981; color:#fff; }
 
     /* Main content */
     .main{ flex:1; padding:26px; }
@@ -138,6 +165,7 @@ $flashSuccess = Session::flash('success');
       display:grid;
       grid-template-columns: 1.2fr .8fr;
       gap:16px;
+      align-items: start;
     }
     .card{
       background:var(--card);
@@ -166,10 +194,154 @@ $flashSuccess = Session::flash('success');
     .status-badge.in-call{ background:#dbeafe; color:#1e40af; }
     .status-badge.completed{ background:#dcfce7; color:#166534; }
 
+    /* Preferences Modal */
+    .modal{ display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal.active{ display:flex; }
+    .modal-content{
+      background:#fff; border-radius:18px; padding:24px; max-width:500px; width:90%; max-height:90vh; overflow-y:auto;
+    }
+    .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .modal-header h2{ margin:0; font-size:20px; }
+    .modal-close{ background:none; border:none; font-size:24px; cursor:pointer; color:var(--muted); }
+
+    .form-group{ margin-bottom:16px; }
+    .form-group label{ display:block; font-weight:900; margin-bottom:6px; }
+    .form-group input, .form-group select{
+      width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-family:inherit;
+    }
+
+    .skills-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:10px; max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:12px; padding:16px; }
+    .skill-checkbox{ display:flex; align-items:center; gap:8px; }
+    .skill-checkbox input{ width:18px; height:18px; cursor:pointer; }
+    .category-header{ font-weight:900; color:var(--primary); margin:12px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; grid-column:1/-1; }
+
+    /* Skills organization */
+    .skills-container { margin-top: 10px; }
+    .skills-search { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
+    .skills-tabs { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+    .skills-tab { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+    .skills-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .skills-tab:hover { border-color: var(--primary); }
+    .category-section { margin-bottom: 15px; }
+    .category-title { font-weight: 800; color: var(--primary); margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+    .skills-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+
+    .avatar-upload {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      cursor: pointer;
+    }
+    
+    .avatar-preview {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: #eaf3f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: var(--primary);
+      font-size: 48px;
+      overflow: hidden;
+      border: 3px solid var(--line);
+      transition: all 0.3s ease;
+    }
+    
+    .avatar-preview:hover {
+      border-color: var(--primary);
+      transform: scale(1.05);
+    }
+    
+    .avatar-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .avatar-overlay {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      border: 3px solid white;
+      cursor: pointer;
+    }
+    
+    .avatar-upload input[type="file"] {
+      display: none !important;
+      visibility: hidden !important;
+      position: absolute !important;
+      left: -9999px !important;
+      width: 0 !important;
+      height: 0 !important;
+      opacity: 0 !important;
+      z-index: -1 !important;
+    }
+    
+    /* Hide any file input related elements */
+    .avatar-upload input[type="file"]::-webkit-file-upload-button {
+      display: none !important;
+    }
+    
+    .avatar-upload input[type="file"]::file-selector-button {
+      display: none !important;
+    }
+    
+    /* Hide any browser-generated file input text within avatar upload */
+    .avatar-upload input[type="file"]::before,
+    .avatar-upload input[type="file"]::after {
+      display: none !important;
+      content: none !important;
+    }
+    
+    /* Ensure avatar upload container doesn't show any text */
+    .avatar-upload::after {
+      content: none !important;
+    }
+
     @media (max-width: 980px){
       .grid{ grid-template-columns:1fr; }
       .side{ position:relative; height:auto; width:100%; border-right:0; border-bottom:1px solid var(--line); }
       .layout{ flex-direction:column; }
+    }
+
+    /* Toast notification styles */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: #4ade80;
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      font-weight: 700;
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+      max-width: 400px;
+      text-align: center;
+    }
+    
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    .toast.error {
+      background: #ef4444;
     }
   </style>
 </head>
@@ -178,11 +350,8 @@ $flashSuccess = Session::flash('success');
 <div class="layout">
   <!-- SIDEBAR -->
   <aside class="side">
-    <div class="brandRow">
-      <div>
-        <div class="t1">QuickHire</div>
-        <div class="t2">Employer Dashboard</div>
-      </div>
+    <div class="brandRow" style="flex-direction: column; align-items: center; text-align: center;">
+      <img src="/QuickHire/Public/images/quickhire-logo.jpg" alt="QuickHire Logo" style="width: auto; height: 32px; border-radius: 4px;">
     </div>
 
     <div class="profileCard">
@@ -190,12 +359,12 @@ $flashSuccess = Session::flash('success');
         <?php if (!empty($profile['profile_picture_url'])): ?>
           <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Avatar">
         <?php else: ?>
-          E
+          <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
         <?php endif; ?>
       </div>
       <div>
         <div class="name">
-          <?= htmlspecialchars(($profile['company_name'] ?? 'Your Company')) ?>
+          <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
         </div>
         <div class="meta">
           <?= htmlspecialchars(($profile['country'] ?? 'Country not set')) ?>
@@ -204,10 +373,11 @@ $flashSuccess = Session::flash('success');
     </div>
 
     <nav class="nav">
-      <button class="primary" id="btnFindMatch">🔍 Find Jobseeker</button>
+      <button class="success" id="btnFindMatch">🔍 Find Jobseeker</button>
 
-      <button id="btnEditProfile">Edit Profile</button>
-      <a href="/QuickHire/Public/settings.php">Settings</a>
+      <button id="btnHome">🏠 Home</button>
+      <button id="btnEditProfile">✏️ Edit Profile</button>
+      <button id="btnEditPreferences">⚙️ Edit Preferences</button>
 
       <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
         <button class="danger" type="submit">Logout</button>
@@ -241,7 +411,6 @@ $flashSuccess = Session::flash('success');
     </div>
 
     <?php if ($flashError): ?><div class="notice err"><?= htmlspecialchars($flashError) ?></div><?php endif; ?>
-    <?php if ($flashSuccess): ?><div class="notice ok"><?= htmlspecialchars($flashSuccess) ?></div><?php endif; ?>
 
     <div class="grid" id="dashboardContent">
       <!-- Status card -->
@@ -264,6 +433,9 @@ $flashSuccess = Session::flash('success');
           <span class="pill">Company: <?= htmlspecialchars($profile['company_name'] ?? '—') ?></span>
           <span class="pill">Country: <?= htmlspecialchars($profile['country'] ?? '—') ?></span>
         </div>
+        <div class="pillRow">
+          <span class="pill">Required Skills: <?= count($currentRequiredSkills) ?> selected</span>
+        </div>
 
         <div style="margin-top:14px; color:var(--muted); line-height:1.5;">
           <strong style="color:#111;">Profile Status:</strong><br>
@@ -273,23 +445,48 @@ $flashSuccess = Session::flash('success');
             ⚠️ Please complete your profile to start matching
           <?php endif; ?>
         </div>
+
+        <?php if (!empty($currentRequiredSkills)): ?>
+          <div style="margin-top:14px;">
+            <strong style="color:#111;">Skills You Look For:</strong><br>
+            <div class="pillRow" style="margin-top:6px;">
+              <?php 
+                foreach ($allSkills as $skill): 
+                  if (in_array($skill['id'], $currentRequiredSkills)):
+              ?>
+                <span class="pill" style="background:#e6f3f7; color:var(--primary);"><?= htmlspecialchars($skill['name']) ?></span>
+              <?php 
+                  endif;
+                endforeach; 
+              ?>
+            </div>
+          </div>
+        <?php endif; ?>
       </aside>
     </div>
 
     <!-- Profile Edit Form (Hidden by default) -->
     <div class="card" id="profileEditContent" style="display:none;">
-      <div style="margin-bottom:20px;">
-        <h3>✏️ Edit Your Profile</h3>
-      </div>
-
       <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="profileForm">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
         <input type="hidden" name="profile_type" value="EMPLOYER">
 
         <div class="grid">
           <div style="grid-column:1/-1;">
-            <label style="display:block; font-weight:900; margin-bottom:6px;">Profile Picture (JPG/PNG/WEBP)</label>
-            <input type="file" name="profile_picture" accept="image/*" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+            <div class="avatar-upload" onclick="document.getElementById('profile_picture_emp').click()">
+              <div class="avatar-preview">
+                <?php if (!empty($profile['profile_picture_url'])): ?>
+                  <img src="<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
+                <?php else: ?>
+                  <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
+                <?php endif; ?>
+              </div>
+              <div class="avatar-overlay">✏️</div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
+              <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
+            </div>
+            <input type="file" id="profile_picture_emp" name="profile_picture" accept="image/*">
           </div>
 
           <div>
@@ -303,11 +500,93 @@ $flashSuccess = Session::flash('success');
           </div>
         </div>
 
-        <div style="margin-top:20px; display:flex; gap:10px;">
-          <button type="submit" class="btn primary" style="flex:1;">Save Profile</button>
-          <button type="button" class="btn outline" id="btnCancelEdit" style="flex:1;">Cancel</button>
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+          <button type="submit" class="btn primary">Save Profile</button>
+          <button type="button" class="btn outline" id="btnCancelEdit">Cancel</button>
         </div>
       </form>
+    </div>
+
+    <!-- Preferences Modal -->
+    <div class="modal" id="preferencesModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>⚙️ Matching Preferences</h2>
+          <button class="modal-close" id="btnClosePreferences">&times;</button>
+        </div>
+
+        <form id="preferencesForm">
+          <?php 
+            // Create skills by category for preferences modal
+            $skillsByCategory = [];
+            foreach ($allSkills as $skill) {
+              $skillsByCategory[$skill['category']][] = $skill;
+            }
+          ?>
+          <div class="form-group">
+            <label for="pref_role_title">Role Title *</label>
+            <input type="text" id="pref_role_title" name="role_title" placeholder="e.g., Web Developer, Data Analyst" required>
+          </div>
+
+          <div class="form-group">
+            <label for="pref_country">Country *</label>
+            <input type="text" id="pref_country" name="country" placeholder="e.g., Philippines, USA" required>
+          </div>
+
+          <div class="form-group">
+            <label for="pref_employment_type">Employment Type</label>
+            <select id="pref_employment_type" name="employment_type">
+              <option value="PART_TIME">Part-time</option>
+              <option value="FULL_TIME">Full-time</option>
+              <option value="CONTRACT">Contract</option>
+              <option value="FREELANCE">Freelance</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Required Skills (Optional)</label>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">Select skills you're looking for</div>
+            
+            <div class="skills-container">
+              <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="prefSkillsSearch">
+              
+              <div class="skills-tabs">
+                <div class="skills-tab active" data-category="all">All</div>
+                <div class="skills-tab" data-category="Programming">Programming</div>
+                <div class="skills-tab" data-category="Frontend">Frontend</div>
+                <div class="skills-tab" data-category="Backend">Backend</div>
+                <div class="skills-tab" data-category="Database">Database</div>
+                <div class="skills-tab" data-category="Cloud">Cloud</div>
+                <div class="skills-tab" data-category="Design">Design</div>
+                <div class="skills-tab" data-category="Management">Management</div>
+              </div>
+              
+              <div class="skills-grid" id="prefSkillsContainer">
+                <?php 
+                  foreach ($skillsByCategory as $category => $skills): 
+                ?>
+                  <div class="category-section" data-category="<?= htmlspecialchars($category) ?>">
+                    <div class="category-title"><?= htmlspecialchars($category) ?></div>
+                    <div class="skills-row">
+                      <?php foreach ($skills as $skill): ?>
+                        <div class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>">
+                          <input type="checkbox" id="pref_skill_<?= $skill['id'] ?>" name="skill_ids[]" value="<?= $skill['id'] ?>">
+                          <label for="pref_skill_<?= $skill['id'] ?>" style="margin:0; font-weight:600;"><?= htmlspecialchars($skill['name']) ?></label>
+                        </div>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+            <button type="submit" class="btn primary">Save & Find Jobseeker</button>
+            <button type="button" class="btn outline" id="btnCancelPreferences">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Call History -->
@@ -349,14 +628,87 @@ $flashSuccess = Session::flash('success');
 <script>
   const btnFindMatch = document.getElementById('btnFindMatch');
   const btnFindMatch2 = document.getElementById('btnFindMatch2');
+  const btnHome = document.getElementById('btnHome');
   const btnEditProfile = document.getElementById('btnEditProfile');
   const btnEditProfile2 = document.getElementById('btnEditProfile2');
+  const btnEditPreferences = document.getElementById('btnEditPreferences');
   const btnCancelEdit = document.getElementById('btnCancelEdit');
   
   const dashboardContent = document.getElementById('dashboardContent');
   const profileEditContent = document.getElementById('profileEditContent');
+  
+  // Preferences modal elements
+  const preferencesModal = document.getElementById('preferencesModal');
+  const preferencesForm = document.getElementById('preferencesForm');
+  const btnClosePreferences = document.getElementById('btnClosePreferences');
+  const btnCancelPreferences = document.getElementById('btnCancelPreferences');
+
+  // Check if preferences exist in localStorage
+  function hasPreferences() {
+    const prefs = localStorage.getItem('matchingPreferences');
+    return prefs !== null;
+  }
+
+  // Load preferences from localStorage
+  function loadPreferences() {
+    const prefs = localStorage.getItem('matchingPreferences');
+    if (prefs) {
+      return JSON.parse(prefs);
+    }
+    return null;
+  }
+
+  // Save preferences to localStorage
+  function savePreferences(preferences) {
+    localStorage.setItem('matchingPreferences', JSON.stringify(preferences));
+  }
+
+  // Populate form with saved preferences
+  function populatePreferencesForm(prefs) {
+    if (prefs) {
+      document.getElementById('pref_role_title').value = prefs.role_title || '';
+      document.getElementById('pref_country').value = prefs.country || '';
+      document.getElementById('pref_employment_type').value = prefs.employment_type || 'FULL_TIME';
+      
+      // Clear all skill checkboxes first
+      document.querySelectorAll('input[name="skill_ids[]"]').forEach(cb => cb.checked = false);
+      
+      // Check saved skills
+      if (prefs.skill_ids && prefs.skill_ids.length > 0) {
+        prefs.skill_ids.forEach(skillId => {
+          const checkbox = document.getElementById('pref_skill_' + skillId);
+          if (checkbox) checkbox.checked = true;
+        });
+      }
+    }
+  }
+
+  // Show preferences modal
+  function showPreferencesModal() {
+    const savedPrefs = loadPreferences();
+    populatePreferencesForm(savedPrefs);
+    preferencesModal.classList.add('active');
+  }
+
+  // Hide preferences modal
+  function hidePreferencesModal() {
+    preferencesModal.classList.remove('active');
+  }
 
   async function findJobseeker() {
+    // Check if we have saved preferences
+    if (!hasPreferences()) {
+      // First time - show preferences modal
+      showPreferencesModal();
+      return;
+    }
+
+    // Use saved preferences
+    const preferences = loadPreferences();
+    await executeJobseekerSearch(preferences);
+  }
+
+  async function executeJobseekerSearch(preferences) {
     // Disable buttons to prevent multiple clicks
     btnFindMatch.disabled = true;
     btnFindMatch2.disabled = true;
@@ -364,7 +716,7 @@ $flashSuccess = Session::flash('success');
     btnFindMatch2.textContent = 'Searching...';
 
     try {
-      // First check if there's already an active call (same as "Join now")
+      // First check for active calls
       const checkResponse = await fetch('/QuickHire/Public/actions/check_active_call.php');
       const checkData = await checkResponse.json();
       
@@ -374,32 +726,18 @@ $flashSuccess = Session::flash('success');
         return;
       }
 
-      // No active call, proceed with matching
-      const roleTitle = prompt('Enter role title (e.g., Web Developer):');
-      if (!roleTitle) {
-        // Re-enable buttons if user cancels
-        btnFindMatch.disabled = false;
-        btnFindMatch2.disabled = false;
-        btnFindMatch.textContent = '🔍 Find Jobseeker';
-        btnFindMatch2.textContent = 'Find Jobseeker';
-        return;
-      }
-
-      const country = prompt('Enter country (e.g., Philippines):');
-      if (!country) {
-        // Re-enable buttons if user cancels
-        btnFindMatch.disabled = false;
-        btnFindMatch2.disabled = false;
-        btnFindMatch.textContent = '🔍 Find Jobseeker';
-        btnFindMatch2.textContent = 'Find Jobseeker';
-        return;
-      }
-
+      // No active call, proceed with matching using preferences
       const formData = new FormData();
-      formData.append('role_title', roleTitle);
-      formData.append('country', country);
-      formData.append('employment_type', 'FULL_TIME');
-      formData.append('skill_ids', []); // No specific skills required
+      formData.append('role_title', preferences.role_title);
+      formData.append('country', preferences.country);
+      formData.append('employment_type', preferences.employment_type);
+      
+      // Add selected skills
+      if (preferences.skill_ids && preferences.skill_ids.length > 0) {
+        preferences.skill_ids.forEach(skillId => {
+          formData.append('skill_ids[]', skillId);
+        });
+      }
 
       const response = await fetch('/QuickHire/Public/actions/find_match.php', {
         method: 'POST',
@@ -436,21 +774,180 @@ $flashSuccess = Session::flash('success');
     btnFindMatch2.textContent = 'Find Jobseeker';
   }
 
-  function showProfileEdit() {
-    dashboardContent.style.display = 'none';
-    profileEditContent.style.display = 'block';
-  }
-
   function showDashboard() {
     dashboardContent.style.display = 'grid';
     profileEditContent.style.display = 'none';
+    
+    // Update active states
+    btnHome.classList.add('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    
+    // Update title when showing dashboard
+    document.querySelector('.title').textContent = 'Welcome back 👋';
+    document.querySelector('.subtitle').textContent = 'Find and connect with qualified jobseekers through skill-based matching.';
   }
+
+  function showProfileEdit() {
+    dashboardContent.style.display = 'none';
+    profileEditContent.style.display = 'block';
+    
+    // Update active states
+    btnHome.classList.remove('active');
+    btnEditProfile.classList.add('active');
+    btnEditProfile2.classList.add('active');
+    
+    // Update title when showing edit form
+    document.querySelector('.title').textContent = 'Edit Your Profile ✏️';
+    document.querySelector('.subtitle').textContent = 'Update your company information and skill requirements for better matching.';
+  }
+
+  // Initialize with Home active
+  btnHome.classList.add('active');
 
   btnFindMatch.addEventListener('click', findJobseeker);
   btnFindMatch2.addEventListener('click', findJobseeker);
+  btnHome.addEventListener('click', showDashboard);
   btnEditProfile.addEventListener('click', showProfileEdit);
   btnEditProfile2.addEventListener('click', showProfileEdit);
+  btnEditPreferences.addEventListener('click', showPreferencesModal);
   btnCancelEdit.addEventListener('click', showDashboard);
+
+  // Preferences modal event listeners
+  btnClosePreferences.addEventListener('click', hidePreferencesModal);
+  btnCancelPreferences.addEventListener('click', hidePreferencesModal);
+
+  // Handle preferences form submission
+  preferencesForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Get form data
+    const formData = new FormData(preferencesForm);
+    const preferences = {
+      role_title: formData.get('role_title'),
+      country: formData.get('country'),
+      employment_type: formData.get('employment_type'),
+      skill_ids: formData.getAll('skill_ids[]').map(id => parseInt(id))
+    };
+    
+    // Save preferences
+    savePreferences(preferences);
+    
+    // Hide modal
+    hidePreferencesModal();
+    
+    // Execute search with new preferences
+    await executeJobseekerSearch(preferences);
+  });
+
+  // Close modal when clicking outside
+  preferencesModal.addEventListener('click', (e) => {
+    if (e.target === preferencesModal) {
+      hidePreferencesModal();
+    }
+  });
+
+  // Skills organization functionality for preferences modal
+  const prefSkillsSearch = document.getElementById('prefSkillsSearch');
+  const prefSkillsTabs = document.querySelectorAll('#preferencesModal .skills-tab');
+  const prefSkillsContainer = document.getElementById('prefSkillsContainer');
+  const prefCategorySections = document.querySelectorAll('#prefSkillsContainer .category-section');
+
+  // Search functionality for preferences modal skills
+  if (prefSkillsSearch) {
+    prefSkillsSearch.addEventListener('input', function(e) {
+      const searchTerm = e.target.value.toLowerCase();
+      const skillCheckboxes = prefSkillsContainer.querySelectorAll('.skill-checkbox');
+      
+      skillCheckboxes.forEach(checkbox => {
+        const skillName = checkbox.getAttribute('data-skill-name');
+        const shouldShow = skillName.includes(searchTerm);
+        checkbox.style.display = shouldShow ? 'flex' : 'none';
+      });
+      
+      // Show/hide category sections based on visible skills
+      prefCategorySections.forEach(section => {
+        const visibleSkills = section.querySelectorAll('.skill-checkbox[style*="flex"], .skill-checkbox:not([style])');
+        section.style.display = visibleSkills.length > 0 ? 'block' : 'none';
+      });
+    });
+  }
+
+  // Tab functionality for preferences modal skills
+  prefSkillsTabs.forEach(tab => {
+    tab.addEventListener('click', function() {
+      // Remove active class from all tabs
+      prefSkillsTabs.forEach(t => t.classList.remove('active'));
+      // Add active class to clicked tab
+      this.classList.add('active');
+      
+      const selectedCategory = this.getAttribute('data-category');
+      
+      // Show/hide categories based on selected tab
+      prefCategorySections.forEach(section => {
+        const sectionCategory = section.getAttribute('data-category');
+        if (selectedCategory === 'all' || sectionCategory === selectedCategory) {
+          section.style.display = 'block';
+        } else {
+          section.style.display = 'none';
+        }
+      });
+      
+      // Clear search when switching tabs
+      if (prefSkillsSearch) {
+        prefSkillsSearch.value = '';
+        // Reset all skill visibility
+        const skillCheckboxes = prefSkillsContainer.querySelectorAll('.skill-checkbox');
+        skillCheckboxes.forEach(checkbox => {
+          checkbox.style.display = 'flex';
+        });
+      }
+    });
+  });
+
+  // Show toast notification if there's a success message
+  <?php if ($flashSuccess): ?>
+  document.addEventListener('DOMContentLoaded', function() {
+    showToast('<?= addslashes($flashSuccess) ?>', 'success');
+  });
+  <?php endif; ?>
+
+  // Toast notification function
+  function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Show toast with slide down animation from center-top
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 100);
+    
+    // Hide and remove toast after 4 seconds
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }, 4000);
+  }
+
+  // Avatar preview functionality
+  document.getElementById('profile_picture_emp').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const avatarPreview = document.querySelector('.avatar-preview');
+        avatarPreview.innerHTML = `<img src="${e.target.result}" alt="Profile Picture">`;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 </script>
 
 </body>

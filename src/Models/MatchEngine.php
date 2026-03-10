@@ -17,34 +17,56 @@ class MatchEngine
     {
         $score = 0;
 
-        // Country match (30 points)
+        // Country match (25 points)
         if (!empty($criteria['country']) && !empty($jobseeker['country'])) {
             if (strtolower($criteria['country']) === strtolower($jobseeker['country'])) {
-                $score += 30;
+                $score += 25;
             }
         }
 
-        // Role title match (25 points)
+        // Role title match (20 points)
         if (!empty($criteria['role_title']) && !empty($jobseeker['role_title'])) {
             $empRole = strtolower(trim($criteria['role_title']));
             $jsRole = strtolower(trim($jobseeker['role_title']));
             
             if ($empRole === $jsRole) {
-                $score += 25;
+                $score += 20;
             } elseif (strpos($jsRole, $empRole) !== false || strpos($empRole, $jsRole) !== false) {
-                $score += 15; // partial match
+                $score += 12; // partial match
             }
         }
 
-        // English mastery (20 points)
+        // Employment type match (15 points)
+        if (!empty($criteria['employment_type']) && !empty($jobseeker['employment_type'])) {
+            if (strtoupper($criteria['employment_type']) === strtoupper($jobseeker['employment_type'])) {
+                $score += 15;
+            } else {
+                // Compatible employment types get partial points
+                $empType = strtoupper($criteria['employment_type']);
+                $jsType = strtoupper($jobseeker['employment_type']);
+                
+                // Full-time and contract are somewhat compatible
+                if (($empType === 'FULL_TIME' && $jsType === 'CONTRACT') || 
+                    ($empType === 'CONTRACT' && $jsType === 'FULL_TIME')) {
+                    $score += 8;
+                }
+                // Part-time and freelance are somewhat compatible
+                elseif (($empType === 'PART_TIME' && $jsType === 'FREELANCE') || 
+                        ($empType === 'FREELANCE' && $jsType === 'PART_TIME')) {
+                    $score += 8;
+                }
+            }
+        }
+
+        // English mastery (15 points)
         if (!empty($jobseeker['english_mastery'])) {
             $englishLevel = strtoupper($jobseeker['english_mastery']);
             $englishScores = [
-                'NATIVE' => 20,
-                'FLUENT' => 20,
-                'ADVANCED' => 15,
-                'INTERMEDIATE' => 10,
-                'BEGINNER' => 5
+                'NATIVE' => 15,
+                'FLUENT' => 15,
+                'ADVANCED' => 12,
+                'INTERMEDIATE' => 8,
+                'BEGINNER' => 4
             ];
             $score += $englishScores[$englishLevel] ?? 0;
         }
@@ -61,14 +83,6 @@ class MatchEngine
         } elseif (empty($requiredSkillIds)) {
             // No specific skills required, give full points
             $score += 25;
-        }
-
-        // Availability bonus (if available_time is set)
-        if (!empty($jobseeker['available_time'])) {
-            $availableHours = (int)$jobseeker['available_time'];
-            if ($availableHours >= 8) {
-                $score += 0; // already counted in other factors
-            }
         }
 
         // Cap score at 100

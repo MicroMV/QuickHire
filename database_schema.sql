@@ -136,6 +136,21 @@ CREATE TABLE IF NOT EXISTS webrtc_signals (
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Employer required skills table
+CREATE TABLE IF NOT EXISTS employer_required_skills (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employer_user_id INT NOT NULL,
+  skill_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (employer_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_employer_skill (employer_user_id, skill_id),
+  INDEX idx_skill_id (skill_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Add employment_type to jobseeker_profiles
+ALTER TABLE jobseeker_profiles ADD COLUMN employment_type VARCHAR(50) AFTER english_mastery;
+
 -- Chat messages table
 CREATE TABLE IF NOT EXISTS chat_messages (
   id INT PRIMARY KEY AUTO_INCREMENT,
