@@ -4,15 +4,16 @@ require __DIR__ . '/../../vendor/autoload.php';
 use Rongie\QuickHire\Core\Session;
 use Rongie\QuickHire\Core\Auth;
 use Rongie\QuickHire\Core\Database;
-use Rongie\QuickHire\Services\MatchmakingService;
 use Rongie\QuickHire\Models\MatchEngine;
+use Rongie\QuickHire\Services\MatchmakingService;
 
 Session::start();
 Auth::requireLogin();
 
+header('Content-Type: application/json');
+
 if (Auth::role() !== 'JOBSEEKER') {
-  http_response_code(403);
-  echo json_encode(['ok' => false, 'error' => 'Only jobseekers can search for employers']);
+  echo json_encode(['ok' => false, 'error' => 'Only jobseekers can use this feature']);
   exit;
 }
 
@@ -22,111 +23,46 @@ $pdo = $db->pdo();
 
 $userId = Auth::userId();
 
-// Check if jobseeker already has an active call
-$stmt = $pdo->prepare("
-  SELECT room_code FROM calls
-  WHERE jobseeker_user_id = ? AND status IN ('RINGING','IN_CALL')
-  LIMIT 1
-");
-$stmt->execute([$userId]);
-$existingCall = $stmt->fetch();
-
-if ($existingCall) {
-  echo json_encode(['ok' => true, 'room' => $existingCall['room_code'], 'status' => 'existing']);
-  exit;
-}
-
-// Get all active employer queues that are looking for matches
-$stmt = $pdo->prepare("
-  SELECT mq.id, mq.user_id as employer_id, mq.wanted_role, mq.wanted_country, mq.employment_type
-  FROM matchmaking_queue mq
-  WHERE mq.role = 'EMPLOYER' AND mq.is_active = 1
-  ORDER BY mq.created_at DESC
-  LIMIT 10
-");
-$stmt->execute();
-$employers = $stmt->fetchAll();
-
-if (empty($employers)) {
-  echo json_encode(['ok' => false, 'error' => 'No employers available right now. Try again later.']);
-  exit;
-}
-
-// Get jobseeker profile
-$stmt = $pdo->prepare("SELECT * FROM jobseeker_profiles WHERE user_id = ? LIMIT 1");
-$stmt->execute([$userId]);
-$jobseekerProfile = $stmt->fetch();
-
-if (!$jobseekerProfile) {
-  echo json_encode(['ok' => false, 'error' => 'Please complete your profile first.']);
-  exit;
-}
-
-// Try to match with the first available employer
-$engine = new MatchEngine();
-$matched = false;
-$matchedQueueId = null;
-$matchedEmployerId = null;
-
-foreach ($employers as $emp) {
-  $empQueueId = (int)$emp['id'];
-  $empId = (int)$emp['employer_id'];
-
-  // Get employer's required skills
-  $stmt = $pdo->prepare("SELECT skill_id FROM matchmaking_queue_skills WHERE queue_id = ?");
-  $stmt->execute([$empQueueId]);
-  $requiredSkills = array_map(fn($x) => (int)$x['skill_id'], $stmt->fetchAll());
-
-  // Get jobseeker's skills
-  $stmt = $pdo->prepare("SELECT skill_id FROM jobseeker_skills WHERE jobseeker_user_id = ?");
-  $stmt->execute([$userId]);
-  $jobseekerSkills = array_map(fn($x) => (int)$x['skill_id'], $stmt->fetchAll());
-
-  // Score the match
-  $score = $engine->score(
-    [
-      'role_title' => $emp['wanted_role'] ?? '',
-      'employment_type' => $emp['employment_type'] ?? 'PART_TIME',
-      'country' => $emp['wanted_country'] ?? ''
-    ],
-    $jobseekerProfile,
-    $requiredSkills,
-    $jobseekerSkills
-  );
-
-  if ($score >= 80) {
-    $matchedQueueId = $empQueueId;
-    $matchedEmployerId = $empId;
-    $matched = true;
-    break;
-  }
-}
-
-if (!$matched) {
-  echo json_encode(['ok' => false, 'error' => 'No suitable match found. Your profile may not meet current employer requirements.']);
-  exit;
-}
-
-// Create call room
-$room = 'QH-' . bin2hex(random_bytes(6));
-
 try {
-  $pdo->beginTransaction();
+  // Check if jobseeker profile is complete
+  $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? AND is_profile_complete = 1");
+  $stmt->execute([$userId]);
+  $user = $stmt->fetch();
+  
+  if (!$user) {
+    echo json_encode(['ok' => false, 'error' => 'Please complete your profile first']);
+    exit;
+  }
 
-  $stmt = $pdo->prepare("
-    INSERT INTO calls (room_code, employer_user_id, jobseeker_user_id, status)
-    VALUES (?, ?, ?, 'RINGING')
+  // FIRST: Check if there's already an incoming call (same as "Join now" button)
+  $incomingStmt = $pdo->prepare("
+    SELECT room_code FROM calls
+    WHERE jobseeker_user_id = ? AND status IN ('RINGING','IN_CALL')
+    ORDER BY id DESC LIMIT 1
   ");
-  $stmt->execute([$room, $matchedEmployerId, $userId]);
+  $incomingStmt->execute([$userId]);
+  $incoming = $incomingStmt->fetch();
+  
+  if ($incoming) {
+    // There's already a call waiting - return that room (same as "Join now")
+    echo json_encode(['ok' => true, 'room' => $incoming['room_code']]);
+    exit;
+  }
 
-  // Deactivate the queue
-  $stmt = $pdo->prepare("UPDATE matchmaking_queue SET is_active = 0 WHERE id = ?");
-  $stmt->execute([$matchedQueueId]);
+  // SECOND: If no existing call, try to find a new match
+  $engine = new MatchEngine();
+  $svc = new MatchmakingService($pdo, $engine);
+  
+  $room = $svc->findNextMatch($userId, 'JOBSEEKER');
 
-  $pdo->commit();
+  if (!$room) {
+    echo json_encode(['ok' => false, 'error' => 'No employers available right now. Please try again later.']);
+    exit;
+  }
 
-  echo json_encode(['ok' => true, 'room' => $room, 'status' => 'matched']);
-} catch (\Throwable $e) {
-  $pdo->rollBack();
-  echo json_encode(['ok' => false, 'error' => 'Failed to create match']);
+  echo json_encode(['ok' => true, 'room' => $room]);
+
+} catch (Exception $e) {
+  error_log("Find employer error: " . $e->getMessage());
+  echo json_encode(['ok' => false, 'error' => 'Failed to find match: ' . $e->getMessage()]);
 }

@@ -59,7 +59,8 @@ try {
   exit;
 
 } catch (Exception $e) {
-  Session::flash('error', $e->getMessage());
+  error_log("Matchmaking error: " . $e->getMessage());
+  Session::flash('error', 'Failed to start matching: ' . $e->getMessage());
   header("Location: /QuickHire/Public/employer-dashboard.php");
   exit;
 }

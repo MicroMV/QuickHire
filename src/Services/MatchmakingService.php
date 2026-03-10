@@ -32,7 +32,7 @@ class MatchmakingService
                 $employerId,
                 trim($criteria['role_title'] ?? ''),
                 trim($criteria['country'] ?? ''),
-                $criteria['employment_type'] ?? null
+                trim($criteria['employment_type'] ?? '')
             ]);
 
             $queueId = (int)$this->pdo->lastInsertId();
@@ -46,10 +46,12 @@ class MatchmakingService
             return $queueId;
         } catch (\Throwable $e) {
             $this->pdo->rollBack();
-            throw new Exception("Failed to start matchmaking.");
+            error_log("MatchmakingService::enqueueEmployer error: " . $e->getMessage());
+            throw new Exception("Failed to start matchmaking: " . $e->getMessage());
         }
     }
 
+    /** Find a jobseeker that matches employer criteria >=80; create call room; return room_code */
     /** Find a jobseeker that matches employer criteria >=80; create call room; return room_code */
     public function matchEmployerNow(int $queueId, int $employerId): ?string
     {
@@ -119,6 +121,125 @@ class MatchmakingService
         } catch (\Throwable $e) {
             $this->pdo->rollBack();
             return null;
+        }
+    }
+
+    /** Jobseeker enters matchmaking queue */
+    public function enqueueJobseeker(int $jobseekerId): int
+    {
+        $this->pdo->beginTransaction();
+        try {
+            // deactivate old queue if any
+            $this->pdo->prepare("UPDATE matchmaking_queue SET is_active=0 WHERE user_id=?")->execute([$jobseekerId]);
+
+            $stmt = $this->pdo->prepare("
+              INSERT INTO matchmaking_queue (user_id, role)
+              VALUES (?, 'JOBSEEKER')
+            ");
+            $stmt->execute([$jobseekerId]);
+
+            $queueId = (int)$this->pdo->lastInsertId();
+            $this->pdo->commit();
+            return $queueId;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            error_log("MatchmakingService::enqueueJobseeker error: " . $e->getMessage());
+            throw new \Exception("Failed to start matchmaking: " . $e->getMessage());
+        }
+    }
+
+    /** Find next match for user (skip current partner) */
+    public function findNextMatch(int $userId, string $role, ?int $skipUserId = null): ?string
+    {
+        if ($role === 'EMPLOYER') {
+            // Get employer's last queue criteria
+            $lastQueue = $this->pdo->prepare("
+                SELECT * FROM matchmaking_queue 
+                WHERE user_id=? AND role='EMPLOYER' 
+                ORDER BY id DESC LIMIT 1
+            ");
+            $lastQueue->execute([$userId]);
+            $q = $lastQueue->fetch();
+
+            if (!$q) return null;
+
+            $reqSkillIds = $this->getQueueSkillIds((int)$q['id']);
+
+            // Find jobseekers
+            $candidates = $this->pdo->query("
+              SELECT u.id AS user_id, p.*
+              FROM users u
+              JOIN jobseeker_profiles p ON p.user_id = u.id
+              WHERE u.role='JOBSEEKER' AND u.is_profile_complete=1
+            ")->fetchAll();
+
+            $best = null;
+            $bestScore = 0;
+
+            foreach ($candidates as $js) {
+                $jobseekerId = (int)$js['user_id'];
+
+                // Skip current partner and users in active calls
+                if ($jobseekerId === $skipUserId) continue;
+                if ($this->isInActiveCall($jobseekerId)) continue;
+
+                $jsSkillIds = $this->getJobseekerSkillIds($jobseekerId);
+
+                $score = $this->engine->score(
+                    [
+                      'role_title' => $q['wanted_role'] ?? '',
+                      'employment_type' => $q['employment_type'] ?? 'PART_TIME',
+                      'country' => $q['wanted_country'] ?? ''
+                    ],
+                    $js,
+                    $reqSkillIds,
+                    $jsSkillIds
+                );
+
+                if ($score >= 80 && $score > $bestScore) {
+                    $bestScore = $score;
+                    $best = $jobseekerId;
+                }
+            }
+
+            if (!$best) return null;
+
+            // Create new call room
+            $room = $this->newRoomCode();
+            $this->pdo->prepare("
+              INSERT INTO calls (room_code, employer_user_id, jobseeker_user_id, status)
+              VALUES (?, ?, ?, 'RINGING')
+            ")->execute([$room, $userId, $best]);
+
+            return $room;
+
+        } else {
+            // Jobseeker looking for employer
+            // Find any employer in queue
+            $employers = $this->pdo->query("
+                SELECT mq.*, ep.* 
+                FROM matchmaking_queue mq
+                JOIN employer_profiles ep ON ep.user_id = mq.user_id
+                WHERE mq.role='EMPLOYER' AND mq.is_active=1
+            ")->fetchAll();
+
+            if (empty($employers)) return null;
+
+            // Pick random employer (or first available)
+            $employer = $employers[array_rand($employers)];
+            $employerId = (int)$employer['user_id'];
+
+            if ($employerId === $skipUserId) return null;
+            if ($this->isInActiveCall($employerId)) return null;
+
+            // Create call room
+            $room = $this->newRoomCode();
+            $this->pdo->prepare("
+              INSERT INTO calls (room_code, employer_user_id, jobseeker_user_id, status)
+              VALUES (?, ?, ?, 'RINGING')
+            ")->execute([$room, $employerId, $userId]);
+
+            return $room;
         }
     }
 

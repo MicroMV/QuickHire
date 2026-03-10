@@ -150,7 +150,6 @@ $flashSuccess = Session::flash('success');
   <!-- SIDEBAR -->
   <aside class="side">
     <div class="brandRow">
-      <img src="/QuickHire/Public/images/quickhire-logo.jpg" alt="QuickHire">
       <div>
         <div class="t1">QuickHire</div>
         <div class="t2">Jobseeker Dashboard</div>
@@ -171,17 +170,15 @@ $flashSuccess = Session::flash('success');
         </div>
         <div class="meta">
           <?= htmlspecialchars(($profile['country'] ?? 'Country not set')) ?>
-          • ₱<?= htmlspecialchars((string)($profile['rate_per_hour'] ?? '0')) ?>/hr
+          • $<?= htmlspecialchars((string)($profile['rate_per_hour'] ?? '0')) ?>/hr
         </div>
       </div>
     </div>
 
     <nav class="nav">
-      <a class="primary" href="/QuickHire/Public/find-employer.php">🔍 Find Employer</a>
+      <button class="primary" id="btnFindEmployer">🔍 Find Employer</button>
 
-      <a href="/QuickHire/Public/complete-profile.php">Edit Profile</a>
-      <a href="/QuickHire/Public/jobseeker-skills.php">Update Skills</a>
-      <a href="/QuickHire/Public/jobseeker-resume.php">Upload / Update Resume</a>
+      <button id="btnEditProfile">Edit Profile</button>
       <a href="/QuickHire/Public/settings.php">Settings</a>
 
       <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
@@ -194,11 +191,11 @@ $flashSuccess = Session::flash('success');
   <main class="main">
     <?php if ($incomingRoom): ?>
       <div class="notice ok" style="margin-bottom:14px;">
-        🔔 Incoming call from employer! <a href="/QuickHire/Public/call.php?room=<?= urlencode($incomingRoom) ?>" style="font-weight:900; color:inherit;">Join now</a>
+        🔔 Incoming call from employer! Click "Find Employer" to join the call.
       </div>
     <?php else: ?>
       <div class="notice" style="background:#f0f4f8; color:#1f6f82; margin-bottom:14px;">
-        ⏳ Waiting for employer matches... Make sure your profile is complete to receive calls.
+        ⏳ Ready to find employers? Click "Find Employer" to start matching or join waiting calls.
       </div>
     <?php endif; ?>
 
@@ -211,14 +208,14 @@ $flashSuccess = Session::flash('success');
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
-        <a class="btn outline" href="/QuickHire/Public/complete-profile.php">Update Profile</a>
+        <!-- Removed Update Profile button -->
       </div>
     </div>
 
     <?php if ($flashError): ?><div class="notice err"><?= htmlspecialchars($flashError) ?></div><?php endif; ?>
     <?php if ($flashSuccess): ?><div class="notice ok"><?= htmlspecialchars($flashSuccess) ?></div><?php endif; ?>
 
-    <div class="grid">
+    <div class="grid" id="dashboardContent">
       <!-- Status card -->
       <section class="card">
         <h3>📊 Your Status</h3>
@@ -227,8 +224,8 @@ $flashSuccess = Session::flash('success');
         </p>
 
         <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-          <a class="btn primary" href="/QuickHire/Public/complete-profile.php">Complete Profile</a>
-          <a class="btn outline" href="/QuickHire/Public/jobseeker-skills.php">Add Skills</a>
+          <button class="btn primary" id="btnFindEmployer2">Find Employer</button>
+          <button class="btn outline" id="btnEditProfile2">Edit Profile</button>
         </div>
       </section>
 
@@ -247,8 +244,164 @@ $flashSuccess = Session::flash('success');
         </div>
       </aside>
     </div>
+
+    <!-- Profile Edit Form (Hidden by default) -->
+    <div class="card" id="profileEditContent" style="display:none;">
+      <div style="margin-bottom:20px;">
+        <h3>✏️ Edit Your Profile</h3>
+      </div>
+
+      <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="profileForm">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+        <input type="hidden" name="profile_type" value="JOBSEEKER">
+
+        <div class="grid">
+          <div style="grid-column:1/-1;">
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Profile Picture (JPG/PNG)</label>
+            <input type="file" name="profile_picture" accept="image/*" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Desired Job Role *</label>
+            <input name="role_title" value="<?= htmlspecialchars($profile['role_title'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Rate per Hour (USD) *</label>
+            <input name="rate_per_hour" type="number" step="0.01" value="<?= htmlspecialchars($profile['rate_per_hour'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Available Hours per Day *</label>
+            <input name="available_time" value="<?= htmlspecialchars($profile['available_time'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Country *</label>
+            <input name="country" value="<?= htmlspecialchars($profile['country'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">English Mastery *</label>
+            <select name="english_mastery" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+              <?php
+                $levels = ['BEGINNER','INTERMEDIATE','ADVANCED','FLUENT','NATIVE'];
+                $cur = $profile['english_mastery'] ?? '';
+                echo '<option value="">Select</option>';
+                foreach ($levels as $lv) {
+                  $sel = ($cur === $lv) ? 'selected' : '';
+                  echo "<option value=\"$lv\" $sel>$lv</option>";
+                }
+              ?>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Bachelor's Degree</label>
+            <input name="bachelors_degree" value="<?= htmlspecialchars($profile['bachelors_degree'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Portfolio/Website</label>
+            <input name="portfolio_url" value="<?= htmlspecialchars($profile['portfolio_url'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Age</label>
+            <input name="age" type="number" value="<?= htmlspecialchars($profile['age'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Gender</label>
+            <select name="gender" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+              <?php $g = $profile['gender'] ?? ''; ?>
+              <option value="">Prefer not to say</option>
+              <option value="MALE" <?= $g==='MALE'?'selected':'' ?>>Male</option>
+              <option value="FEMALE" <?= $g==='FEMALE'?'selected':'' ?>>Female</option>
+              <option value="OTHER" <?= $g==='OTHER'?'selected':'' ?>>Other</option>
+            </select>
+          </div>
+
+          <div style="grid-column:1/-1;">
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Profile Description *</label>
+            <textarea name="profile_description" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; min-height:100px; resize:vertical;"><?= htmlspecialchars($profile['profile_description'] ?? '') ?></textarea>
+          </div>
+
+          <div style="grid-column:1/-1;">
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Resume (PDF)</label>
+            <input type="file" name="resume" accept="application/pdf" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+            <div style="font-size:12px; color:var(--muted); margin-top:6px;">If you upload a new one, it replaces the old resume.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:10px;">
+          <button type="submit" class="btn primary" style="flex:1;">Save Profile</button>
+          <button type="button" class="btn outline" id="btnCancelEdit" style="flex:1;">Cancel</button>
+        </div>
+      </form>
+    </div>
   </main>
 </div>
 
 </body>
+
+<script>
+  const btnFindEmployer = document.getElementById('btnFindEmployer');
+  const btnFindEmployer2 = document.getElementById('btnFindEmployer2');
+  const btnEditProfile = document.getElementById('btnEditProfile');
+  const btnEditProfile2 = document.getElementById('btnEditProfile2');
+  const btnCancelEdit = document.getElementById('btnCancelEdit');
+  
+  const dashboardContent = document.getElementById('dashboardContent');
+  const profileEditContent = document.getElementById('profileEditContent');
+
+  async function findEmployer() {
+    // Disable buttons to prevent multiple clicks
+    btnFindEmployer.disabled = true;
+    btnFindEmployer2.disabled = true;
+    btnFindEmployer.textContent = '🔍 Searching...';
+    btnFindEmployer2.textContent = 'Searching...';
+
+    try {
+      const response = await fetch('/QuickHire/Public/actions/find_employer.php');
+      const data = await response.json();
+
+      if (data.ok && data.room) {
+        // Direct redirect to call page (same as "Join now")
+        window.location.href = '/QuickHire/Public/call.php?room=' + encodeURIComponent(data.room);
+      } else {
+        alert(data.error || 'No employers available right now. Please try again later.');
+        // Re-enable buttons
+        btnFindEmployer.disabled = false;
+        btnFindEmployer2.disabled = false;
+        btnFindEmployer.textContent = '🔍 Find Employer';
+        btnFindEmployer2.textContent = 'Find Employer';
+      }
+    } catch (error) {
+      alert('Connection error. Please try again.');
+      // Re-enable buttons
+      btnFindEmployer.disabled = false;
+      btnFindEmployer2.disabled = false;
+      btnFindEmployer.textContent = '🔍 Find Employer';
+      btnFindEmployer2.textContent = 'Find Employer';
+    }
+  }
+
+  function showProfileEdit() {
+    dashboardContent.style.display = 'none';
+    profileEditContent.style.display = 'block';
+  }
+
+  function showDashboard() {
+    dashboardContent.style.display = 'grid';
+    profileEditContent.style.display = 'none';
+  }
+
+  btnFindEmployer.addEventListener('click', findEmployer);
+  btnFindEmployer2.addEventListener('click', findEmployer);
+  btnEditProfile.addEventListener('click', showProfileEdit);
+  btnEditProfile2.addEventListener('click', showProfileEdit);
+  btnCancelEdit.addEventListener('click', showDashboard);
+</script>
+
 </html>

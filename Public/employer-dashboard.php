@@ -158,27 +158,6 @@ $flashSuccess = Session::flash('success');
     .btn.primary{ background:var(--primary); color:#fff; }
     .btn.outline{ background:#fff; border-color:var(--line); color:#111; }
 
-    /* Modal */
-    .modal{ display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
-    .modal.active{ display:flex; }
-    .modal-content{
-      background:#fff; border-radius:18px; padding:24px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto;
-    }
-    .modal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-    .modal-header h2{ margin:0; font-size:20px; }
-    .modal-close{ background:none; border:none; font-size:24px; cursor:pointer; color:var(--muted); }
-
-    .form-group{ margin-bottom:16px; }
-    .form-group label{ display:block; font-weight:900; margin-bottom:6px; }
-    .form-group input, .form-group select, .form-group textarea{
-      width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-family:inherit;
-    }
-    .form-group textarea{ resize:vertical; min-height:80px; }
-
-    .skills-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:10px; }
-    .skill-checkbox{ display:flex; align-items:center; gap:8px; }
-    .skill-checkbox input{ width:18px; height:18px; cursor:pointer; }
-
     .history-table{ width:100%; border-collapse:collapse; margin-top:10px; }
     .history-table th, .history-table td{ padding:10px; text-align:left; border-bottom:1px solid var(--line); font-size:13px; }
     .history-table th{ font-weight:900; background:#f9fafb; }
@@ -200,7 +179,6 @@ $flashSuccess = Session::flash('success');
   <!-- SIDEBAR -->
   <aside class="side">
     <div class="brandRow">
-      <img src="/QuickHire/Public/images/quickhire-logo.jpg" alt="QuickHire">
       <div>
         <div class="t1">QuickHire</div>
         <div class="t2">Employer Dashboard</div>
@@ -228,7 +206,7 @@ $flashSuccess = Session::flash('success');
     <nav class="nav">
       <button class="primary" id="btnFindMatch">🔍 Find Jobseeker</button>
 
-      <a href="/QuickHire/Public/complete-profile.php">Edit Profile</a>
+      <button id="btnEditProfile">Edit Profile</button>
       <a href="/QuickHire/Public/settings.php">Settings</a>
 
       <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
@@ -241,11 +219,11 @@ $flashSuccess = Session::flash('success');
   <main class="main">
     <?php if ($incomingRoom): ?>
       <div class="notice ok" style="margin-bottom:14px;">
-        🔔 Active call with jobseeker! <a href="/QuickHire/Public/call.php?room=<?= urlencode($incomingRoom) ?>" style="font-weight:900; color:inherit;">Join now</a>
+        🔔 Active call with jobseeker! Click "Find Jobseeker" to join the call.
       </div>
     <?php else: ?>
       <div class="notice" style="background:#f0f4f8; color:#1f6f82; margin-bottom:14px;">
-        ⏳ Ready to find jobseekers? Click "Find Jobseeker" to start matching based on skills and role.
+        ⏳ Ready to find jobseekers? Click "Find Jobseeker" to start matching or join active calls.
       </div>
     <?php endif; ?>
 
@@ -258,14 +236,14 @@ $flashSuccess = Session::flash('success');
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
-        <a class="btn outline" href="/QuickHire/Public/complete-profile.php">Update Profile</a>
+        <!-- Removed Update Profile button -->
       </div>
     </div>
 
     <?php if ($flashError): ?><div class="notice err"><?= htmlspecialchars($flashError) ?></div><?php endif; ?>
     <?php if ($flashSuccess): ?><div class="notice ok"><?= htmlspecialchars($flashSuccess) ?></div><?php endif; ?>
 
-    <div class="grid">
+    <div class="grid" id="dashboardContent">
       <!-- Status card -->
       <section class="card">
         <h3>📊 Matching Status</h3>
@@ -275,7 +253,7 @@ $flashSuccess = Session::flash('success');
 
         <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn primary" id="btnFindMatch2">Find Jobseeker</button>
-          <a class="btn outline" href="/QuickHire/Public/complete-profile.php">Update Profile</a>
+          <button class="btn outline" id="btnEditProfile2">Edit Profile</button>
         </div>
       </section>
 
@@ -296,6 +274,40 @@ $flashSuccess = Session::flash('success');
           <?php endif; ?>
         </div>
       </aside>
+    </div>
+
+    <!-- Profile Edit Form (Hidden by default) -->
+    <div class="card" id="profileEditContent" style="display:none;">
+      <div style="margin-bottom:20px;">
+        <h3>✏️ Edit Your Profile</h3>
+      </div>
+
+      <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="profileForm">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+        <input type="hidden" name="profile_type" value="EMPLOYER">
+
+        <div class="grid">
+          <div style="grid-column:1/-1;">
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Profile Picture (JPG/PNG/WEBP)</label>
+            <input type="file" name="profile_picture" accept="image/*" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Country *</label>
+            <input name="country" value="<?= htmlspecialchars($profile['country'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+
+          <div>
+            <label style="display:block; font-weight:900; margin-bottom:6px;">Business Name / Company Name *</label>
+            <input name="company_name" value="<?= htmlspecialchars($profile['company_name'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+          </div>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:10px;">
+          <button type="submit" class="btn primary" style="flex:1;">Save Profile</button>
+          <button type="button" class="btn outline" id="btnCancelEdit" style="flex:1;">Cancel</button>
+        </div>
+      </form>
     </div>
 
     <!-- Call History -->
@@ -334,71 +346,111 @@ $flashSuccess = Session::flash('success');
     </section>
   </main>
 </div>
-
-<!-- MODAL: Find Match -->
-<div class="modal" id="matchModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>Find Jobseeker Match</h2>
-      <button class="modal-close" id="btnCloseModal">&times;</button>
-    </div>
-
-    <form id="matchForm" method="POST" action="/QuickHire/Public/actions/find_match.php">
-      <div class="form-group">
-        <label for="role_title">Role Title *</label>
-        <input type="text" id="role_title" name="role_title" placeholder="e.g., Web Developer, Data Analyst" required>
-      </div>
-
-      <div class="form-group">
-        <label for="country">Country *</label>
-        <input type="text" id="country" name="country" placeholder="e.g., Philippines, USA" required>
-      </div>
-
-      <div class="form-group">
-        <label for="employment_type">Employment Type</label>
-        <select id="employment_type" name="employment_type">
-          <option value="PART_TIME">Part-time</option>
-          <option value="FULL_TIME">Full-time</option>
-          <option value="CONTRACT">Contract</option>
-          <option value="FREELANCE">Freelance</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Required Skills</label>
-        <div class="skills-grid">
-          <?php foreach ($allSkills as $skill): ?>
-            <div class="skill-checkbox">
-              <input type="checkbox" id="skill_<?= $skill['id'] ?>" name="skill_ids[]" value="<?= $skill['id'] ?>">
-              <label for="skill_<?= $skill['id'] ?>" style="margin:0; font-weight:600;"><?= htmlspecialchars($skill['name']) ?></label>
-            </div>
-          <?php endforeach; ?>
-        </div>
-      </div>
-
-      <div style="display:flex; gap:10px; margin-top:20px;">
-        <button type="submit" class="btn primary" style="flex:1;">Find Match</button>
-        <button type="button" class="btn outline" id="btnCancelModal" style="flex:1;">Cancel</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <script>
-  const matchModal = document.getElementById('matchModal');
   const btnFindMatch = document.getElementById('btnFindMatch');
   const btnFindMatch2 = document.getElementById('btnFindMatch2');
-  const btnCloseModal = document.getElementById('btnCloseModal');
-  const btnCancelModal = document.getElementById('btnCancelModal');
+  const btnEditProfile = document.getElementById('btnEditProfile');
+  const btnEditProfile2 = document.getElementById('btnEditProfile2');
+  const btnCancelEdit = document.getElementById('btnCancelEdit');
+  
+  const dashboardContent = document.getElementById('dashboardContent');
+  const profileEditContent = document.getElementById('profileEditContent');
 
-  btnFindMatch.addEventListener('click', () => matchModal.classList.add('active'));
-  btnFindMatch2.addEventListener('click', () => matchModal.classList.add('active'));
-  btnCloseModal.addEventListener('click', () => matchModal.classList.remove('active'));
-  btnCancelModal.addEventListener('click', () => matchModal.classList.remove('active'));
+  async function findJobseeker() {
+    // Disable buttons to prevent multiple clicks
+    btnFindMatch.disabled = true;
+    btnFindMatch2.disabled = true;
+    btnFindMatch.textContent = '🔍 Searching...';
+    btnFindMatch2.textContent = 'Searching...';
 
-  matchModal.addEventListener('click', (e) => {
-    if (e.target === matchModal) matchModal.classList.remove('active');
-  });
+    try {
+      // First check if there's already an active call (same as "Join now")
+      const checkResponse = await fetch('/QuickHire/Public/actions/check_active_call.php');
+      const checkData = await checkResponse.json();
+      
+      if (checkData.ok && checkData.room) {
+        // There's already an active call - join it directly
+        window.location.href = '/QuickHire/Public/call.php?room=' + encodeURIComponent(checkData.room);
+        return;
+      }
+
+      // No active call, proceed with matching
+      const roleTitle = prompt('Enter role title (e.g., Web Developer):');
+      if (!roleTitle) {
+        // Re-enable buttons if user cancels
+        btnFindMatch.disabled = false;
+        btnFindMatch2.disabled = false;
+        btnFindMatch.textContent = '🔍 Find Jobseeker';
+        btnFindMatch2.textContent = 'Find Jobseeker';
+        return;
+      }
+
+      const country = prompt('Enter country (e.g., Philippines):');
+      if (!country) {
+        // Re-enable buttons if user cancels
+        btnFindMatch.disabled = false;
+        btnFindMatch2.disabled = false;
+        btnFindMatch.textContent = '🔍 Find Jobseeker';
+        btnFindMatch2.textContent = 'Find Jobseeker';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('role_title', roleTitle);
+      formData.append('country', country);
+      formData.append('employment_type', 'FULL_TIME');
+      formData.append('skill_ids', []); // No specific skills required
+
+      const response = await fetch('/QuickHire/Public/actions/find_match.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      // Check if response is a redirect (successful match)
+      if (response.redirected) {
+        window.location.href = response.url;
+        return;
+      }
+
+      // If not redirected, check for error
+      const text = await response.text();
+      if (text.includes('No available jobseeker')) {
+        alert('No jobseekers available right now. Please try again later.');
+      } else {
+        // Try to extract room from response if it's a call page
+        const roomMatch = text.match(/room=([^"&]+)/);
+        if (roomMatch) {
+          window.location.href = '/QuickHire/Public/call.php?room=' + roomMatch[1];
+          return;
+        }
+        alert('No matches found. Please try again later.');
+      }
+    } catch (error) {
+      alert('Connection error. Please try again.');
+    }
+
+    // Re-enable buttons
+    btnFindMatch.disabled = false;
+    btnFindMatch2.disabled = false;
+    btnFindMatch.textContent = '🔍 Find Jobseeker';
+    btnFindMatch2.textContent = 'Find Jobseeker';
+  }
+
+  function showProfileEdit() {
+    dashboardContent.style.display = 'none';
+    profileEditContent.style.display = 'block';
+  }
+
+  function showDashboard() {
+    dashboardContent.style.display = 'grid';
+    profileEditContent.style.display = 'none';
+  }
+
+  btnFindMatch.addEventListener('click', findJobseeker);
+  btnFindMatch2.addEventListener('click', findJobseeker);
+  btnEditProfile.addEventListener('click', showProfileEdit);
+  btnEditProfile2.addEventListener('click', showProfileEdit);
+  btnCancelEdit.addEventListener('click', showDashboard);
 </script>
 
 </body>

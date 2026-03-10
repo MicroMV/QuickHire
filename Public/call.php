@@ -37,69 +37,115 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickHire Call</title>
     <style>
+        * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: Inter, system-ui, Arial;
             background: #0b1220;
             color: #fff;
+            overflow: hidden;
         }
 
-        .wrap {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 18px;
+        .container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
         }
 
-        .top {
+        /* Video Section */
+        .video-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+        }
+
+        .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, .06);
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 12px;
         }
 
         .badge {
-            padding: 8px 12px;
+            padding: 6px 12px;
             border: 1px solid rgba(255, 255, 255, .15);
             border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        .video-grid {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             gap: 12px;
+            min-height: 0;
+            align-items: center;
+            justify-content: center;
         }
 
-        .card {
+        .video-card {
             background: rgba(255, 255, 255, .06);
             border: 1px solid rgba(255, 255, 255, .12);
             border-radius: 16px;
             padding: 12px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 1;
+        }
+
+        .video-label {
+            font-weight: 900;
+            margin-bottom: 8px;
+            font-size: 14px;
+            z-index: 10;
+            position: relative;
         }
 
         video {
             width: 100%;
-            height: 420px;
+            height: 100%;
             background: #000;
             border-radius: 12px;
             object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .controls {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            margin-top: 12px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, .06);
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 12px;
         }
 
         button {
-            padding: 12px 14px;
-            border-radius: 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, .18);
-            background: rgba(255, 255, 255, .06);
+            background: rgba(255, 255, 255, .08);
             color: #fff;
             font-weight: 800;
             cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, .15);
         }
 
         button.danger {
@@ -107,103 +153,309 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             border-color: #b42318;
         }
 
-        .log {
-            margin-top: 12px;
-            color: #cbd5e1;
-            font-size: 12px;
+        button.danger:hover {
+            background: #991f14;
+        }
+
+        button.success {
+            background: #16a34a;
+            border-color: #16a34a;
+        }
+
+        button.success:hover {
+            background: #15803d;
+        }
+
+        /* Chat Section */
+        .chat-section {
+            width: 380px;
+            background: rgba(255, 255, 255, .04);
+            border-left: 1px solid rgba(255, 255, 255, .12);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .12);
+            font-weight: 900;
+            font-size: 16px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-width: 85%;
+        }
+
+        .message.me {
+            align-self: flex-end;
+        }
+
+        .message.them {
+            align-self: flex-start;
+        }
+
+        .message-sender {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .5);
+            padding: 0 8px;
+        }
+
+        .message-content {
+            padding: 10px 14px;
+            border-radius: 16px;
+            word-wrap: break-word;
             line-height: 1.4;
-            white-space: pre-wrap;
+            font-size: 14px;
+        }
+
+        .message.me .message-content {
+            background: #1f6f82;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.them .message-content {
+            background: rgba(255, 255, 255, .1);
+            color: #fff;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input-area {
+            padding: 16px;
+            border-top: 1px solid rgba(255, 255, 255, .12);
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .06);
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #1f6f82;
+        }
+
+        .chat-input::placeholder {
+            color: rgba(255, 255, 255, .4);
+        }
+
+        .send-btn {
+            padding: 12px 20px;
+            background: #1f6f82;
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .send-btn:hover {
+            background: #1a5f70;
         }
 
         @media (max-width: 900px) {
-            .grid {
-                grid-template-columns: 1fr;
+            .container {
+                flex-direction: column;
             }
 
-            video {
-                height: 320px;
+            .chat-section {
+                width: 100%;
+                height: 40vh;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, .12);
             }
+
+            .video-grid {
+                flex-direction: row;
+                gap: 8px;
+            }
+
+            .video-card {
+                max-width: none;
+                width: 50%;
+                aspect-ratio: 1;
+            }
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, .05);
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, .2);
+            border-radius: 3px;
         }
     </style>
 </head>
 
 <body>
-    <div class="wrap">
-        <div class="top">
-            <div class="badge">Room: <strong><?= htmlspecialchars($room) ?></strong></div>
-            <div class="badge">You: <strong><?= htmlspecialchars(Auth::role()) ?></strong></div>
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <div style="font-weight:900;margin-bottom:8px;">You</div>
-                <video id="localVideo" autoplay playsinline muted></video>
+    <div class="container">
+        <!-- Video Section -->
+        <div class="video-section">
+            <div class="top-bar">
+                <div class="badge">Room: <strong><?= htmlspecialchars($room) ?></strong></div>
+                <div class="badge">You: <strong><?= htmlspecialchars(Auth::role()) ?></strong></div>
             </div>
-            <div class="card">
-                <div style="font-weight:900;margin-bottom:8px;">Partner</div>
-                <video id="remoteVideo" autoplay playsinline></video>
+
+            <div class="video-grid">
+                <div class="video-card">
+                    <div class="video-label">Your Video</div>
+                    <video id="localVideo" autoplay playsinline muted></video>
+                </div>
+                <div class="video-card">
+                    <div class="video-label">Partner's Video</div>
+                    <video id="remoteVideo" autoplay playsinline></video>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="btnCam">📹 Camera: ON</button>
+                <button id="btnMic">🎤 Mic: ON</button>
+                <button id="btnNext" class="success">⏭️ Next</button>
+                <button id="btnHang" class="danger">📞 End Call</button>
             </div>
         </div>
 
-        <div class="controls">
-            <button id="btnCam">Camera: ON</button>
-            <button id="btnMic">Mic: ON</button>
-            <button id="btnHang" class="danger">Hang up</button>
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-header">💬 Chat</div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." />
+                <button id="btnSend" class="send-btn">Send</button>
+            </div>
         </div>
-
-        <div class="log" id="log"></div>
     </div>
 
     <script>
         const ROOM = <?= json_encode($room) ?>;
-
-        const logEl = document.getElementById('log');
-
-        function log(msg) {
-            logEl.textContent += msg + "\n";
-        }
+        const MY_ID = <?= json_encode(Auth::userId()) ?>;
+        const MY_ROLE = <?= json_encode(Auth::role()) ?>;
 
         let localStream = null;
         let pc = null;
-        let afterId = 0;
+        let afterSignalId = 0;
+        let afterChatId = 0;
         let polling = true;
 
         const iceConfig = {
             iceServers: [{
-                    urls: "stun:stun.l.google.com:19302"
-                } // ✅ free STUN
-            ]
+                urls: "stun:stun.l.google.com:19302"
+            }]
         };
 
-        async function sendSignal(type, payload) {
-            await fetch("/QuickHire/Public/actions/signal_send.php", {
+        // ===== CHAT FUNCTIONS =====
+        async function sendChatMessage(message) {
+            await fetch("/QuickHire/Public/actions/chat_send.php", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    room: ROOM,
-                    type,
-                    payload
-                })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ room: ROOM, message })
+            });
+        }
+
+        async function pollChatMessages() {
+            while (polling) {
+                try {
+                    const res = await fetch(`/QuickHire/Public/actions/chat_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterChatId}`);
+                    const data = await res.json();
+                    if (data.ok) {
+                        afterChatId = data.after;
+                        for (const msg of data.messages) {
+                            displayChatMessage(msg);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Chat poll error:", e);
+                }
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+
+        function displayChatMessage(msg) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (msg.sender_id == MY_ID ? 'me' : 'them');
+            
+            const senderDiv = document.createElement('div');
+            senderDiv.className = 'message-sender';
+            senderDiv.textContent = msg.sender_id == MY_ID ? 'You' : `${msg.first_name} (${msg.role})`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = msg.message;
+            
+            messageDiv.appendChild(senderDiv);
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        document.getElementById('btnSend').addEventListener('click', () => {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (message) {
+                sendChatMessage(message);
+                input.value = '';
+            }
+        });
+
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('btnSend').click();
+            }
+        });
+
+        // ===== WEBRTC FUNCTIONS =====
+        async function sendSignal(type, payload) {
+            await fetch("/QuickHire/Public/actions/singal_send.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ room: ROOM, type, payload })
             });
         }
 
         async function pollSignals() {
             while (polling) {
                 try {
-                    const res = await fetch(`/QuickHire/Public/actions/signal_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterId}`);
+                    const res = await fetch(`/QuickHire/Public/actions/signal_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterSignalId}`);
                     const data = await res.json();
                     if (data.ok) {
-                        afterId = data.after;
+                        afterSignalId = data.after;
                         for (const m of data.messages) {
                             await handleSignal(m.type, m.payload);
                         }
                     }
                 } catch (e) {
-                    log("Poll error: " + e.message);
+                    console.error("Signal poll error:", e);
                 }
-                await new Promise(r => setTimeout(r, 700)); // polling interval
+                await new Promise(r => setTimeout(r, 700));
             }
         }
 
@@ -213,19 +465,14 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 audio: true
             });
             document.getElementById('localVideo').srcObject = localStream;
-            log("Media ready (camera+mic).");
         }
 
         function initPeer() {
             pc = new RTCPeerConnection(iceConfig);
-
-            // send local tracks
             localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-            // receive remote tracks
             pc.ontrack = (ev) => {
                 document.getElementById('remoteVideo').srcObject = ev.streams[0];
-                log("Remote stream connected.");
             };
 
             pc.onicecandidate = (ev) => {
@@ -233,97 +480,322 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                     sendSignal("candidate", ev.candidate);
                 }
             };
-
-            pc.onconnectionstatechange = () => {
-                log("Connection state: " + pc.connectionState);
-            };
         }
 
         async function makeOffer() {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             await sendSignal("offer", offer);
-            log("Offer sent.");
         }
 
         async function handleSignal(type, payload) {
             if (!pc) return;
 
             if (type === "offer") {
-                log("Offer received.");
+                console.log("Received offer");
                 await pc.setRemoteDescription(payload);
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 await sendSignal("answer", answer);
-                log("Answer sent.");
             }
 
             if (type === "answer") {
-                log("Answer received.");
+                console.log("Received answer");
                 await pc.setRemoteDescription(payload);
             }
 
             if (type === "candidate") {
                 try {
                     await pc.addIceCandidate(payload);
-                } catch (e) {
-                    // sometimes candidates arrive early; ignore minor errors
-                }
+                } catch (e) {}
             }
 
             if (type === "leave") {
-                log("Partner left.");
+                console.log("Partner left the call");
                 endCall();
             }
         }
 
         function endCall() {
+            console.log("endCall() triggered - finding next match...");
             polling = false;
-            sendSignal("leave", {
-                bye: true
-            }).catch(() => {});
+            sendSignal("leave", { bye: true }).catch(() => {});
             if (pc) {
                 pc.close();
                 pc = null;
             }
-            if (localStream) {
-                localStream.getTracks().forEach(t => t.stop());
-                localStream = null;
-            }
-            alert("Call ended.");
-            window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
+            
+            // Don't stop local stream - keep camera/mic running
+            // if (localStream) {
+            //     localStream.getTracks().forEach(t => t.stop());
+            //     localStream = null;
+            // }
+            
+            // Auto-find next match instead of asking user
+            findNextMatchAuto();
         }
 
-        document.getElementById('btnHang').addEventListener('click', endCall);
+        async function findNextMatchAuto() {
+            console.log("Auto-finding next match...");
+            
+            // Show "Finding next match..." in the interface
+            showFindingNextMatch();
+            
+            try {
+                const response = await fetch("/QuickHire/Public/actions/next_match.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ room: ROOM })
+                });
+                const data = await response.json();
+                
+                if (data.ok && data.room) {
+                    console.log("Next match found:", data.room);
+                    // Update room code and restart call
+                    ROOM = data.room;
+                    restartCall();
+                } else {
+                    console.log("No more matches, trying to find new match...");
+                    // Try to find a completely new match
+                    await findNewMatch();
+                }
+            } catch (error) {
+                console.error("Error finding next match:", error);
+                // Fallback: try to find new match
+                await findNewMatch();
+            }
+        }
+
+        async function findNewMatch() {
+            try {
+                let response;
+                if (MY_ROLE === 'EMPLOYER') {
+                    // For employer, we need to create a new match with basic criteria
+                    const formData = new FormData();
+                    formData.append('role_title', 'Developer'); // Default criteria
+                    formData.append('country', 'Philippines');
+                    formData.append('employment_type', 'FULL_TIME');
+                    formData.append('skill_ids', []);
+                    
+                    response = await fetch('/QuickHire/Public/actions/find_match.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    // For jobseeker
+                    response = await fetch('/QuickHire/Public/actions/find_employer.php');
+                }
+                
+                if (MY_ROLE === 'EMPLOYER' && response.redirected) {
+                    // Extract room from redirect URL
+                    const url = new URL(response.url);
+                    const roomParam = url.searchParams.get('room');
+                    if (roomParam) {
+                        ROOM = roomParam;
+                        restartCall();
+                        return;
+                    }
+                }
+                
+                if (MY_ROLE === 'JOBSEEKER') {
+                    const data = await response.json();
+                    if (data.ok && data.room) {
+                        ROOM = data.room;
+                        restartCall();
+                        return;
+                    }
+                }
+                
+                // No match found
+                showNoMatchFound();
+                
+            } catch (error) {
+                console.error("Error finding new match:", error);
+                showNoMatchFound();
+            }
+        }
+
+        function restartCall() {
+            console.log("Restarting call with room:", ROOM);
+            
+            // Reset variables
+            afterSignalId = 0;
+            afterChatId = 0;
+            polling = true;
+            
+            // Clear chat messages
+            document.getElementById('chatMessages').innerHTML = '';
+            
+            // Hide "finding match" message
+            hideFindingNextMatch();
+            
+            // Initialize new peer connection
+            initPeer();
+            
+            // Send join signal for new room
+            sendSignal("join", { joined: true });
+            
+            // Start offer after delay
+            setTimeout(() => makeOffer().catch(() => {}), 900);
+            
+            // Restart polling
+            pollSignals();
+            pollChatMessages();
+            
+            console.log("Call restarted successfully");
+        }
+
+        function showFindingNextMatch() {
+            // Update video labels to show "Finding next match..."
+            const labels = document.querySelectorAll('.video-label');
+            labels.forEach(label => {
+                if (label.textContent.includes('Your')) {
+                    label.textContent = 'Your Video (Finding next match...)';
+                } else {
+                    label.textContent = 'Connecting to next match...';
+                }
+            });
+            
+            // Show overlay message
+            const overlay = document.createElement('div');
+            overlay.id = 'findingOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.9);
+                padding: 30px 40px;
+                border-radius: 16px;
+                z-index: 1000;
+                color: white;
+                font-size: 20px;
+                font-weight: 900;
+                text-align: center;
+                border: 2px solid #1f6f82;
+            `;
+            overlay.innerHTML = `
+                <div style="margin-bottom: 15px;">🔍 Finding next match...</div>
+                <div style="font-size: 14px; opacity: 0.8;">Keep your camera ready!</div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        function hideFindingNextMatch() {
+            // Restore original video labels
+            const labels = document.querySelectorAll('.video-label');
+            labels.forEach(label => {
+                if (label.textContent.includes('Your')) {
+                    label.textContent = 'Your Video';
+                } else {
+                    label.textContent = "Partner's Video";
+                }
+            });
+            
+            const overlay = document.getElementById('findingOverlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        function showNoMatchFound() {
+            const overlay = document.getElementById('findingOverlay');
+            if (overlay) {
+                overlay.innerHTML = `
+                    <div style="margin-bottom: 20px;">😔 No more matches available</div>
+                    <div style="font-size: 14px; margin-bottom: 25px; opacity: 0.8;">Try again later or return to dashboard</div>
+                    <button onclick="findNextMatchAuto()" 
+                            style="padding: 10px 20px; background: #1f6f82; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; margin-right: 10px;">
+                        Try Again
+                    </button>
+                    <button onclick="window.location.href='/QuickHire/Public/' + (MY_ROLE === 'EMPLOYER' ? 'employer' : 'jobseeker') + '-dashboard.php'" 
+                            style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer;">
+                        Dashboard
+                    </button>
+                `;
+            }
+        }
+
+        async function nextMatch() {
+            if (!confirm("Skip to next match?")) return;
+            
+            console.log("User clicked Next - finding next match...");
+            polling = false;
+            sendSignal("leave", { bye: true }).catch(() => {});
+            
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            
+            // Don't stop camera - keep it running for next match
+            // Keep local stream active for seamless transition
+            
+            // Auto-find next match
+            findNextMatchAuto();
+        }
+
+        document.getElementById('btnHang').addEventListener('click', () => {
+            const choice = confirm("End call and find another match? (Cancel to return to dashboard)");
+            if (choice) {
+                // Find another match
+                console.log("User chose to find another match");
+                polling = false;
+                sendSignal("leave", { bye: true }).catch(() => {});
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+                findNextMatchAuto();
+            } else {
+                // Return to dashboard
+                console.log("User chose to return to dashboard");
+                polling = false;
+                sendSignal("leave", { bye: true }).catch(() => {});
+                if (pc) {
+                    pc.close();
+                    pc = null;
+                }
+                if (localStream) {
+                    localStream.getTracks().forEach(t => t.stop());
+                    localStream = null;
+                }
+                window.location.href = "/QuickHire/Public/" + (MY_ROLE === 'EMPLOYER' ? 'employer' : 'jobseeker') + "-dashboard.php";
+            }
+        });
+        document.getElementById('btnNext').addEventListener('click', nextMatch);
 
         document.getElementById('btnCam').addEventListener('click', () => {
-            const track = localStream?.getVideoTracks?.()[0];
+            const track = localStream?.getVideoTracks?.()?.[0];
             if (!track) return;
             track.enabled = !track.enabled;
-            document.getElementById('btnCam').textContent = "Camera: " + (track.enabled ? "ON" : "OFF");
+            document.getElementById('btnCam').textContent = track.enabled ? "📹 Camera: ON" : "📹 Camera: OFF";
         });
 
         document.getElementById('btnMic').addEventListener('click', () => {
-            const track = localStream?.getAudioTracks?.()[0];
+            const track = localStream?.getAudioTracks?.()?.[0];
             if (!track) return;
             track.enabled = !track.enabled;
-            document.getElementById('btnMic').textContent = "Mic: " + (track.enabled ? "ON" : "OFF");
+            document.getElementById('btnMic').textContent = track.enabled ? "🎤 Mic: ON" : "🎤 Mic: OFF";
         });
 
         (async () => {
-            await initMedia();
-            initPeer();
-
-            // announce join
-            await sendSignal("join", {
-                joined: true
-            });
-
-            // small trick: first user to join creates offer after a delay
-            // (works for 2-person rooms)
-            setTimeout(() => makeOffer().catch(() => {}), 900);
-
-            pollSignals();
+            try {
+                console.log("Initializing call...");
+                await initMedia();
+                console.log("Media initialized");
+                initPeer();
+                console.log("Peer initialized");
+                await sendSignal("join", { joined: true });
+                console.log("Join signal sent");
+                setTimeout(() => makeOffer().catch(() => {}), 900);
+                pollSignals();
+                pollChatMessages();
+                console.log("Call setup complete");
+            } catch (error) {
+                console.error("Call initialization error:", error);
+                alert("Failed to initialize call: " + error.message);
+            }
         })();
     </script>
 </body>
