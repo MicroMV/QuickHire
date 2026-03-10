@@ -45,13 +45,15 @@ if ($uid !== (int)$call['employer_user_id'] && $uid !== (int)$call['jobseeker_us
 // Mark current call as completed
 $pdo->prepare("UPDATE calls SET status='COMPLETED' WHERE room_code=?")->execute([$currentRoom]);
 
-// Get partner ID to skip
-$partnerId = null;
-if ($uid === (int)$call['employer_user_id']) {
-    $partnerId = (int)$call['jobseeker_user_id'];
-} else {
-    $partnerId = (int)$call['employer_user_id'];
+// Handle next match based on role
+if ($role === 'JOBSEEKER') {
+    // Jobseekers cannot initiate next matches - they should return to dashboard
+    echo json_encode(['ok' => false, 'error' => 'Jobseekers cannot initiate new matches. Returning to dashboard.', 'redirect' => 'dashboard']);
+    exit;
 }
+
+// Only employers can find next matches
+$partnerId = (int)$call['jobseeker_user_id']; // Skip current jobseeker
 
 // Find next match
 $engine = new MatchEngine();
@@ -63,7 +65,7 @@ try {
     if ($newRoom) {
         echo json_encode(['ok' => true, 'room' => $newRoom]);
     } else {
-        echo json_encode(['ok' => false, 'error' => 'No match found']);
+        echo json_encode(['ok' => false, 'error' => 'No more jobseekers available']);
     }
 } catch (\Throwable $e) {
     echo json_encode(['ok' => false, 'error' => $e->getMessage()]);

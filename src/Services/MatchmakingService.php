@@ -38,8 +38,14 @@ class MatchmakingService
             $queueId = (int)$this->pdo->lastInsertId();
 
             if (!empty($skillIds)) {
+                // Save to queue skills
                 $ins = $this->pdo->prepare("INSERT INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
                 foreach ($skillIds as $sid) $ins->execute([$queueId, (int)$sid]);
+                
+                // Also save to employer_required_skills for persistence
+                $this->pdo->prepare("DELETE FROM employer_required_skills WHERE employer_user_id = ?")->execute([$employerId]);
+                $empIns = $this->pdo->prepare("INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
+                foreach ($skillIds as $sid) $empIns->execute([$employerId, (int)$sid]);
             }
 
             $this->pdo->commit();
@@ -59,8 +65,11 @@ class MatchmakingService
         $q = $this->getQueue($queueId);
         if (!$q || (int)$q['is_active'] !== 1) return null;
 
-        // required skills
+        // required skills - try queue first, then employer_required_skills as fallback
         $reqSkillIds = $this->getQueueSkillIds($queueId);
+        if (empty($reqSkillIds)) {
+            $reqSkillIds = $this->getEmployerRequiredSkillIds($employerId);
+        }
 
         // jobseeker candidates: completed profiles only, not already in call/queue
         try {
@@ -164,6 +173,9 @@ class MatchmakingService
             if (!$q) return null;
 
             $reqSkillIds = $this->getQueueSkillIds((int)$q['id']);
+            if (empty($reqSkillIds)) {
+                $reqSkillIds = $this->getEmployerRequiredSkillIds($userId);
+            }
 
             // Find jobseekers
             $candidates = $this->pdo->query("
@@ -263,6 +275,13 @@ class MatchmakingService
     {
         $st = $this->pdo->prepare("SELECT skill_id FROM jobseeker_skills WHERE jobseeker_user_id=?");
         $st->execute([$jobseekerId]);
+        return array_map(fn($x) => (int)$x['skill_id'], $st->fetchAll());
+    }
+
+    private function getEmployerRequiredSkillIds(int $employerId): array
+    {
+        $st = $this->pdo->prepare("SELECT skill_id FROM employer_required_skills WHERE employer_user_id=?");
+        $st->execute([$employerId]);
         return array_map(fn($x) => (int)$x['skill_id'], $st->fetchAll());
     }
 

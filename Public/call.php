@@ -37,12 +37,22 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickHire Call</title>
     <style>
+        :root { 
+            --primary: #1f6f82; 
+            --bg: #f6f7f9; 
+            --card: #ffffff; 
+            --muted: #6b7280; 
+            --line: #e5e7eb;
+            --accent: #10b981;
+            --danger: #dc2626;
+        }
+        
         * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: Inter, system-ui, Arial;
-            background: #0b1220;
-            color: #fff;
+            background: var(--bg);
+            color: #111;
             overflow: hidden;
         }
 
@@ -66,23 +76,26 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             justify-content: space-between;
             align-items: center;
             padding: 12px 16px;
-            background: rgba(255, 255, 255, .06);
-            border: 1px solid rgba(255, 255, 255, .12);
+            background: var(--card);
+            border: 1px solid var(--line);
             border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .badge {
             padding: 6px 12px;
-            border: 1px solid rgba(255, 255, 255, .15);
+            border: 1px solid var(--line);
             border-radius: 999px;
             font-size: 13px;
             font-weight: 700;
+            background: var(--bg);
+            color: #111;
         }
 
         .video-grid {
             flex: 1;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 12px;
             min-height: 0;
             align-items: center;
@@ -90,17 +103,18 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         }
 
         .video-card {
-            background: rgba(255, 255, 255, .06);
-            border: 1px solid rgba(255, 255, 255, .12);
+            background: var(--card);
+            border: 1px solid var(--line);
             border-radius: 16px;
             padding: 12px;
             display: flex;
             flex-direction: column;
             position: relative;
             overflow: hidden;
-            width: 100%;
-            max-width: 500px;
+            width: 50%;
+            max-width: 600px;
             aspect-ratio: 1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .video-label {
@@ -109,6 +123,25 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             font-size: 14px;
             z-index: 10;
             position: relative;
+            color: #111;
+        }
+
+        .video-name {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            z-index: 15;
+            white-space: nowrap;
+            max-width: calc(100% - 24px);
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         video {
@@ -127,17 +160,18 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             gap: 10px;
             flex-wrap: wrap;
             padding: 12px 16px;
-            background: rgba(255, 255, 255, .06);
-            border: 1px solid rgba(255, 255, 255, .12);
+            background: var(--card);
+            border: 1px solid var(--line);
             border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         button {
             padding: 12px 16px;
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, .18);
-            background: rgba(255, 255, 255, .08);
-            color: #fff;
+            border: 1px solid var(--line);
+            background: var(--card);
+            color: #111;
             font-weight: 800;
             cursor: pointer;
             font-size: 14px;
@@ -145,41 +179,46 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         }
 
         button:hover {
-            background: rgba(255, 255, 255, .15);
+            background: var(--bg);
+            border-color: var(--primary);
         }
 
         button.danger {
-            background: #b42318;
-            border-color: #b42318;
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
         }
 
         button.danger:hover {
-            background: #991f14;
+            background: #b91c1c;
         }
 
         button.success {
-            background: #16a34a;
-            border-color: #16a34a;
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
         }
 
         button.success:hover {
-            background: #15803d;
+            background: #059669;
         }
 
         /* Chat Section */
         .chat-section {
             width: 380px;
-            background: rgba(255, 255, 255, .04);
-            border-left: 1px solid rgba(255, 255, 255, .12);
+            background: var(--card);
+            border-left: 1px solid var(--line);
             display: flex;
             flex-direction: column;
         }
 
         .chat-header {
             padding: 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, .12);
+            border-bottom: 1px solid var(--line);
             font-weight: 900;
             font-size: 16px;
+            color: #111;
+            background: var(--bg);
         }
 
         .chat-messages {
@@ -189,6 +228,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             display: flex;
             flex-direction: column;
             gap: 12px;
+            background: var(--card);
         }
 
         .message {
@@ -209,7 +249,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         .message-sender {
             font-size: 11px;
             font-weight: 700;
-            color: rgba(255, 255, 255, .5);
+            color: var(--muted);
             padding: 0 8px;
         }
 
@@ -222,47 +262,49 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         }
 
         .message.me .message-content {
-            background: #1f6f82;
+            background: var(--primary);
             color: #fff;
             border-bottom-right-radius: 4px;
         }
 
         .message.them .message-content {
-            background: rgba(255, 255, 255, .1);
-            color: #fff;
+            background: var(--bg);
+            color: #111;
+            border: 1px solid var(--line);
             border-bottom-left-radius: 4px;
         }
 
         .chat-input-area {
             padding: 16px;
-            border-top: 1px solid rgba(255, 255, 255, .12);
+            border-top: 1px solid var(--line);
             display: flex;
             gap: 10px;
+            background: var(--card);
         }
 
         .chat-input {
             flex: 1;
             padding: 12px 14px;
-            border: 1px solid rgba(255, 255, 255, .18);
+            border: 1px solid var(--line);
             border-radius: 12px;
-            background: rgba(255, 255, 255, .06);
-            color: #fff;
+            background: var(--card);
+            color: #111;
             font-family: inherit;
             font-size: 14px;
         }
 
         .chat-input:focus {
             outline: none;
-            border-color: #1f6f82;
+            border-color: var(--primary);
         }
 
         .chat-input::placeholder {
-            color: rgba(255, 255, 255, .4);
+            color: var(--muted);
         }
 
         .send-btn {
             padding: 12px 20px;
-            background: #1f6f82;
+            background: var(--primary);
             border: none;
             border-radius: 12px;
             color: #fff;
@@ -283,7 +325,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 width: 100%;
                 height: 40vh;
                 border-left: none;
-                border-top: 1px solid rgba(255, 255, 255, .12);
+                border-top: 1px solid var(--line);
             }
 
             .video-grid {
@@ -304,12 +346,16 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         }
 
         .chat-messages::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, .05);
+            background: var(--bg);
         }
 
         .chat-messages::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, .2);
+            background: var(--line);
             border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: var(--muted);
         }
     </style>
 </head>
@@ -327,10 +373,12 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 <div class="video-card">
                     <div class="video-label">Your Video</div>
                     <video id="localVideo" autoplay playsinline muted></video>
+                    <div class="video-name" id="localVideoName">Loading...</div>
                 </div>
                 <div class="video-card">
                     <div class="video-label">Partner's Video</div>
                     <video id="remoteVideo" autoplay playsinline></video>
+                    <div class="video-name" id="remoteVideoName">Connecting...</div>
                 </div>
             </div>
 
@@ -554,9 +602,13 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                     // Update room code and restart call
                     ROOM = data.room;
                     restartCall();
+                } else if (data.redirect === 'dashboard') {
+                    console.log("Jobseeker redirecting to dashboard");
+                    // Jobseeker should return to dashboard
+                    window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
                 } else {
                     console.log("No more matches, trying to find new match...");
-                    // Try to find a completely new match
+                    // Try to find a completely new match (employers only)
                     await findNewMatch();
                 }
             } catch (error) {
@@ -568,10 +620,11 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
 
         async function findNewMatch() {
             try {
-                let response;
                 if (MY_ROLE === 'EMPLOYER') {
                     // For employer, try to use saved preferences first
                     const savedPrefs = localStorage.getItem('matchingPreferences');
+                    let response;
+                    
                     if (savedPrefs) {
                         const preferences = JSON.parse(savedPrefs);
                         const formData = new FormData();
@@ -595,49 +648,50 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                         formData.append('role_title', 'Developer');
                         formData.append('country', 'Philippines');
                         formData.append('employment_type', 'FULL_TIME');
-                        formData.append('skill_ids', []);
+                        formData.append('skill_ids[]', []);
                         
                         response = await fetch('/QuickHire/Public/actions/find_match.php', {
                             method: 'POST',
                             body: formData
                         });
                     }
+                    
+                    if (response.redirected) {
+                        // Extract room from redirect URL
+                        const url = new URL(response.url);
+                        const roomParam = url.searchParams.get('room');
+                        if (roomParam) {
+                            ROOM = roomParam;
+                            restartCall();
+                            return;
+                        }
+                    }
+                    
+                    // No match found for employer
+                    showNoMatchFound();
+                    
                 } else {
-                    // For jobseeker
-                    response = await fetch('/QuickHire/Public/actions/find_employer.php');
+                    // Jobseekers can't create new matches - redirect to dashboard
+                    console.log("Jobseeker can't create new matches, redirecting to dashboard");
+                    window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
                 }
-                
-                if (MY_ROLE === 'EMPLOYER' && response.redirected) {
-                    // Extract room from redirect URL
-                    const url = new URL(response.url);
-                    const roomParam = url.searchParams.get('room');
-                    if (roomParam) {
-                        ROOM = roomParam;
-                        restartCall();
-                        return;
-                    }
-                }
-                
-                if (MY_ROLE === 'JOBSEEKER') {
-                    const data = await response.json();
-                    if (data.ok && data.room) {
-                        ROOM = data.room;
-                        restartCall();
-                        return;
-                    }
-                }
-                
-                // No match found
-                showNoMatchFound();
                 
             } catch (error) {
                 console.error("Error finding new match:", error);
-                showNoMatchFound();
+                if (MY_ROLE === 'JOBSEEKER') {
+                    // Redirect jobseekers to dashboard on error
+                    window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+                } else {
+                    showNoMatchFound();
+                }
             }
         }
 
         function restartCall() {
             console.log("Restarting call with room:", ROOM);
+            
+            // Reset try again counter on successful match
+            resetTryAgainCounter();
             
             // Reset variables
             afterSignalId = 0;
@@ -649,6 +703,9 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             
             // Hide "finding match" message
             hideFindingNextMatch();
+            
+            // Reset name displays
+            document.getElementById('remoteVideoName').textContent = 'Connecting...';
             
             // Initialize new peer connection
             initPeer();
@@ -662,6 +719,9 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             // Restart polling
             pollSignals();
             pollChatMessages();
+            
+            // Reload participant names for new call
+            setTimeout(() => loadParticipantNames(), 1000);
             
             console.log("Call restarted successfully");
         }
@@ -685,15 +745,16 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.9);
+                background: var(--card);
                 padding: 30px 40px;
                 border-radius: 16px;
                 z-index: 1000;
-                color: white;
+                color: #111;
                 font-size: 20px;
                 font-weight: 900;
                 text-align: center;
-                border: 2px solid #1f6f82;
+                border: 2px solid var(--primary);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
             `;
             overlay.innerHTML = `
                 <div style="margin-bottom: 15px;">🔍 Finding next match...</div>
@@ -730,7 +791,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                         Try Again
                     </button>
                     <button onclick="window.location.href='/QuickHire/Public/' + (MY_ROLE === 'EMPLOYER' ? 'employer' : 'jobseeker') + '-dashboard.php'" 
-                            style="padding: 10px 20px; background: #666; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer;">
+                            style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer;">
                         Dashboard
                     </button>
                 `;
@@ -738,9 +799,17 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         }
 
         async function nextMatch() {
-            if (!confirm("Skip to next match?")) return;
+            let message;
             
-            console.log("User clicked Next - finding next match...");
+            if (MY_ROLE === 'EMPLOYER') {
+                message = "Skip to next jobseeker?";
+            } else {
+                message = "End call and return to dashboard? (Jobseekers cannot initiate new matches)";
+            }
+            
+            if (!confirm(message)) return;
+            
+            console.log("User clicked Next - processing...");
             polling = false;
             sendSignal("leave", { bye: true }).catch(() => {});
             
@@ -749,39 +818,71 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 pc = null;
             }
             
-            // Don't stop camera - keep it running for next match
-            // Keep local stream active for seamless transition
-            
-            // Auto-find next match
-            findNextMatchAuto();
-        }
-
-        document.getElementById('btnHang').addEventListener('click', () => {
-            const choice = confirm("End call and find another match? (Cancel to return to dashboard)");
-            if (choice) {
-                // Find another match
-                console.log("User chose to find another match");
-                polling = false;
-                sendSignal("leave", { bye: true }).catch(() => {});
-                if (pc) {
-                    pc.close();
-                    pc = null;
-                }
+            if (MY_ROLE === 'EMPLOYER') {
+                // Employers can find next match
+                console.log("Employer finding next match...");
+                // Don't stop camera - keep it running for next match
                 findNextMatchAuto();
             } else {
-                // Return to dashboard
-                console.log("User chose to return to dashboard");
-                polling = false;
-                sendSignal("leave", { bye: true }).catch(() => {});
-                if (pc) {
-                    pc.close();
-                    pc = null;
-                }
+                // Jobseekers return to dashboard
+                console.log("Jobseeker returning to dashboard...");
                 if (localStream) {
                     localStream.getTracks().forEach(t => t.stop());
                     localStream = null;
                 }
-                window.location.href = "/QuickHire/Public/" + (MY_ROLE === 'EMPLOYER' ? 'employer' : 'jobseeker') + "-dashboard.php";
+                window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
+            }
+        }
+
+        document.getElementById('btnHang').addEventListener('click', () => {
+            let message, choice;
+            
+            if (MY_ROLE === 'EMPLOYER') {
+                message = "End call and find another jobseeker? (Cancel to return to dashboard)";
+                choice = confirm(message);
+                if (choice) {
+                    // Employer can find another match
+                    console.log("Employer chose to find another match");
+                    polling = false;
+                    sendSignal("leave", { bye: true }).catch(() => {});
+                    if (pc) {
+                        pc.close();
+                        pc = null;
+                    }
+                    findNextMatchAuto();
+                } else {
+                    // Return to dashboard
+                    console.log("Employer chose to return to dashboard");
+                    polling = false;
+                    sendSignal("leave", { bye: true }).catch(() => {});
+                    if (pc) {
+                        pc.close();
+                        pc = null;
+                    }
+                    if (localStream) {
+                        localStream.getTracks().forEach(t => t.stop());
+                        localStream = null;
+                    }
+                    window.location.href = "/QuickHire/Public/employer-dashboard.php";
+                }
+            } else {
+                // Jobseeker - can only return to dashboard
+                message = "End call and return to dashboard?";
+                choice = confirm(message);
+                if (choice) {
+                    console.log("Jobseeker chose to return to dashboard");
+                    polling = false;
+                    sendSignal("leave", { bye: true }).catch(() => {});
+                    if (pc) {
+                        pc.close();
+                        pc = null;
+                    }
+                    if (localStream) {
+                        localStream.getTracks().forEach(t => t.stop());
+                        localStream = null;
+                    }
+                    window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
+                }
             }
         });
         document.getElementById('btnNext').addEventListener('click', nextMatch);
@@ -800,9 +901,61 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             document.getElementById('btnMic').textContent = track.enabled ? "🎤 Mic: ON" : "🎤 Mic: OFF";
         });
 
+        // Load and display participant names
+        async function loadParticipantNames() {
+            try {
+                // Get current user's name (for local video)
+                const response = await fetch('/QuickHire/Public/actions/get_user_info.php');
+                const userData = await response.json();
+                
+                if (userData.ok) {
+                    const localName = `${userData.first_name} ${userData.last_name}`;
+                    document.getElementById('localVideoName').textContent = `${localName} (You)`;
+                }
+                
+                // Get partner's name from call info
+                const callResponse = await fetch('/QuickHire/Public/actions/get_call_info.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ room: ROOM })
+                });
+                const callData = await callResponse.json();
+                
+                if (callData.ok && callData.partner) {
+                    const partnerName = `${callData.partner.first_name} ${callData.partner.last_name}`;
+                    const partnerRole = callData.partner.role === 'EMPLOYER' ? 'Employer' : 'Jobseeker';
+                    document.getElementById('remoteVideoName').textContent = `${partnerName} (${partnerRole})`;
+                } else {
+                    document.getElementById('remoteVideoName').textContent = 'Partner';
+                }
+                
+            } catch (error) {
+                console.error('Error loading participant names:', error);
+                document.getElementById('localVideoName').textContent = 'You';
+                document.getElementById('remoteVideoName').textContent = 'Partner';
+            }
+        }
+
         (async () => {
             try {
                 console.log("Initializing call...");
+                
+                // Update button text based on role
+                console.log("Setting up buttons for role:", MY_ROLE);
+                if (MY_ROLE === 'EMPLOYER') {
+                    console.log("Setting up employer buttons");
+                    document.getElementById('btnNext').innerHTML = '⏭️ Next Jobseeker';
+                    document.getElementById('btnHang').innerHTML = '📞 End Call';
+                    document.getElementById('btnNext').style.display = 'inline-flex';
+                    document.getElementById('btnHang').style.display = 'inline-flex';
+                } else {
+                    console.log("Setting up jobseeker buttons - hiding Next button");
+                    // For jobseekers, hide the Next button since they can't initiate new matches
+                    document.getElementById('btnNext').style.display = 'none';
+                    document.getElementById('btnHang').innerHTML = '🚪 Leave Call';
+                    document.getElementById('btnHang').style.display = 'inline-flex';
+                }
+                
                 await initMedia();
                 console.log("Media initialized");
                 initPeer();
@@ -813,6 +966,9 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 pollSignals();
                 pollChatMessages();
                 console.log("Call setup complete");
+                
+                // Load participant names
+                loadParticipantNames();
             } catch (error) {
                 console.error("Call initialization error:", error);
                 alert("Failed to initialize call: " + error.message);

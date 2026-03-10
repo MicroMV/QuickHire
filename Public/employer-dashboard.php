@@ -649,18 +649,49 @@ $flashSuccess = Session::flash('success');
     return prefs !== null;
   }
 
-  // Load preferences from localStorage
-  function loadPreferences() {
+  // Load preferences from localStorage and merge with database skills
+  async function loadPreferences() {
     const prefs = localStorage.getItem('matchingPreferences');
-    if (prefs) {
-      return JSON.parse(prefs);
+    let preferences = prefs ? JSON.parse(prefs) : {};
+    
+    // Load skills from database
+    try {
+      const response = await fetch('/QuickHire/Public/actions/get_employer_preferences.php');
+      const result = await response.json();
+      if (result.ok) {
+        preferences.skill_ids = result.skill_ids;
+      }
+    } catch (error) {
+      console.error('Error loading preferences from database:', error);
     }
-    return null;
+    
+    return preferences;
   }
 
-  // Save preferences to localStorage
-  function savePreferences(preferences) {
+  // Save preferences to localStorage and database
+  async function savePreferences(preferences) {
+    // Save to localStorage for immediate use
     localStorage.setItem('matchingPreferences', JSON.stringify(preferences));
+    
+    // Save skills to database
+    try {
+      const response = await fetch('/QuickHire/Public/actions/save_employer_preferences.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          skill_ids: preferences.skill_ids || []
+        })
+      });
+      
+      const result = await response.json();
+      if (!result.ok) {
+        console.error('Failed to save preferences to database:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving preferences to database:', error);
+    }
   }
 
   // Populate form with saved preferences
@@ -684,8 +715,8 @@ $flashSuccess = Session::flash('success');
   }
 
   // Show preferences modal
-  function showPreferencesModal() {
-    const savedPrefs = loadPreferences();
+  async function showPreferencesModal() {
+    const savedPrefs = await loadPreferences();
     populatePreferencesForm(savedPrefs);
     preferencesModal.classList.add('active');
   }
@@ -699,12 +730,12 @@ $flashSuccess = Session::flash('success');
     // Check if we have saved preferences
     if (!hasPreferences()) {
       // First time - show preferences modal
-      showPreferencesModal();
+      await showPreferencesModal();
       return;
     }
 
     // Use saved preferences
-    const preferences = loadPreferences();
+    const preferences = await loadPreferences();
     await executeJobseekerSearch(preferences);
   }
 
@@ -830,8 +861,8 @@ $flashSuccess = Session::flash('success');
       skill_ids: formData.getAll('skill_ids[]').map(id => parseInt(id))
     };
     
-    // Save preferences
-    savePreferences(preferences);
+    // Save preferences (both localStorage and database)
+    await savePreferences(preferences);
     
     // Hide modal
     hidePreferencesModal();
