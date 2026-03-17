@@ -6,7 +6,7 @@ use PDOException;
 
 class Database
 {
-    private PDO $pdo; // ✅ encapsulated
+    private PDO $pdo; 
 
     public function __construct(array $dbConfig)
     {
@@ -22,7 +22,7 @@ class Database
         }
     }
 
-    public function pdo(): PDO // ✅ controlled access
+    public function pdo(): PDO 
     {
         return $this->pdo;
     }

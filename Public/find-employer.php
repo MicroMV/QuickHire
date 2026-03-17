@@ -13,7 +13,7 @@ if (Auth::role() !== 'JOBSEEKER') {
   exit;
 }
 
-$config = require __DIR__ . '/../config/config.php';
+$config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 $pdo = $db->pdo();
 
@@ -29,6 +29,8 @@ if (!$jobseeker) {
   exit;
 }
 ?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,229 +38,7 @@ if (!$jobseeker) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Find Employer - QuickHire</title>
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
-
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: Inter, system-ui, Arial;
-      background: #0b1220;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 1200px;
-      padding: 20px;
-    }
-
-    .matching-screen {
-      display: none;
-      text-align: center;
-      padding: 40px 20px;
-    }
-
-    .matching-screen.active {
-      display: block;
-    }
-
-    .spinner {
-      width: 60px;
-      height: 60px;
-      border: 4px solid rgba(255, 255, 255, 0.2);
-      border-top-color: #1f6f82;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .matching-text {
-      font-size: 24px;
-      font-weight: 900;
-      margin-bottom: 10px;
-    }
-
-    .matching-subtext {
-      color: #cbd5e1;
-      margin-bottom: 30px;
-    }
-
-    .call-screen {
-      display: none;
-    }
-
-    .call-screen.active {
-      display: block;
-    }
-
-    .call-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-    }
-
-    .call-info {
-      display: flex;
-      gap: 15px;
-      align-items: center;
-    }
-
-    .call-timer {
-      font-size: 18px;
-      font-weight: 900;
-    }
-
-    .video-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .video-container {
-      position: relative;
-      background: #000;
-      border-radius: 16px;
-      overflow: hidden;
-      aspect-ratio: 16/9;
-    }
-
-    .video-label {
-      position: absolute;
-      top: 15px;
-      left: 15px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-weight: 800;
-      font-size: 14px;
-      z-index: 10;
-    }
-
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .controls {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    .control-btn {
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      background: rgba(255, 255, 255, 0.06);
-      color: #fff;
-      font-weight: 800;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .control-btn:hover {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .control-btn.danger {
-      background: #b42318;
-      border-color: #b42318;
-    }
-
-    .control-btn.danger:hover {
-      background: #8a1a13;
-    }
-
-    .error-screen {
-      display: none;
-      text-align: center;
-      padding: 40px 20px;
-    }
-
-    .error-screen.active {
-      display: block;
-    }
-
-    .error-icon {
-      font-size: 60px;
-      margin-bottom: 20px;
-    }
-
-    .error-title {
-      font-size: 24px;
-      font-weight: 900;
-      margin-bottom: 10px;
-    }
-
-    .error-message {
-      color: #cbd5e1;
-      margin-bottom: 30px;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .btn-primary {
-      display: inline-block;
-      padding: 12px 24px;
-      background: #1f6f82;
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-weight: 900;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.3s;
-    }
-
-    .btn-primary:hover {
-      background: #165a6b;
-    }
-
-    .log {
-      margin-top: 20px;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      font-size: 12px;
-      color: #cbd5e1;
-      max-height: 150px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      font-family: monospace;
-    }
-
-    @media (max-width: 768px) {
-      .video-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .controls {
-        flex-direction: column;
-      }
-
-      .control-btn {
-        width: 100%;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/find-employer.css">
 </head>
 <body>
   <div class="container">

@@ -8,7 +8,7 @@ use Rongie\QuickHire\Services\AuthService;
 
 Session::start();
 
-$config = require __DIR__ . '/../../config/config.php';
+$config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 $auth = new AuthService($db->pdo());
 

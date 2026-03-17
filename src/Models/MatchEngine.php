@@ -41,26 +41,37 @@ class MatchEngine
             if (strtoupper($criteria['employment_type']) === strtoupper($jobseeker['employment_type'])) {
                 $score += 15;
             } else {
-                // Compatible employment types get partial points
+                // More flexible employment type matching
                 $empType = strtoupper($criteria['employment_type']);
                 $jsType = strtoupper($jobseeker['employment_type']);
                 
-                // Full-time and contract are somewhat compatible
-                if (($empType === 'FULL_TIME' && $jsType === 'CONTRACT') || 
-                    ($empType === 'CONTRACT' && $jsType === 'FULL_TIME')) {
-                    $score += 8;
+                // Full-time employers can accept contract workers
+                if ($empType === 'FULL_TIME' && $jsType === 'CONTRACT') {
+                    $score += 12;
                 }
-                // Part-time and freelance are somewhat compatible
+                // Contract employers can accept full-time workers
+                elseif ($empType === 'CONTRACT' && $jsType === 'FULL_TIME') {
+                    $score += 12;
+                }
+                // Part-time and freelance are compatible
                 elseif (($empType === 'PART_TIME' && $jsType === 'FREELANCE') || 
                         ($empType === 'FREELANCE' && $jsType === 'PART_TIME')) {
+                    $score += 12;
+                }
+                // Full-time employers might consider part-time workers (reduced points)
+                elseif ($empType === 'FULL_TIME' && $jsType === 'PART_TIME') {
                     $score += 8;
+                }
+                // Part-time employers might consider full-time workers
+                elseif ($empType === 'PART_TIME' && $jsType === 'FULL_TIME') {
+                    $score += 10;
                 }
             }
         }
 
         // English mastery (15 points)
-        if (!empty($jobseeker['english_mastery'])) {
-            $englishLevel = strtoupper($jobseeker['english_mastery']);
+        if (!empty($jobseeker['english_proficiency'])) {
+            $englishLevel = strtoupper($jobseeker['english_proficiency']);
             $englishScores = [
                 'NATIVE' => 15,
                 'FLUENT' => 15,

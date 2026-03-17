@@ -226,32 +226,10 @@ class MatchmakingService
             return $room;
 
         } else {
-            // Jobseeker looking for employer
-            // Find any employer in queue
-            $employers = $this->pdo->query("
-                SELECT mq.*, ep.* 
-                FROM matchmaking_queue mq
-                JOIN employer_profiles ep ON ep.user_id = mq.user_id
-                WHERE mq.role='EMPLOYER' AND mq.is_active=1
-            ")->fetchAll();
-
-            if (empty($employers)) return null;
-
-            // Pick random employer (or first available)
-            $employer = $employers[array_rand($employers)];
-            $employerId = (int)$employer['user_id'];
-
-            if ($employerId === $skipUserId) return null;
-            if ($this->isInActiveCall($employerId)) return null;
-
-            // Create call room
-            $room = $this->newRoomCode();
-            $this->pdo->prepare("
-              INSERT INTO calls (room_code, employer_user_id, jobseeker_user_id, status)
-              VALUES (?, ?, ?, 'RINGING')
-            ")->execute([$room, $employerId, $userId]);
-
-            return $room;
+            // JOBSEEKERS CANNOT CREATE NEW CALLS
+            // They can only join existing calls created by employers
+            // This method should not be used for jobseekers to create new matches
+            return null;
         }
     }
 
@@ -295,6 +273,173 @@ class MatchmakingService
         ");
         $st->execute([$userId, $userId]);
         return (bool)$st->fetch();
+    }
+
+    /**
+     * Get available employer rooms that match jobseeker criteria
+     */
+    public function getAvailableEmployerRooms(int $jobseekerId): array
+    {
+        // Get jobseeker profile
+        $jsProfile = $this->pdo->prepare("
+            SELECT jp.*, u.id as user_id
+            FROM jobseeker_profiles jp
+            JOIN users u ON u.id = jp.user_id
+            WHERE u.id = ? AND u.is_profile_complete = 1
+        ")->execute([$jobseekerId]);
+        
+        $jobseeker = $this->pdo->prepare("
+            SELECT jp.*, u.id as user_id
+            FROM jobseeker_profiles jp
+            JOIN users u ON u.id = jp.user_id
+            WHERE u.id = ? AND u.is_profile_complete = 1
+        ");
+        $jobseeker->execute([$jobseekerId]);
+        $jsData = $jobseeker->fetch();
+        
+        if (!$jsData) return [];
+
+        // Get jobseeker skills
+        $jsSkillIds = $this->getJobseekerSkillIds($jobseekerId);
+
+        // Get waiting employer rooms
+        $waitingRooms = $this->pdo->query("
+            SELECT c.*, mq.wanted_role, mq.wanted_country, mq.employment_type, mq.id as queue_id,
+                   u.first_name, u.last_name, ep.company_name
+            FROM calls c
+            JOIN matchmaking_queue mq ON mq.user_id = c.employer_user_id AND mq.is_active = 1
+            JOIN users u ON u.id = c.employer_user_id
+            LEFT JOIN employer_profiles ep ON ep.user_id = c.employer_user_id
+            WHERE c.status = 'WAITING'
+            ORDER BY c.created_at ASC
+        ")->fetchAll();
+
+        $availableRooms = [];
+        foreach ($waitingRooms as $room) {
+            // Get employer required skills
+            $empSkillIds = $this->getQueueSkillIds($room['queue_id']);
+            if (empty($empSkillIds)) {
+                $empSkillIds = $this->getEmployerRequiredSkillIds($room['employer_user_id']);
+            }
+
+            // Calculate match score
+            $criteria = [
+                'role_title' => $room['wanted_role'],
+                'employment_type' => $room['employment_type'],
+                'country' => $room['wanted_country']
+            ];
+
+            $score = $this->engine->score($criteria, $jsData, $empSkillIds, $jsSkillIds);
+
+            // Only show rooms with score >= 60 (lower threshold for browsing)
+            if ($score >= 60) {
+                $room['match_score'] = $score;
+                $room['employer_name'] = trim($room['first_name'] . ' ' . $room['last_name']);
+                $availableRooms[] = $room;
+            }
+        }
+
+        // Sort by match score (highest first)
+        usort($availableRooms, function($a, $b) {
+            return $b['match_score'] - $a['match_score'];
+        });
+
+        return $availableRooms;
+    }
+
+    /**
+     * Join an employer's waiting room
+     */
+    public function joinEmployerRoom(string $roomCode, int $jobseekerId): bool
+    {
+        $this->pdo->beginTransaction();
+        try {
+            // Check if room exists and is waiting
+            $room = $this->pdo->prepare("
+                SELECT * FROM calls WHERE room_code = ? AND status = 'WAITING'
+            ");
+            $room->execute([$roomCode]);
+            $roomData = $room->fetch();
+
+            if (!$roomData) {
+                $this->pdo->rollBack();
+                return false;
+            }
+
+            // Update room with jobseeker and change status to RINGING
+            $this->pdo->prepare("
+                UPDATE calls 
+                SET jobseeker_user_id = ?, status = 'RINGING', updated_at = CURRENT_TIMESTAMP
+                WHERE room_code = ? AND status = 'WAITING'
+            ")->execute([$jobseekerId, $roomCode]);
+
+            $this->pdo->commit();
+            return true;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            error_log("MatchmakingService::joinEmployerRoom error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Create a room for employer to wait for jobseekers
+     * Always creates a room regardless of available matches
+     */
+    public function createEmployerRoom(int $employerId, array $criteria, array $skillIds): ?string
+    {
+        $this->pdo->beginTransaction();
+        try {
+            // Deactivate old queue if any
+            $this->pdo->prepare("UPDATE matchmaking_queue SET is_active=0 WHERE user_id=?")->execute([$employerId]);
+
+            // Create queue entry
+            $stmt = $this->pdo->prepare("
+              INSERT INTO matchmaking_queue (user_id, role, wanted_role, wanted_country, employment_type)
+              VALUES (?, 'EMPLOYER', ?, ?, ?)
+            ");
+            $stmt->execute([
+                $employerId,
+                trim($criteria['role_title'] ?? ''),
+                trim($criteria['country'] ?? ''),
+                trim($criteria['employment_type'] ?? '')
+            ]);
+
+            $queueId = (int)$this->pdo->lastInsertId();
+
+            // Save skills if provided - but don't overwrite existing skills if empty
+            if (!empty($skillIds)) {
+                $ins = $this->pdo->prepare("INSERT INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
+                foreach ($skillIds as $sid) $ins->execute([$queueId, (int)$sid]);
+                
+                // Only update employer_required_skills if skills are actually provided
+                // Don't delete existing skills if no skills are provided
+                $this->pdo->prepare("DELETE FROM employer_required_skills WHERE employer_user_id = ?")->execute([$employerId]);
+                $empIns = $this->pdo->prepare("INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
+                foreach ($skillIds as $sid) $empIns->execute([$employerId, (int)$sid]);
+            } else {
+                // If no skills provided, use existing employer skills for the queue
+                $existingSkills = $this->getEmployerRequiredSkillIds($employerId);
+                if (!empty($existingSkills)) {
+                    $ins = $this->pdo->prepare("INSERT INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
+                    foreach ($existingSkills as $sid) $ins->execute([$queueId, (int)$sid]);
+                }
+            }
+
+            // Create room immediately (WAITING status means employer is waiting for jobseeker)
+            $room = $this->newRoomCode();
+            $this->pdo->prepare("
+              INSERT INTO calls (room_code, employer_user_id, status)
+              VALUES (?, ?, 'WAITING')
+            ")->execute([$room, $employerId]);
+
+            $this->pdo->commit();
+            return $room;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            error_log("MatchmakingService::createEmployerRoom error: " . $e->getMessage());
+            throw new Exception("Failed to create room: " . $e->getMessage());
+        }
     }
 
     private function newRoomCode(): string

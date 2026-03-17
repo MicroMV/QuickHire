@@ -1,0 +1,511 @@
+/* QuickHire Jobseeker Dashboard Styles */
+:root { 
+  --primary: #1f6f82; 
+  --bg: #f6f7f9; 
+  --card: #ffffff; 
+  --muted: #6b7280; 
+  --line: #e5e7eb; 
+}
+
+body { 
+  margin: 0; 
+  font-family: Inter, system-ui, Arial; 
+  background: var(--bg); 
+  color: #111; 
+}
+
+.layout { 
+  display: flex; 
+  min-height: 100vh; 
+}
+
+/* Sidebar */
+.side {
+  width: 280px;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  padding: 18px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.brandRow { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  padding: 6px 6px 14px; 
+}
+
+.brandRow img { 
+  width: 42px; 
+  height: 42px; 
+  border-radius: 10px; 
+  object-fit: cover; 
+}
+
+.brandRow .t1 { 
+  font-weight: 900; 
+}
+
+.brandRow .t2 { 
+  font-size: 12px; 
+  color: var(--muted); 
+  margin-top: 2px; 
+}
+
+.profileCard {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+}
+
+.avatar {
+  width: 54px; 
+  height: 54px; 
+  border-radius: 16px;
+  background: #eaf3f5; 
+  overflow: hidden; 
+  flex: 0 0 auto;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-weight: 900; 
+  color: var(--primary);
+}
+
+.avatar img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
+}
+
+.name { 
+  font-weight: 900; 
+}
+
+.meta { 
+  font-size: 12px; 
+  color: var(--muted); 
+  margin-top: 3px; 
+}
+
+.nav { 
+  margin-top: 14px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+
+.nav a, .nav button {
+  display: flex; 
+  align-items: center; 
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #111;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav a:hover, .nav button:hover { 
+  border-color: #cfe5ea; 
+}
+
+.nav a.active, .nav button.active { 
+  background: var(--primary); 
+  border-color: var(--primary); 
+  color: #fff; 
+  box-shadow: 0 4px 12px rgba(31, 111, 130, 0.3);
+}
+
+.nav .danger { 
+  border-color: #ffd1d1; 
+  color: #7a0b0b; 
+}
+
+.nav .primary { 
+  background: var(--primary); 
+  border-color: var(--primary); 
+  color: #fff; 
+}
+
+.nav .success { 
+  background: #10b981; 
+  border-color: #10b981; 
+  color: #fff; 
+}
+
+/* Main content */
+.main { 
+  flex: 1; 
+  padding: 26px; 
+}
+
+.topbar {
+  display: flex; 
+  align-items: flex-start; 
+  justify-content: space-between; 
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.title { 
+  margin: 0; 
+  font-size: 28px; 
+  font-weight: 1000; 
+}
+
+.subtitle { 
+  margin: 6px 0 0; 
+  color: var(--muted); 
+}
+
+.notice { 
+  padding: 12px 14px; 
+  border-radius: 14px; 
+  font-weight: 800; 
+  margin-bottom: 14px; 
+}
+
+.notice.err { 
+  background: #ffe1e1; 
+  color: #7a0b0b; 
+}
+
+.notice.ok { 
+  background: #e6ffef; 
+  color: #0c5a2a; 
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.05);
+}
+
+.card h3 { 
+  margin: 0 0 10px; 
+  font-size: 16px; 
+  font-weight: 1000; 
+}
+
+.pillRow { 
+  display: flex; 
+  gap: 8px; 
+  flex-wrap: wrap; 
+  margin-top: 10px; 
+}
+
+.pill { 
+  padding: 8px 10px; 
+  border-radius: 999px; 
+  border: 1px solid var(--line); 
+  background: #fff; 
+  font-weight: 800; 
+  font-size: 12px; 
+  color: #111; 
+}
+
+.btn {
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center;
+  padding: 12px 16px; 
+  border-radius: 14px; 
+  border: 1px solid transparent;
+  font-weight: 900; 
+  cursor: pointer; 
+  text-decoration: none;
+}
+
+.btn.primary { 
+  background: var(--primary); 
+  color: #fff; 
+}
+
+.btn.outline { 
+  background: #fff; 
+  border-color: var(--line); 
+  color: #111; 
+}
+
+/* Skills */
+.skills-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+  gap: 10px; 
+  margin-top: 10px; 
+  max-height: 300px; 
+  overflow-y: auto; 
+  border: 1px solid var(--line); 
+  border-radius: 12px; 
+  padding: 16px; 
+}
+
+.skill-checkbox { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+}
+
+.skill-checkbox input { 
+  width: 18px; 
+  height: 18px; 
+  cursor: pointer; 
+}
+
+.category-header { 
+  font-weight: 900; 
+  color: var(--primary); 
+  margin: 12px 0 8px; 
+  border-bottom: 1px solid var(--line); 
+  padding-bottom: 4px; 
+  grid-column: 1/-1; 
+}
+
+/* Skills organization */
+.skills-container { 
+  margin-top: 10px; 
+}
+
+.skills-search { 
+  width: 100%; 
+  padding: 8px 12px; 
+  border: 1px solid var(--line); 
+  border-radius: 8px; 
+  margin-bottom: 10px; 
+  font-size: 14px; 
+}
+
+.skills-tabs { 
+  display: flex; 
+  gap: 5px; 
+  margin-bottom: 10px; 
+  flex-wrap: wrap; 
+}
+
+.skills-tab { 
+  padding: 6px 12px; 
+  border: 1px solid var(--line); 
+  border-radius: 6px; 
+  background: #fff; 
+  cursor: pointer; 
+  font-size: 12px; 
+  font-weight: 600; 
+  transition: all 0.2s; 
+}
+
+.skills-tab.active { 
+  background: var(--primary); 
+  color: white; 
+  border-color: var(--primary); 
+}
+
+.skills-tab:hover { 
+  border-color: var(--primary); 
+}
+
+.category-section { 
+  margin-bottom: 15px; 
+}
+
+.category-title { 
+  font-weight: 800; 
+  color: var(--primary); 
+  margin-bottom: 8px; 
+  font-size: 14px; 
+  border-bottom: 1px solid var(--line); 
+  padding-bottom: 3px; 
+}
+
+.skills-row { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+  gap: 8px; 
+}
+
+/* Avatar upload */
+.avatar-upload {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 20px auto 30px;
+  cursor: pointer;
+}
+
+.avatar-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #eaf3f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: var(--primary);
+  font-size: 48px;
+  overflow: hidden;
+  border: 3px solid var(--line);
+  transition: all 0.3s ease;
+}
+
+.avatar-preview:hover {
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-overlay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border: 3px solid white;
+  cursor: pointer;
+}
+
+/* Add spacing after avatar name */
+.avatar-upload + div {
+  margin-bottom: 20px;
+}
+
+.avatar-upload input[type="file"] {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  z-index: -1 !important;
+}
+
+/* Hide any file input related elements */
+.avatar-upload input[type="file"]::-webkit-file-upload-button {
+  display: none !important;
+}
+
+.avatar-upload input[type="file"]::file-selector-button {
+  display: none !important;
+}
+
+/* Hide any browser-generated file input text within avatar upload */
+.avatar-upload input[type="file"]::before,
+.avatar-upload input[type="file"]::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Ensure avatar upload container doesn't show any text */
+.avatar-upload::after {
+  content: none !important;
+}
+
+/* Toast notification styles */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: #4ade80;
+  color: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  font-weight: 700;
+  z-index: 1000;
+  opacity: 0;
+  transition: all 0.3s ease-in-out;
+  max-width: 400px;
+  text-align: center;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.toast.error {
+  background: #ef4444;
+}
+
+.toast.info {
+  background: #3b82f6;
+}
+
+/* Form styling */
+#profileEditContent {
+  overflow: visible;
+  padding-bottom: 20px; /* Reduced from 400px */
+}
+
+#profileEditContent .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+#profileEditContent select {
+  appearance: auto;
+  -webkit-appearance: menulist;
+  -moz-appearance: menulist;
+}
+
+/* Main content area should allow scrolling */
+.main {
+  flex: 1;
+  padding: 26px;
+  overflow-y: auto;
+  height: 100vh;
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  .grid { 
+    grid-template-columns: 1fr; 
+  }
+  
+  .side { 
+    position: relative; 
+    height: auto; 
+    width: 100%; 
+    border-right: 0; 
+    border-bottom: 1px solid var(--line); 
+  }
+  
+  .layout { 
+    flex-direction: column; 
+  }
+}

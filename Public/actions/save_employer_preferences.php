@@ -29,7 +29,7 @@ if (!$input) {
     exit;
 }
 
-$config = require __DIR__ . '/../../config/config.php';
+$config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 $pdo = $db->pdo();
 

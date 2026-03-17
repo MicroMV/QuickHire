@@ -15,6 +15,8 @@ if (($error || $success) && $open === '') {
 }
 $csrf = Csrf::token();
 ?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

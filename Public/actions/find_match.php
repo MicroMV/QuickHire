@@ -17,7 +17,7 @@ if (Auth::role() !== 'EMPLOYER') {
   exit;
 }
 
-$config = require __DIR__ . '/../../config/config.php';
+$config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 
 $engine = new MatchEngine();
@@ -45,22 +45,41 @@ $criteria = [
 ];
 
 try {
-  $queueId = $svc->enqueueEmployer(Auth::userId(), $criteria, $skillIds);
-  $room = $svc->matchEmployerNow($queueId, Auth::userId());
+  // CLEANUP: Delete ALL old rooms (not just this employer's)
+  $pdo = $db->pdo();
+  $pdo->prepare("
+    DELETE FROM calls 
+    WHERE status IN ('WAITING', 'RINGING', 'MISSED')
+    AND created_at < DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+  ")->execute();
+  
+  // Also delete this employer's old rooms regardless of age
+  $pdo->prepare("
+    DELETE FROM calls 
+    WHERE employer_user_id = ? 
+    AND status IN ('WAITING', 'RINGING', 'MISSED', 'COMPLETED')
+  ")->execute([Auth::userId()]);
+  
+  error_log("FIND_MATCH: Cleaned up old rooms");
+  
+  // Always create a room for the employer, regardless of matches
+  $room = $svc->createEmployerRoom(Auth::userId(), $criteria, $skillIds);
 
   if (!$room) {
-    Session::flash('error', 'No available jobseeker match right now. Try again later.');
+    Session::flash('error', 'Failed to create room. Please try again.');
     header("Location: /QuickHire/Public/employer-dashboard.php");
     exit;
   }
 
-  // Redirect to call room
+  error_log("FIND_MATCH: Created new room $room for employer " . Auth::userId());
+
+  // Redirect to call room immediately
   header("Location: /QuickHire/Public/call.php?room=" . urlencode($room));
   exit;
 
 } catch (Exception $e) {
-  error_log("Matchmaking error: " . $e->getMessage());
-  Session::flash('error', 'Failed to start matching: ' . $e->getMessage());
+  error_log("Room creation error: " . $e->getMessage());
+  Session::flash('error', 'Failed to create room: ' . $e->getMessage());
   header("Location: /QuickHire/Public/employer-dashboard.php");
   exit;
 }

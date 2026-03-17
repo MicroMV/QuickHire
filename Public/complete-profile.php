@@ -11,7 +11,7 @@ use Rongie\QuickHire\Services\ProfileService;
 Session::start();
 Auth::requireLogin();
 
-$config = require __DIR__ . '/../config/config.php';
+$config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 
 $profileService = new ProfileService($db->pdo(), new FileUpload());
@@ -57,6 +57,9 @@ if ($role === 'EMPLOYER') {
 
 $csrf = Csrf::token();
 ?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,159 +67,7 @@ $csrf = Csrf::token();
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Complete Profile - QuickHire</title>
   <link rel="stylesheet" href="assets/css/landingPage.css">
-
-  <style>
-    .wrap{max-width:900px;margin:40px auto;padding:0 18px;font-family:Inter,system-ui,Arial;}
-    .card{background:#fff;border:1px solid #eee;border-radius:16px;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,.06);}
-    .h{font-size:28px;margin:0 0 8px;font-weight:900}
-    .sub{color:#555;margin:0 0 18px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .full{grid-column:1/-1}
-    label{display:block;font-weight:700;margin:10px 0 6px}
-    input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:12px}
-    textarea{min-height:110px;resize:vertical}
-    .btnsave{margin-top:16px;background:#1f6f82;color:#fff;border:0;border-radius:14px;padding:12px 18px;font-weight:900;cursor:pointer}
-    .alert{padding:12px 14px;border-radius:12px;margin:0 0 14px;font-weight:800}
-    .alert.err{background:#ffe1e1;color:#7a0b0b}
-    .alert.ok{background:#e6ffef;color:#0c5a2a}
-    .hint{font-size:12px;color:#666;margin-top:6px}
-    
-    /* Skills organization */
-    .skills-container { margin-top: 10px; }
-    .skills-search { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
-    .skills-tabs { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
-    .skills-tab { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
-    .skills-tab.active { background: #1f6f82; color: white; border-color: #1f6f82; }
-    .skills-tab:hover { border-color: #1f6f82; }
-    .category-section { margin-bottom: 15px; }
-    .category-title { font-weight: 800; color: #1f6f82; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 3px; }
-    .skills-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-    .skill-checkbox { display: flex; align-items: center; gap: 8px; }
-    .skill-checkbox input { width: 18px; height: 18px; cursor: pointer; }
-    .skill-checkbox label { margin: 0; font-weight: 600; cursor: pointer; font-size: 14px; }
-    
-    /* Skills grid styling - keep for backward compatibility */
-    .skills-section{margin-top:20px;}
-    .skills-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:12px;margin-top:10px;max-height:300px;overflow-y:auto;border:1px solid #ddd;border-radius:12px;padding:16px;}
-    .skill-item{display:flex;align-items:center;gap:8px;padding:6px 0;}
-    .skill-item input[type="checkbox"]{width:18px;height:18px;cursor:pointer;}
-    .skill-item label{margin:0;font-weight:600;cursor:pointer;font-size:14px;}
-    .category-header{font-weight:900;color:#1f6f82;margin:12px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px;grid-column:1/-1;}
-    
-    /* Toast notification styles */
-    .toast {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: #4ade80;
-      color: white;
-      padding: 16px 20px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-      font-weight: 700;
-      z-index: 1000;
-      opacity: 0;
-      transition: all 0.3s ease-in-out;
-      max-width: 400px;
-      text-align: center;
-    }
-    
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-    
-    .toast.error {
-      background: #ef4444;
-    }
-    
-    .avatar-upload {
-      position: relative;
-      width: 120px;
-      height: 120px;
-      margin: 0 auto 20px;
-      cursor: pointer;
-    }
-    
-    .avatar-preview {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: #eaf3f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      color: #1f6f82;
-      font-size: 48px;
-      overflow: hidden;
-      border: 3px solid #ddd;
-      transition: all 0.3s ease;
-    }
-    
-    .avatar-preview:hover {
-      border-color: #1f6f82;
-      transform: scale(1.05);
-    }
-    
-    .avatar-preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .avatar-overlay {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      background: #1f6f82;
-      color: white;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      border: 3px solid white;
-      cursor: pointer;
-    }
-    
-    .avatar-upload input[type="file"] {
-      display: none !important;
-      visibility: hidden !important;
-      position: absolute !important;
-      left: -9999px !important;
-      width: 0 !important;
-      height: 0 !important;
-      opacity: 0 !important;
-      z-index: -1 !important;
-    }
-    
-    /* Hide any file input related elements */
-    .avatar-upload input[type="file"]::-webkit-file-upload-button {
-      display: none !important;
-    }
-    
-    .avatar-upload input[type="file"]::file-selector-button {
-      display: none !important;
-    }
-    
-    /* Hide any browser-generated file input text within avatar upload */
-    .avatar-upload input[type="file"]::before,
-    .avatar-upload input[type="file"]::after {
-      display: none !important;
-      content: none !important;
-    }
-    
-    /* Ensure avatar upload container doesn't show any text */
-    .avatar-upload::after {
-      content: none !important;
-    }
-    
-    @media (max-width:720px){.grid{grid-template-columns:1fr}.skills-grid{grid-template-columns:1fr}}
-  </style>
+  <link rel="stylesheet" href="assets/css/complete-profile.css">
 </head>
 <body>
   <div class="wrap">
@@ -242,16 +93,46 @@ $csrf = Csrf::token();
                   <?php endif; ?>
                 </div>
                 <div class="avatar-overlay">✏️</div>
+                <input type="file" id="profile_picture_js_complete" name="profile_picture" accept="image/*">
               </div>
               <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
                 <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
               </div>
-              <input type="file" id="profile_picture_js_complete" name="profile_picture" accept="image/*">
             </div>
 
             <div>
               <label>Desired Job Role *</label>
-              <input name="role_title" value="<?= htmlspecialchars($js['role_title'] ?? '') ?>" required>
+              <select name="role_title" required>
+                <option value="">Select Job Role</option>
+                <option value="Software Engineer" <?= ($js['role_title'] ?? '') === 'Software Engineer' ? 'selected' : '' ?>>Software Engineer</option>
+                <option value="Software Developer" <?= ($js['role_title'] ?? '') === 'Software Developer' ? 'selected' : '' ?>>Software Developer</option>
+                <option value="Web Developer" <?= ($js['role_title'] ?? '') === 'Web Developer' ? 'selected' : '' ?>>Web Developer</option>
+                <option value="Mobile Developer" <?= ($js['role_title'] ?? '') === 'Mobile Developer' ? 'selected' : '' ?>>Mobile Developer</option>
+                <option value="Full Stack Developer" <?= ($js['role_title'] ?? '') === 'Full Stack Developer' ? 'selected' : '' ?>>Full Stack Developer</option>
+                <option value="Frontend Developer" <?= ($js['role_title'] ?? '') === 'Frontend Developer' ? 'selected' : '' ?>>Frontend Developer</option>
+                <option value="Backend Developer" <?= ($js['role_title'] ?? '') === 'Backend Developer' ? 'selected' : '' ?>>Backend Developer</option>
+                <option value="DevOps Engineer" <?= ($js['role_title'] ?? '') === 'DevOps Engineer' ? 'selected' : '' ?>>DevOps Engineer</option>
+                <option value="Cloud Engineer" <?= ($js['role_title'] ?? '') === 'Cloud Engineer' ? 'selected' : '' ?>>Cloud Engineer</option>
+                <option value="Data Scientist" <?= ($js['role_title'] ?? '') === 'Data Scientist' ? 'selected' : '' ?>>Data Scientist</option>
+                <option value="Data Engineer" <?= ($js['role_title'] ?? '') === 'Data Engineer' ? 'selected' : '' ?>>Data Engineer</option>
+                <option value="Data Analyst" <?= ($js['role_title'] ?? '') === 'Data Analyst' ? 'selected' : '' ?>>Data Analyst</option>
+                <option value="Machine Learning Engineer" <?= ($js['role_title'] ?? '') === 'Machine Learning Engineer' ? 'selected' : '' ?>>Machine Learning Engineer</option>
+                <option value="AI Engineer" <?= ($js['role_title'] ?? '') === 'AI Engineer' ? 'selected' : '' ?>>AI Engineer</option>
+                <option value="Database Administrator" <?= ($js['role_title'] ?? '') === 'Database Administrator' ? 'selected' : '' ?>>Database Administrator</option>
+                <option value="System Administrator" <?= ($js['role_title'] ?? '') === 'System Administrator' ? 'selected' : '' ?>>System Administrator</option>
+                <option value="Network Engineer" <?= ($js['role_title'] ?? '') === 'Network Engineer' ? 'selected' : '' ?>>Network Engineer</option>
+                <option value="Security Engineer" <?= ($js['role_title'] ?? '') === 'Security Engineer' ? 'selected' : '' ?>>Security Engineer</option>
+                <option value="QA Engineer" <?= ($js['role_title'] ?? '') === 'QA Engineer' ? 'selected' : '' ?>>QA Engineer</option>
+                <option value="QA Automation Engineer" <?= ($js['role_title'] ?? '') === 'QA Automation Engineer' ? 'selected' : '' ?>>QA Automation Engineer</option>
+                <option value="UI/UX Designer" <?= ($js['role_title'] ?? '') === 'UI/UX Designer' ? 'selected' : '' ?>>UI/UX Designer</option>
+                <option value="Product Designer" <?= ($js['role_title'] ?? '') === 'Product Designer' ? 'selected' : '' ?>>Product Designer</option>
+                <option value="Technical Product Manager" <?= ($js['role_title'] ?? '') === 'Technical Product Manager' ? 'selected' : '' ?>>Technical Product Manager</option>
+                <option value="IT Project Manager" <?= ($js['role_title'] ?? '') === 'IT Project Manager' ? 'selected' : '' ?>>IT Project Manager</option>
+                <option value="Scrum Master" <?= ($js['role_title'] ?? '') === 'Scrum Master' ? 'selected' : '' ?>>Scrum Master</option>
+                <option value="Business Intelligence Analyst" <?= ($js['role_title'] ?? '') === 'Business Intelligence Analyst' ? 'selected' : '' ?>>Business Intelligence Analyst</option>
+                <option value="IT Support Specialist" <?= ($js['role_title'] ?? '') === 'IT Support Specialist' ? 'selected' : '' ?>>IT Support Specialist</option>
+                <option value="Technical Writer" <?= ($js['role_title'] ?? '') === 'Technical Writer' ? 'selected' : '' ?>>Technical Writer</option>
+              </select>
             </div>
 
             <div>
@@ -266,7 +147,55 @@ $csrf = Csrf::token();
 
             <div>
               <label>Country *</label>
-              <input name="country" value="<?= htmlspecialchars($js['country'] ?? '') ?>" required>
+              <select name="country" required>
+                <option value="">Select Country</option>
+                <option value="Afghanistan" <?= ($js['country'] ?? '') === 'Afghanistan' ? 'selected' : '' ?>>Afghanistan</option>
+                <option value="Albania" <?= ($js['country'] ?? '') === 'Albania' ? 'selected' : '' ?>>Albania</option>
+                <option value="Algeria" <?= ($js['country'] ?? '') === 'Algeria' ? 'selected' : '' ?>>Algeria</option>
+                <option value="Argentina" <?= ($js['country'] ?? '') === 'Argentina' ? 'selected' : '' ?>>Argentina</option>
+                <option value="Australia" <?= ($js['country'] ?? '') === 'Australia' ? 'selected' : '' ?>>Australia</option>
+                <option value="Austria" <?= ($js['country'] ?? '') === 'Austria' ? 'selected' : '' ?>>Austria</option>
+                <option value="Bangladesh" <?= ($js['country'] ?? '') === 'Bangladesh' ? 'selected' : '' ?>>Bangladesh</option>
+                <option value="Belgium" <?= ($js['country'] ?? '') === 'Belgium' ? 'selected' : '' ?>>Belgium</option>
+                <option value="Brazil" <?= ($js['country'] ?? '') === 'Brazil' ? 'selected' : '' ?>>Brazil</option>
+                <option value="Canada" <?= ($js['country'] ?? '') === 'Canada' ? 'selected' : '' ?>>Canada</option>
+                <option value="China" <?= ($js['country'] ?? '') === 'China' ? 'selected' : '' ?>>China</option>
+                <option value="Colombia" <?= ($js['country'] ?? '') === 'Colombia' ? 'selected' : '' ?>>Colombia</option>
+                <option value="Denmark" <?= ($js['country'] ?? '') === 'Denmark' ? 'selected' : '' ?>>Denmark</option>
+                <option value="Egypt" <?= ($js['country'] ?? '') === 'Egypt' ? 'selected' : '' ?>>Egypt</option>
+                <option value="Finland" <?= ($js['country'] ?? '') === 'Finland' ? 'selected' : '' ?>>Finland</option>
+                <option value="France" <?= ($js['country'] ?? '') === 'France' ? 'selected' : '' ?>>France</option>
+                <option value="Germany" <?= ($js['country'] ?? '') === 'Germany' ? 'selected' : '' ?>>Germany</option>
+                <option value="Greece" <?= ($js['country'] ?? '') === 'Greece' ? 'selected' : '' ?>>Greece</option>
+                <option value="India" <?= ($js['country'] ?? '') === 'India' ? 'selected' : '' ?>>India</option>
+                <option value="Indonesia" <?= ($js['country'] ?? '') === 'Indonesia' ? 'selected' : '' ?>>Indonesia</option>
+                <option value="Ireland" <?= ($js['country'] ?? '') === 'Ireland' ? 'selected' : '' ?>>Ireland</option>
+                <option value="Italy" <?= ($js['country'] ?? '') === 'Italy' ? 'selected' : '' ?>>Italy</option>
+                <option value="Japan" <?= ($js['country'] ?? '') === 'Japan' ? 'selected' : '' ?>>Japan</option>
+                <option value="Malaysia" <?= ($js['country'] ?? '') === 'Malaysia' ? 'selected' : '' ?>>Malaysia</option>
+                <option value="Mexico" <?= ($js['country'] ?? '') === 'Mexico' ? 'selected' : '' ?>>Mexico</option>
+                <option value="Netherlands" <?= ($js['country'] ?? '') === 'Netherlands' ? 'selected' : '' ?>>Netherlands</option>
+                <option value="New Zealand" <?= ($js['country'] ?? '') === 'New Zealand' ? 'selected' : '' ?>>New Zealand</option>
+                <option value="Norway" <?= ($js['country'] ?? '') === 'Norway' ? 'selected' : '' ?>>Norway</option>
+                <option value="Pakistan" <?= ($js['country'] ?? '') === 'Pakistan' ? 'selected' : '' ?>>Pakistan</option>
+                <option value="Philippines" <?= ($js['country'] ?? '') === 'Philippines' ? 'selected' : '' ?>>Philippines</option>
+                <option value="Poland" <?= ($js['country'] ?? '') === 'Poland' ? 'selected' : '' ?>>Poland</option>
+                <option value="Portugal" <?= ($js['country'] ?? '') === 'Portugal' ? 'selected' : '' ?>>Portugal</option>
+                <option value="Russia" <?= ($js['country'] ?? '') === 'Russia' ? 'selected' : '' ?>>Russia</option>
+                <option value="Saudi Arabia" <?= ($js['country'] ?? '') === 'Saudi Arabia' ? 'selected' : '' ?>>Saudi Arabia</option>
+                <option value="Singapore" <?= ($js['country'] ?? '') === 'Singapore' ? 'selected' : '' ?>>Singapore</option>
+                <option value="South Africa" <?= ($js['country'] ?? '') === 'South Africa' ? 'selected' : '' ?>>South Africa</option>
+                <option value="South Korea" <?= ($js['country'] ?? '') === 'South Korea' ? 'selected' : '' ?>>South Korea</option>
+                <option value="Spain" <?= ($js['country'] ?? '') === 'Spain' ? 'selected' : '' ?>>Spain</option>
+                <option value="Sweden" <?= ($js['country'] ?? '') === 'Sweden' ? 'selected' : '' ?>>Sweden</option>
+                <option value="Switzerland" <?= ($js['country'] ?? '') === 'Switzerland' ? 'selected' : '' ?>>Switzerland</option>
+                <option value="Thailand" <?= ($js['country'] ?? '') === 'Thailand' ? 'selected' : '' ?>>Thailand</option>
+                <option value="Turkey" <?= ($js['country'] ?? '') === 'Turkey' ? 'selected' : '' ?>>Turkey</option>
+                <option value="United Arab Emirates" <?= ($js['country'] ?? '') === 'United Arab Emirates' ? 'selected' : '' ?>>United Arab Emirates</option>
+                <option value="United Kingdom" <?= ($js['country'] ?? '') === 'United Kingdom' ? 'selected' : '' ?>>United Kingdom</option>
+                <option value="United States" <?= ($js['country'] ?? '') === 'United States' ? 'selected' : '' ?>>United States</option>
+                <option value="Vietnam" <?= ($js['country'] ?? '') === 'Vietnam' ? 'selected' : '' ?>>Vietnam</option>
+              </select>
             </div>
 
             <div>
@@ -345,7 +274,26 @@ $csrf = Csrf::token();
 
             <div>
               <label>Bachelor's Degree</label>
-              <input name="bachelors_degree" value="<?= htmlspecialchars($js['bachelors_degree'] ?? '') ?>">
+              <select name="bachelors_degree">
+                <option value="">Select Degree (Optional)</option>
+                <option value="Computer Science" <?= ($js['bachelors_degree'] ?? '') === 'Computer Science' ? 'selected' : '' ?>>Computer Science</option>
+                <option value="Information Technology" <?= ($js['bachelors_degree'] ?? '') === 'Information Technology' ? 'selected' : '' ?>>Information Technology</option>
+                <option value="Software Engineering" <?= ($js['bachelors_degree'] ?? '') === 'Software Engineering' ? 'selected' : '' ?>>Software Engineering</option>
+                <option value="Computer Engineering" <?= ($js['bachelors_degree'] ?? '') === 'Computer Engineering' ? 'selected' : '' ?>>Computer Engineering</option>
+                <option value="Information Systems" <?= ($js['bachelors_degree'] ?? '') === 'Information Systems' ? 'selected' : '' ?>>Information Systems</option>
+                <option value="Data Science" <?= ($js['bachelors_degree'] ?? '') === 'Data Science' ? 'selected' : '' ?>>Data Science</option>
+                <option value="Cybersecurity" <?= ($js['bachelors_degree'] ?? '') === 'Cybersecurity' ? 'selected' : '' ?>>Cybersecurity</option>
+                <option value="Network Engineering" <?= ($js['bachelors_degree'] ?? '') === 'Network Engineering' ? 'selected' : '' ?>>Network Engineering</option>
+                <option value="Artificial Intelligence" <?= ($js['bachelors_degree'] ?? '') === 'Artificial Intelligence' ? 'selected' : '' ?>>Artificial Intelligence</option>
+                <option value="Web Development" <?= ($js['bachelors_degree'] ?? '') === 'Web Development' ? 'selected' : '' ?>>Web Development</option>
+                <option value="Game Development" <?= ($js['bachelors_degree'] ?? '') === 'Game Development' ? 'selected' : '' ?>>Game Development</option>
+                <option value="Mobile Application Development" <?= ($js['bachelors_degree'] ?? '') === 'Mobile Application Development' ? 'selected' : '' ?>>Mobile Application Development</option>
+                <option value="Cloud Computing" <?= ($js['bachelors_degree'] ?? '') === 'Cloud Computing' ? 'selected' : '' ?>>Cloud Computing</option>
+                <option value="Digital Media" <?= ($js['bachelors_degree'] ?? '') === 'Digital Media' ? 'selected' : '' ?>>Digital Media</option>
+                <option value="Graphic Design" <?= ($js['bachelors_degree'] ?? '') === 'Graphic Design' ? 'selected' : '' ?>>Graphic Design</option>
+                <option value="Other Technology Degree" <?= ($js['bachelors_degree'] ?? '') === 'Other Technology Degree' ? 'selected' : '' ?>>Other Technology Degree</option>
+                <option value="No Degree" <?= ($js['bachelors_degree'] ?? '') === 'No Degree' ? 'selected' : '' ?>>No Degree</option>
+              </select>
             </div>
 
             <div>
@@ -355,7 +303,7 @@ $csrf = Csrf::token();
 
             <div>
               <label>Age</label>
-              <input name="age" type="number" value="<?= htmlspecialchars($js['age'] ?? '') ?>">
+              <input name="age" type="number" min="18" max="60" value="<?= htmlspecialchars($js['age'] ?? '') ?>">
             </div>
 
             <div>
@@ -435,16 +383,64 @@ $csrf = Csrf::token();
                   <?php endif; ?>
                 </div>
                 <div class="avatar-overlay">✏️</div>
+                <input type="file" id="profile_picture_emp_complete" name="profile_picture" accept="image/*">
               </div>
               <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
                 <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
               </div>
-              <input type="file" id="profile_picture_emp_complete" name="profile_picture" accept="image/*">
             </div>
 
             <div>
               <label>Country *</label>
-              <input name="country" value="<?= htmlspecialchars($emp['country'] ?? '') ?>" required>
+              <select name="country" required>
+                <option value="">Select Country</option>
+                <option value="Afghanistan" <?= ($emp['country'] ?? '') === 'Afghanistan' ? 'selected' : '' ?>>Afghanistan</option>
+                <option value="Albania" <?= ($emp['country'] ?? '') === 'Albania' ? 'selected' : '' ?>>Albania</option>
+                <option value="Algeria" <?= ($emp['country'] ?? '') === 'Algeria' ? 'selected' : '' ?>>Algeria</option>
+                <option value="Argentina" <?= ($emp['country'] ?? '') === 'Argentina' ? 'selected' : '' ?>>Argentina</option>
+                <option value="Australia" <?= ($emp['country'] ?? '') === 'Australia' ? 'selected' : '' ?>>Australia</option>
+                <option value="Austria" <?= ($emp['country'] ?? '') === 'Austria' ? 'selected' : '' ?>>Austria</option>
+                <option value="Bangladesh" <?= ($emp['country'] ?? '') === 'Bangladesh' ? 'selected' : '' ?>>Bangladesh</option>
+                <option value="Belgium" <?= ($emp['country'] ?? '') === 'Belgium' ? 'selected' : '' ?>>Belgium</option>
+                <option value="Brazil" <?= ($emp['country'] ?? '') === 'Brazil' ? 'selected' : '' ?>>Brazil</option>
+                <option value="Canada" <?= ($emp['country'] ?? '') === 'Canada' ? 'selected' : '' ?>>Canada</option>
+                <option value="China" <?= ($emp['country'] ?? '') === 'China' ? 'selected' : '' ?>>China</option>
+                <option value="Colombia" <?= ($emp['country'] ?? '') === 'Colombia' ? 'selected' : '' ?>>Colombia</option>
+                <option value="Denmark" <?= ($emp['country'] ?? '') === 'Denmark' ? 'selected' : '' ?>>Denmark</option>
+                <option value="Egypt" <?= ($emp['country'] ?? '') === 'Egypt' ? 'selected' : '' ?>>Egypt</option>
+                <option value="Finland" <?= ($emp['country'] ?? '') === 'Finland' ? 'selected' : '' ?>>Finland</option>
+                <option value="France" <?= ($emp['country'] ?? '') === 'France' ? 'selected' : '' ?>>France</option>
+                <option value="Germany" <?= ($emp['country'] ?? '') === 'Germany' ? 'selected' : '' ?>>Germany</option>
+                <option value="Greece" <?= ($emp['country'] ?? '') === 'Greece' ? 'selected' : '' ?>>Greece</option>
+                <option value="India" <?= ($emp['country'] ?? '') === 'India' ? 'selected' : '' ?>>India</option>
+                <option value="Indonesia" <?= ($emp['country'] ?? '') === 'Indonesia' ? 'selected' : '' ?>>Indonesia</option>
+                <option value="Ireland" <?= ($emp['country'] ?? '') === 'Ireland' ? 'selected' : '' ?>>Ireland</option>
+                <option value="Italy" <?= ($emp['country'] ?? '') === 'Italy' ? 'selected' : '' ?>>Italy</option>
+                <option value="Japan" <?= ($emp['country'] ?? '') === 'Japan' ? 'selected' : '' ?>>Japan</option>
+                <option value="Malaysia" <?= ($emp['country'] ?? '') === 'Malaysia' ? 'selected' : '' ?>>Malaysia</option>
+                <option value="Mexico" <?= ($emp['country'] ?? '') === 'Mexico' ? 'selected' : '' ?>>Mexico</option>
+                <option value="Netherlands" <?= ($emp['country'] ?? '') === 'Netherlands' ? 'selected' : '' ?>>Netherlands</option>
+                <option value="New Zealand" <?= ($emp['country'] ?? '') === 'New Zealand' ? 'selected' : '' ?>>New Zealand</option>
+                <option value="Norway" <?= ($emp['country'] ?? '') === 'Norway' ? 'selected' : '' ?>>Norway</option>
+                <option value="Pakistan" <?= ($emp['country'] ?? '') === 'Pakistan' ? 'selected' : '' ?>>Pakistan</option>
+                <option value="Philippines" <?= ($emp['country'] ?? '') === 'Philippines' ? 'selected' : '' ?>>Philippines</option>
+                <option value="Poland" <?= ($emp['country'] ?? '') === 'Poland' ? 'selected' : '' ?>>Poland</option>
+                <option value="Portugal" <?= ($emp['country'] ?? '') === 'Portugal' ? 'selected' : '' ?>>Portugal</option>
+                <option value="Russia" <?= ($emp['country'] ?? '') === 'Russia' ? 'selected' : '' ?>>Russia</option>
+                <option value="Saudi Arabia" <?= ($emp['country'] ?? '') === 'Saudi Arabia' ? 'selected' : '' ?>>Saudi Arabia</option>
+                <option value="Singapore" <?= ($emp['country'] ?? '') === 'Singapore' ? 'selected' : '' ?>>Singapore</option>
+                <option value="South Africa" <?= ($emp['country'] ?? '') === 'South Africa' ? 'selected' : '' ?>>South Africa</option>
+                <option value="South Korea" <?= ($emp['country'] ?? '') === 'South Korea' ? 'selected' : '' ?>>South Korea</option>
+                <option value="Spain" <?= ($emp['country'] ?? '') === 'Spain' ? 'selected' : '' ?>>Spain</option>
+                <option value="Sweden" <?= ($emp['country'] ?? '') === 'Sweden' ? 'selected' : '' ?>>Sweden</option>
+                <option value="Switzerland" <?= ($emp['country'] ?? '') === 'Switzerland' ? 'selected' : '' ?>>Switzerland</option>
+                <option value="Thailand" <?= ($emp['country'] ?? '') === 'Thailand' ? 'selected' : '' ?>>Thailand</option>
+                <option value="Turkey" <?= ($emp['country'] ?? '') === 'Turkey' ? 'selected' : '' ?>>Turkey</option>
+                <option value="United Arab Emirates" <?= ($emp['country'] ?? '') === 'United Arab Emirates' ? 'selected' : '' ?>>United Arab Emirates</option>
+                <option value="United Kingdom" <?= ($emp['country'] ?? '') === 'United Kingdom' ? 'selected' : '' ?>>United Kingdom</option>
+                <option value="United States" <?= ($emp['country'] ?? '') === 'United States' ? 'selected' : '' ?>>United States</option>
+                <option value="Vietnam" <?= ($emp['country'] ?? '') === 'Vietnam' ? 'selected' : '' ?>>Vietnam</option>
+              </select>
             </div>
 
             <div>

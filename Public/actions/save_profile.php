@@ -17,7 +17,7 @@ if (!Csrf::verify($_POST['csrf_token'] ?? null)) {
     exit;
 }
 
-$config = require __DIR__ . '/../../config/config.php';
+$config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 
 $service = new ProfileService($db->pdo(), new FileUpload());
@@ -49,6 +49,8 @@ try {
 
     throw new Exception("Invalid profile submission.");
 } catch (Exception $e) {
+    error_log("Profile save error: " . $e->getMessage());
+    error_log("Files received: " . print_r($_FILES, true));
     Session::flash('error', $e->getMessage());
     header("Location: /QuickHire/Public/complete-profile.php");
     exit;

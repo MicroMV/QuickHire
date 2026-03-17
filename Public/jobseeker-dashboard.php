@@ -15,7 +15,7 @@ if (Auth::role() !== 'JOBSEEKER') {
   exit;
 }
 
-$config = require __DIR__ . '/../config/config.php';
+$config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 
 // Load profile details to display on dashboard
@@ -37,17 +37,10 @@ $jsSkillsStmt = $db->pdo()->prepare("SELECT skill_id FROM jobseeker_skills WHERE
 $jsSkillsStmt->execute([$userId]);
 $currentSkills = array_column($jsSkillsStmt->fetchAll(), 'skill_id');
 
-$incomingStmt = $db->pdo()->prepare("
-  SELECT room_code FROM calls
-  WHERE jobseeker_user_id = ? AND status IN ('RINGING','IN_CALL')
-  ORDER BY id DESC LIMIT 1
-");
-$incomingStmt->execute([$userId]);
-$incoming = $incomingStmt->fetch();
-$incomingRoom = $incoming['room_code'] ?? null;
 $flashError = Session::flash('error');
 $flashSuccess = Session::flash('success');
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,244 +49,7 @@ $flashSuccess = Session::flash('success');
   <title>Jobseeker Dashboard - QuickHire</title>
 
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
-
-  <style>
-    :root { --primary:#1f6f82; --bg:#f6f7f9; --card:#ffffff; --muted:#6b7280; --line:#e5e7eb; }
-
-    body{ margin:0; font-family:Inter, system-ui, Arial; background:var(--bg); color:#111; }
-    .layout{ display:flex; min-height:100vh; }
-
-    /* Sidebar */
-    .side{
-      width:280px;
-      background:var(--card);
-      border-right:1px solid var(--line);
-      padding:18px;
-      position:sticky;
-      top:0;
-      height:100vh;
-    }
-    .brandRow{ display:flex; align-items:center; gap:10px; padding:6px 6px 14px; }
-    .brandRow img{ width:42px; height:42px; border-radius:10px; object-fit:cover; }
-    .brandRow .t1{ font-weight:900; }
-    .brandRow .t2{ font-size:12px; color:var(--muted); margin-top:2px; }
-
-    .profileCard{
-      margin-top:8px;
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:14px;
-      display:flex;
-      gap:12px;
-      align-items:center;
-      background:#fff;
-    }
-    .avatar{
-      width:54px; height:54px; border-radius:16px;
-      background:#eaf3f5; overflow:hidden; flex:0 0 auto;
-      display:flex; align-items:center; justify-content:center;
-      font-weight:900; color:var(--primary);
-    }
-    .avatar img{ width:100%; height:100%; object-fit:cover; }
-    .name{ font-weight:900; }
-    .meta{ font-size:12px; color:var(--muted); margin-top:3px; }
-
-    .nav{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
-    .nav a, .nav button{
-      display:flex; align-items:center; gap:10px;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:#fff;
-      color:#111;
-      font-weight:800;
-      text-decoration:none;
-      cursor:pointer;
-      transition: all 0.2s ease;
-    }
-    .nav a:hover, .nav button:hover{ border-color:#cfe5ea; }
-    .nav a.active, .nav button.active{ 
-      background:var(--primary); 
-      border-color:var(--primary); 
-      color:#fff; 
-      box-shadow: 0 4px 12px rgba(31, 111, 130, 0.3);
-    }
-
-    .nav .danger{ border-color:#ffd1d1; color:#7a0b0b; }
-    .nav .primary{ background:var(--primary); border-color:var(--primary); color:#fff; }
-    .nav .success{ background:#10b981; border-color:#10b981; color:#fff; }
-
-    /* Main content */
-    .main{ flex:1; padding:26px; }
-    .topbar{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
-      margin-bottom:18px;
-    }
-    .title{ margin:0; font-size:28px; font-weight:1000; }
-    .subtitle{ margin:6px 0 0; color:var(--muted); }
-
-    .notice{ padding:12px 14px; border-radius:14px; font-weight:800; margin-bottom:14px; }
-    .notice.err{ background:#ffe1e1; color:#7a0b0b; }
-    .notice.ok{ background:#e6ffef; color:#0c5a2a; }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap:16px;
-      align-items: start;
-    }
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:18px;
-      box-shadow:0 10px 30px rgba(0,0,0,.05);
-    }
-    .card h3{ margin:0 0 10px; font-size:16px; font-weight:1000; }
-    .pillRow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    .pill{ padding:8px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; font-weight:800; font-size:12px; color:#111; }
-
-    .btn{
-      display:inline-flex; align-items:center; justify-content:center;
-      padding:12px 16px; border-radius:14px; border:1px solid transparent;
-      font-weight:900; cursor:pointer; text-decoration:none;
-    }
-    .btn.primary{ background:var(--primary); color:#fff; }
-    .btn.outline{ background:#fff; border-color:var(--line); color:#111; }
-
-    .skills-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:10px; max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:12px; padding:16px; }
-    .skill-checkbox{ display:flex; align-items:center; gap:8px; }
-    .skill-checkbox input{ width:18px; height:18px; cursor:pointer; }
-    .category-header{ font-weight:900; color:var(--primary); margin:12px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; grid-column:1/-1; }
-    
-    /* Skills organization */
-    .skills-container { margin-top: 10px; }
-    .skills-search { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
-    .skills-tabs { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
-    .skills-tab { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
-    .skills-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
-    .skills-tab:hover { border-color: var(--primary); }
-    .category-section { margin-bottom: 15px; }
-    .category-title { font-weight: 800; color: var(--primary); margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
-    .skills-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-    .avatar-upload {
-      position: relative;
-      width: 120px;
-      height: 120px;
-      margin: 0 auto 20px;
-      cursor: pointer;
-    }
-    
-    .avatar-preview {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: #eaf3f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      color: var(--primary);
-      font-size: 48px;
-      overflow: hidden;
-      border: 3px solid var(--line);
-      transition: all 0.3s ease;
-    }
-    
-    .avatar-preview:hover {
-      border-color: var(--primary);
-      transform: scale(1.05);
-    }
-    
-    .avatar-preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .avatar-overlay {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      background: var(--primary);
-      color: white;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      border: 3px solid white;
-      cursor: pointer;
-    }
-    
-    .avatar-upload input[type="file"] {
-      display: none !important;
-      visibility: hidden !important;
-      position: absolute !important;
-      left: -9999px !important;
-      width: 0 !important;
-      height: 0 !important;
-      opacity: 0 !important;
-      z-index: -1 !important;
-    }
-    
-    /* Hide any file input related elements */
-    .avatar-upload input[type="file"]::-webkit-file-upload-button {
-      display: none !important;
-    }
-    
-    .avatar-upload input[type="file"]::file-selector-button {
-      display: none !important;
-    }
-    
-    /* Hide any browser-generated file input text within avatar upload */
-    .avatar-upload input[type="file"]::before,
-    .avatar-upload input[type="file"]::after {
-      display: none !important;
-      content: none !important;
-    }
-    
-    /* Ensure avatar upload container doesn't show any text */
-    .avatar-upload::after {
-      content: none !important;
-    }
-
-    @media (max-width: 980px){
-      .grid{ grid-template-columns:1fr; }
-      .side{ position:relative; height:auto; width:100%; border-right:0; border-bottom:1px solid var(--line); }
-      .layout{ flex-direction:column; }
-    }
-
-    /* Toast notification styles */
-    .toast {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: #4ade80;
-      color: white;
-      padding: 16px 20px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-      font-weight: 700;
-      z-index: 1000;
-      opacity: 0;
-      transition: all 0.3s ease-in-out;
-      max-width: 400px;
-      text-align: center;
-    }
-    
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-    
-    .toast.error {
-      background: #ef4444;
-    }
-  </style>
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/jobseeker-dashboard.css">
 </head>
 <body>
 
@@ -337,21 +93,11 @@ $flashSuccess = Session::flash('success');
 
   <!-- MAIN -->
   <main class="main">
-    <?php if ($incomingRoom): ?>
-      <div class="notice ok" style="margin-bottom:14px;">
-        🔔 Incoming call from employer! Click "Find Employer" to join the call.
-      </div>
-    <?php else: ?>
-      <div class="notice" style="background:#f0f4f8; color:#1f6f82; margin-bottom:14px;">
-        ⏳ Ready to find employers? Click "Find Employer" to start matching or join waiting calls.
-      </div>
-    <?php endif; ?>
-
     <div class="topbar">
       <div>
         <h1 class="title">Welcome back 👋</h1>
         <p class="subtitle">
-          Your profile is live. Employers will automatically match with you based on your skills and availability.
+          Click "Find Employer" to automatically connect with employers who are currently looking for candidates like you.
         </p>
       </div>
 
@@ -367,7 +113,7 @@ $flashSuccess = Session::flash('success');
       <section class="card">
         <h3>📊 Your Status</h3>
         <p style="margin:0; color:var(--muted); line-height:1.5;">
-          Your profile is active and visible to employers. When an employer finds a match, you'll receive an incoming call notification automatically.
+          Your profile is active and visible to employers. Click "Find Employer" to automatically connect with employers who are currently looking for candidates matching your profile.
         </p>
 
         <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
@@ -431,16 +177,57 @@ $flashSuccess = Session::flash('success');
                 <?php endif; ?>
               </div>
               <div class="avatar-overlay">✏️</div>
+              <input type="file" id="profile_picture_js" name="profile_picture" accept="image/*">
             </div>
             <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
-              <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
+              <div id="nameDisplay" style="cursor: pointer; padding: 5px; border-radius: 5px; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'" onclick="editName()">
+                <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
+                <span style="font-size: 12px; color: #666; margin-left: 5px;">✏️</span>
+              </div>
+              <div id="nameEdit" style="display: none;">
+                <input type="text" id="firstNameInput" name="first_name" value="<?= htmlspecialchars($userInfo['first_name'] ?? '') ?>" placeholder="First Name" style="width: 45%; padding: 8px; margin: 5px 2%; border: 1px solid var(--line); border-radius: 8px;">
+                <input type="text" id="lastNameInput" name="last_name" value="<?= htmlspecialchars($userInfo['last_name'] ?? '') ?>" placeholder="Last Name" style="width: 45%; padding: 8px; margin: 5px 2%; border: 1px solid var(--line); border-radius: 8px;">
+                <div style="margin-top: 10px;">
+                  <button type="button" onclick="saveName()" style="padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 5px;">Save</button>
+                  <button type="button" onclick="cancelEditName()" style="padding: 6px 12px; background: #ccc; color: #333; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                </div>
+              </div>
             </div>
-            <input type="file" id="profile_picture_js" name="profile_picture" accept="image/*">
           </div>
 
           <div>
             <label style="display:block; font-weight:900; margin-bottom:6px;">Desired Job Role *</label>
-            <input name="role_title" value="<?= htmlspecialchars($profile['role_title'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+            <select name="role_title" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+              <option value="">Select Job Role</option>
+              <option value="Software Engineer" <?= ($profile['role_title'] ?? '') === 'Software Engineer' ? 'selected' : '' ?>>Software Engineer</option>
+              <option value="Software Developer" <?= ($profile['role_title'] ?? '') === 'Software Developer' ? 'selected' : '' ?>>Software Developer</option>
+              <option value="Web Developer" <?= ($profile['role_title'] ?? '') === 'Web Developer' ? 'selected' : '' ?>>Web Developer</option>
+              <option value="Mobile Developer" <?= ($profile['role_title'] ?? '') === 'Mobile Developer' ? 'selected' : '' ?>>Mobile Developer</option>
+              <option value="Full Stack Developer" <?= ($profile['role_title'] ?? '') === 'Full Stack Developer' ? 'selected' : '' ?>>Full Stack Developer</option>
+              <option value="Frontend Developer" <?= ($profile['role_title'] ?? '') === 'Frontend Developer' ? 'selected' : '' ?>>Frontend Developer</option>
+              <option value="Backend Developer" <?= ($profile['role_title'] ?? '') === 'Backend Developer' ? 'selected' : '' ?>>Backend Developer</option>
+              <option value="DevOps Engineer" <?= ($profile['role_title'] ?? '') === 'DevOps Engineer' ? 'selected' : '' ?>>DevOps Engineer</option>
+              <option value="Cloud Engineer" <?= ($profile['role_title'] ?? '') === 'Cloud Engineer' ? 'selected' : '' ?>>Cloud Engineer</option>
+              <option value="Data Scientist" <?= ($profile['role_title'] ?? '') === 'Data Scientist' ? 'selected' : '' ?>>Data Scientist</option>
+              <option value="Data Engineer" <?= ($profile['role_title'] ?? '') === 'Data Engineer' ? 'selected' : '' ?>>Data Engineer</option>
+              <option value="Data Analyst" <?= ($profile['role_title'] ?? '') === 'Data Analyst' ? 'selected' : '' ?>>Data Analyst</option>
+              <option value="Machine Learning Engineer" <?= ($profile['role_title'] ?? '') === 'Machine Learning Engineer' ? 'selected' : '' ?>>Machine Learning Engineer</option>
+              <option value="AI Engineer" <?= ($profile['role_title'] ?? '') === 'AI Engineer' ? 'selected' : '' ?>>AI Engineer</option>
+              <option value="Database Administrator" <?= ($profile['role_title'] ?? '') === 'Database Administrator' ? 'selected' : '' ?>>Database Administrator</option>
+              <option value="System Administrator" <?= ($profile['role_title'] ?? '') === 'System Administrator' ? 'selected' : '' ?>>System Administrator</option>
+              <option value="Network Engineer" <?= ($profile['role_title'] ?? '') === 'Network Engineer' ? 'selected' : '' ?>>Network Engineer</option>
+              <option value="Security Engineer" <?= ($profile['role_title'] ?? '') === 'Security Engineer' ? 'selected' : '' ?>>Security Engineer</option>
+              <option value="QA Engineer" <?= ($profile['role_title'] ?? '') === 'QA Engineer' ? 'selected' : '' ?>>QA Engineer</option>
+              <option value="QA Automation Engineer" <?= ($profile['role_title'] ?? '') === 'QA Automation Engineer' ? 'selected' : '' ?>>QA Automation Engineer</option>
+              <option value="UI/UX Designer" <?= ($profile['role_title'] ?? '') === 'UI/UX Designer' ? 'selected' : '' ?>>UI/UX Designer</option>
+              <option value="Product Designer" <?= ($profile['role_title'] ?? '') === 'Product Designer' ? 'selected' : '' ?>>Product Designer</option>
+              <option value="Technical Product Manager" <?= ($profile['role_title'] ?? '') === 'Technical Product Manager' ? 'selected' : '' ?>>Technical Product Manager</option>
+              <option value="IT Project Manager" <?= ($profile['role_title'] ?? '') === 'IT Project Manager' ? 'selected' : '' ?>>IT Project Manager</option>
+              <option value="Scrum Master" <?= ($profile['role_title'] ?? '') === 'Scrum Master' ? 'selected' : '' ?>>Scrum Master</option>
+              <option value="Business Intelligence Analyst" <?= ($profile['role_title'] ?? '') === 'Business Intelligence Analyst' ? 'selected' : '' ?>>Business Intelligence Analyst</option>
+              <option value="IT Support Specialist" <?= ($profile['role_title'] ?? '') === 'IT Support Specialist' ? 'selected' : '' ?>>IT Support Specialist</option>
+              <option value="Technical Writer" <?= ($profile['role_title'] ?? '') === 'Technical Writer' ? 'selected' : '' ?>>Technical Writer</option>
+            </select>
           </div>
 
           <div>
@@ -455,7 +242,55 @@ $flashSuccess = Session::flash('success');
 
           <div>
             <label style="display:block; font-weight:900; margin-bottom:6px;">Country *</label>
-            <input name="country" value="<?= htmlspecialchars($profile['country'] ?? '') ?>" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+            <select name="country" required style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+              <option value="">Select Country</option>
+              <option value="Afghanistan" <?= ($profile['country'] ?? '') === 'Afghanistan' ? 'selected' : '' ?>>Afghanistan</option>
+              <option value="Albania" <?= ($profile['country'] ?? '') === 'Albania' ? 'selected' : '' ?>>Albania</option>
+              <option value="Algeria" <?= ($profile['country'] ?? '') === 'Algeria' ? 'selected' : '' ?>>Algeria</option>
+              <option value="Argentina" <?= ($profile['country'] ?? '') === 'Argentina' ? 'selected' : '' ?>>Argentina</option>
+              <option value="Australia" <?= ($profile['country'] ?? '') === 'Australia' ? 'selected' : '' ?>>Australia</option>
+              <option value="Austria" <?= ($profile['country'] ?? '') === 'Austria' ? 'selected' : '' ?>>Austria</option>
+              <option value="Bangladesh" <?= ($profile['country'] ?? '') === 'Bangladesh' ? 'selected' : '' ?>>Bangladesh</option>
+              <option value="Belgium" <?= ($profile['country'] ?? '') === 'Belgium' ? 'selected' : '' ?>>Belgium</option>
+              <option value="Brazil" <?= ($profile['country'] ?? '') === 'Brazil' ? 'selected' : '' ?>>Brazil</option>
+              <option value="Canada" <?= ($profile['country'] ?? '') === 'Canada' ? 'selected' : '' ?>>Canada</option>
+              <option value="China" <?= ($profile['country'] ?? '') === 'China' ? 'selected' : '' ?>>China</option>
+              <option value="Colombia" <?= ($profile['country'] ?? '') === 'Colombia' ? 'selected' : '' ?>>Colombia</option>
+              <option value="Denmark" <?= ($profile['country'] ?? '') === 'Denmark' ? 'selected' : '' ?>>Denmark</option>
+              <option value="Egypt" <?= ($profile['country'] ?? '') === 'Egypt' ? 'selected' : '' ?>>Egypt</option>
+              <option value="Finland" <?= ($profile['country'] ?? '') === 'Finland' ? 'selected' : '' ?>>Finland</option>
+              <option value="France" <?= ($profile['country'] ?? '') === 'France' ? 'selected' : '' ?>>France</option>
+              <option value="Germany" <?= ($profile['country'] ?? '') === 'Germany' ? 'selected' : '' ?>>Germany</option>
+              <option value="Greece" <?= ($profile['country'] ?? '') === 'Greece' ? 'selected' : '' ?>>Greece</option>
+              <option value="India" <?= ($profile['country'] ?? '') === 'India' ? 'selected' : '' ?>>India</option>
+              <option value="Indonesia" <?= ($profile['country'] ?? '') === 'Indonesia' ? 'selected' : '' ?>>Indonesia</option>
+              <option value="Ireland" <?= ($profile['country'] ?? '') === 'Ireland' ? 'selected' : '' ?>>Ireland</option>
+              <option value="Italy" <?= ($profile['country'] ?? '') === 'Italy' ? 'selected' : '' ?>>Italy</option>
+              <option value="Japan" <?= ($profile['country'] ?? '') === 'Japan' ? 'selected' : '' ?>>Japan</option>
+              <option value="Malaysia" <?= ($profile['country'] ?? '') === 'Malaysia' ? 'selected' : '' ?>>Malaysia</option>
+              <option value="Mexico" <?= ($profile['country'] ?? '') === 'Mexico' ? 'selected' : '' ?>>Mexico</option>
+              <option value="Netherlands" <?= ($profile['country'] ?? '') === 'Netherlands' ? 'selected' : '' ?>>Netherlands</option>
+              <option value="New Zealand" <?= ($profile['country'] ?? '') === 'New Zealand' ? 'selected' : '' ?>>New Zealand</option>
+              <option value="Norway" <?= ($profile['country'] ?? '') === 'Norway' ? 'selected' : '' ?>>Norway</option>
+              <option value="Pakistan" <?= ($profile['country'] ?? '') === 'Pakistan' ? 'selected' : '' ?>>Pakistan</option>
+              <option value="Philippines" <?= ($profile['country'] ?? '') === 'Philippines' ? 'selected' : '' ?>>Philippines</option>
+              <option value="Poland" <?= ($profile['country'] ?? '') === 'Poland' ? 'selected' : '' ?>>Poland</option>
+              <option value="Portugal" <?= ($profile['country'] ?? '') === 'Portugal' ? 'selected' : '' ?>>Portugal</option>
+              <option value="Russia" <?= ($profile['country'] ?? '') === 'Russia' ? 'selected' : '' ?>>Russia</option>
+              <option value="Saudi Arabia" <?= ($profile['country'] ?? '') === 'Saudi Arabia' ? 'selected' : '' ?>>Saudi Arabia</option>
+              <option value="Singapore" <?= ($profile['country'] ?? '') === 'Singapore' ? 'selected' : '' ?>>Singapore</option>
+              <option value="South Africa" <?= ($profile['country'] ?? '') === 'South Africa' ? 'selected' : '' ?>>South Africa</option>
+              <option value="South Korea" <?= ($profile['country'] ?? '') === 'South Korea' ? 'selected' : '' ?>>South Korea</option>
+              <option value="Spain" <?= ($profile['country'] ?? '') === 'Spain' ? 'selected' : '' ?>>Spain</option>
+              <option value="Sweden" <?= ($profile['country'] ?? '') === 'Sweden' ? 'selected' : '' ?>>Sweden</option>
+              <option value="Switzerland" <?= ($profile['country'] ?? '') === 'Switzerland' ? 'selected' : '' ?>>Switzerland</option>
+              <option value="Thailand" <?= ($profile['country'] ?? '') === 'Thailand' ? 'selected' : '' ?>>Thailand</option>
+              <option value="Turkey" <?= ($profile['country'] ?? '') === 'Turkey' ? 'selected' : '' ?>>Turkey</option>
+              <option value="United Arab Emirates" <?= ($profile['country'] ?? '') === 'United Arab Emirates' ? 'selected' : '' ?>>United Arab Emirates</option>
+              <option value="United Kingdom" <?= ($profile['country'] ?? '') === 'United Kingdom' ? 'selected' : '' ?>>United Kingdom</option>
+              <option value="United States" <?= ($profile['country'] ?? '') === 'United States' ? 'selected' : '' ?>>United States</option>
+              <option value="Vietnam" <?= ($profile['country'] ?? '') === 'Vietnam' ? 'selected' : '' ?>>Vietnam</option>
+            </select>
           </div>
 
           <div>
@@ -534,7 +369,26 @@ $flashSuccess = Session::flash('success');
 
           <div>
             <label style="display:block; font-weight:900; margin-bottom:6px;">Bachelor's Degree</label>
-            <input name="bachelors_degree" value="<?= htmlspecialchars($profile['bachelors_degree'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+            <select name="bachelors_degree" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+              <option value="">Select Degree (Optional)</option>
+              <option value="Computer Science" <?= ($profile['bachelors_degree'] ?? '') === 'Computer Science' ? 'selected' : '' ?>>Computer Science</option>
+              <option value="Information Technology" <?= ($profile['bachelors_degree'] ?? '') === 'Information Technology' ? 'selected' : '' ?>>Information Technology</option>
+              <option value="Software Engineering" <?= ($profile['bachelors_degree'] ?? '') === 'Software Engineering' ? 'selected' : '' ?>>Software Engineering</option>
+              <option value="Computer Engineering" <?= ($profile['bachelors_degree'] ?? '') === 'Computer Engineering' ? 'selected' : '' ?>>Computer Engineering</option>
+              <option value="Information Systems" <?= ($profile['bachelors_degree'] ?? '') === 'Information Systems' ? 'selected' : '' ?>>Information Systems</option>
+              <option value="Data Science" <?= ($profile['bachelors_degree'] ?? '') === 'Data Science' ? 'selected' : '' ?>>Data Science</option>
+              <option value="Cybersecurity" <?= ($profile['bachelors_degree'] ?? '') === 'Cybersecurity' ? 'selected' : '' ?>>Cybersecurity</option>
+              <option value="Network Engineering" <?= ($profile['bachelors_degree'] ?? '') === 'Network Engineering' ? 'selected' : '' ?>>Network Engineering</option>
+              <option value="Artificial Intelligence" <?= ($profile['bachelors_degree'] ?? '') === 'Artificial Intelligence' ? 'selected' : '' ?>>Artificial Intelligence</option>
+              <option value="Web Development" <?= ($profile['bachelors_degree'] ?? '') === 'Web Development' ? 'selected' : '' ?>>Web Development</option>
+              <option value="Game Development" <?= ($profile['bachelors_degree'] ?? '') === 'Game Development' ? 'selected' : '' ?>>Game Development</option>
+              <option value="Mobile Application Development" <?= ($profile['bachelors_degree'] ?? '') === 'Mobile Application Development' ? 'selected' : '' ?>>Mobile Application Development</option>
+              <option value="Cloud Computing" <?= ($profile['bachelors_degree'] ?? '') === 'Cloud Computing' ? 'selected' : '' ?>>Cloud Computing</option>
+              <option value="Digital Media" <?= ($profile['bachelors_degree'] ?? '') === 'Digital Media' ? 'selected' : '' ?>>Digital Media</option>
+              <option value="Graphic Design" <?= ($profile['bachelors_degree'] ?? '') === 'Graphic Design' ? 'selected' : '' ?>>Graphic Design</option>
+              <option value="Other Technology Degree" <?= ($profile['bachelors_degree'] ?? '') === 'Other Technology Degree' ? 'selected' : '' ?>>Other Technology Degree</option>
+              <option value="No Degree" <?= ($profile['bachelors_degree'] ?? '') === 'No Degree' ? 'selected' : '' ?>>No Degree</option>
+            </select>
           </div>
 
           <div>
@@ -544,7 +398,7 @@ $flashSuccess = Session::flash('success');
 
           <div>
             <label style="display:block; font-weight:900; margin-bottom:6px;">Age</label>
-            <input name="age" type="number" value="<?= htmlspecialchars($profile['age'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
+            <input name="age" type="number" min="18" max="60" value="<?= htmlspecialchars($profile['age'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;">
           </div>
 
           <div>
@@ -632,18 +486,20 @@ $flashSuccess = Session::flash('success');
       const data = await response.json();
 
       if (data.ok && data.room) {
-        // Direct redirect to call page (same as "Join now")
+        if (data.match_score) {
+          // Match found with score
+        }
+        // Redirect to call
         window.location.href = '/QuickHire/Public/call.php?room=' + encodeURIComponent(data.room);
+      } else if (data.waiting) {
+        showToast('No employers are currently looking. Please wait.', 'info');
       } else {
-        alert(data.error || 'No employers available right now. Please try again later.');
-        // Re-enable buttons
-        btnFindEmployer.disabled = false;
-        btnFindEmployer2.disabled = false;
-        btnFindEmployer.textContent = '🔍 Find Employer';
-        btnFindEmployer2.textContent = 'Find Employer';
+        showToast(data.error || 'Unable to find employers.', 'error');
       }
     } catch (error) {
-      alert('Connection error. Please try again.');
+      console.error('Find employer error:', error);
+      showToast('Connection error. Please try again.', 'error');
+    } finally {
       // Re-enable buttons
       btnFindEmployer.disabled = false;
       btnFindEmployer2.disabled = false;
@@ -663,7 +519,7 @@ $flashSuccess = Session::flash('success');
     
     // Update title when showing dashboard
     document.querySelector('.title').textContent = 'Welcome back 👋';
-    document.querySelector('.subtitle').textContent = 'Your profile is live. Employers will automatically match with you based on your skills and availability.';
+    document.querySelector('.subtitle').textContent = 'Click "Find Employer" to automatically connect with employers who are currently looking for candidates like you.';
   }
 
   function showProfileEdit() {
@@ -817,6 +673,62 @@ $flashSuccess = Session::flash('success');
       });
     });
   });
+</script>
+
+<script>
+  // Name editing functionality
+  function editName() {
+    document.getElementById('nameDisplay').style.display = 'none';
+    document.getElementById('nameEdit').style.display = 'block';
+    document.getElementById('firstNameInput').focus();
+  }
+
+  function cancelEditName() {
+    document.getElementById('nameDisplay').style.display = 'block';
+    document.getElementById('nameEdit').style.display = 'none';
+  }
+
+  async function saveName() {
+    const firstName = document.getElementById('firstNameInput').value.trim();
+    const lastName = document.getElementById('lastNameInput').value.trim();
+
+    if (!firstName || !lastName) {
+      showToast('Please enter both first and last name', 'error');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('first_name', firstName);
+      formData.append('last_name', lastName);
+      formData.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
+
+      const response = await fetch('/QuickHire/Public/actions/update_name.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.ok) {
+        // Update the display
+        document.getElementById('nameDisplay').innerHTML = `${firstName} ${lastName} <span style="font-size: 12px; color: #666; margin-left: 5px;">✏️</span>`;
+        cancelEditName();
+        showToast('Name updated successfully', 'success');
+        
+        // Update sidebar name
+        const sidebarName = document.querySelector('.profileCard .name');
+        if (sidebarName) {
+          sidebarName.textContent = `${firstName} ${lastName}`;
+        }
+      } else {
+        showToast(result.error || 'Failed to update name', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating name:', error);
+      showToast('Connection error. Please try again.', 'error');
+    }
+  }
 </script>
 
 </html>

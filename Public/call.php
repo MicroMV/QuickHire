@@ -14,7 +14,7 @@ if ($room === '') {
 }
 
 // Optional: verify user is allowed in this call room
-$config = require __DIR__ . '/../config/config.php';
+$config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 $pdo = $db->pdo();
 
@@ -24,11 +24,26 @@ $call = $stmt->fetch();
 if (!$call) die("Call room not found.");
 
 $uid = Auth::userId();
-if ($uid !== (int)$call['employer_user_id'] && $uid !== (int)$call['jobseeker_user_id']) {
+$isEmployer = $uid === (int)$call['employer_user_id'];
+$isJobseeker = $call['jobseeker_user_id'] && $uid === (int)$call['jobseeker_user_id'];
+
+if (!$isEmployer && !$isJobseeker) {
     die("You are not allowed in this room.");
 }
-$pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='RINGING'")->execute([$room]);
+
+// Update status based on current state
+if ($call['status'] === 'WAITING' && $isJobseeker) {
+    // Jobseeker joining a waiting room - change to RINGING
+    $pdo->prepare("UPDATE calls SET status='RINGING' WHERE room_code=? AND status='WAITING'")->execute([$room]);
+    $call['status'] = 'RINGING';
+} elseif ($call['status'] === 'RINGING') {
+    // Both parties are loading the call page - change to IN_CALL
+    $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='RINGING'")->execute([$room]);
+    $call['status'] = 'IN_CALL';
+}
 ?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -36,328 +51,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickHire Call</title>
-    <style>
-        :root { 
-            --primary: #1f6f82; 
-            --bg: #f6f7f9; 
-            --card: #ffffff; 
-            --muted: #6b7280; 
-            --line: #e5e7eb;
-            --accent: #10b981;
-            --danger: #dc2626;
-        }
-        
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: Inter, system-ui, Arial;
-            background: var(--bg);
-            color: #111;
-            overflow: hidden;
-        }
-
-        .container {
-            display: flex;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* Video Section */
-        .video-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 16px;
-            gap: 12px;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .badge {
-            padding: 6px 12px;
-            border: 1px solid var(--line);
-            border-radius: 999px;
-            font-size: 13px;
-            font-weight: 700;
-            background: var(--bg);
-            color: #111;
-        }
-
-        .video-grid {
-            flex: 1;
-            display: flex;
-            flex-direction: row;
-            gap: 12px;
-            min-height: 0;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .video-card {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-            width: 50%;
-            max-width: 600px;
-            aspect-ratio: 1;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .video-label {
-            font-weight: 900;
-            margin-bottom: 8px;
-            font-size: 14px;
-            z-index: 10;
-            position: relative;
-            color: #111;
-        }
-
-        .video-name {
-            position: absolute;
-            bottom: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 700;
-            z-index: 15;
-            white-space: nowrap;
-            max-width: calc(100% - 24px);
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            background: #000;
-            border-radius: 12px;
-            object-fit: cover;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            padding: 12px 16px;
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        button {
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            background: var(--card);
-            color: #111;
-            font-weight: 800;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        button:hover {
-            background: var(--bg);
-            border-color: var(--primary);
-        }
-
-        button.danger {
-            background: var(--danger);
-            border-color: var(--danger);
-            color: #fff;
-        }
-
-        button.danger:hover {
-            background: #b91c1c;
-        }
-
-        button.success {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #fff;
-        }
-
-        button.success:hover {
-            background: #059669;
-        }
-
-        /* Chat Section */
-        .chat-section {
-            width: 380px;
-            background: var(--card);
-            border-left: 1px solid var(--line);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-header {
-            padding: 16px;
-            border-bottom: 1px solid var(--line);
-            font-weight: 900;
-            font-size: 16px;
-            color: #111;
-            background: var(--bg);
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background: var(--card);
-        }
-
-        .message {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            max-width: 85%;
-        }
-
-        .message.me {
-            align-self: flex-end;
-        }
-
-        .message.them {
-            align-self: flex-start;
-        }
-
-        .message-sender {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--muted);
-            padding: 0 8px;
-        }
-
-        .message-content {
-            padding: 10px 14px;
-            border-radius: 16px;
-            word-wrap: break-word;
-            line-height: 1.4;
-            font-size: 14px;
-        }
-
-        .message.me .message-content {
-            background: var(--primary);
-            color: #fff;
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.them .message-content {
-            background: var(--bg);
-            color: #111;
-            border: 1px solid var(--line);
-            border-bottom-left-radius: 4px;
-        }
-
-        .chat-input-area {
-            padding: 16px;
-            border-top: 1px solid var(--line);
-            display: flex;
-            gap: 10px;
-            background: var(--card);
-        }
-
-        .chat-input {
-            flex: 1;
-            padding: 12px 14px;
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            background: var(--card);
-            color: #111;
-            font-family: inherit;
-            font-size: 14px;
-        }
-
-        .chat-input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .chat-input::placeholder {
-            color: var(--muted);
-        }
-
-        .send-btn {
-            padding: 12px 20px;
-            background: var(--primary);
-            border: none;
-            border-radius: 12px;
-            color: #fff;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .send-btn:hover {
-            background: #1a5f70;
-        }
-
-        @media (max-width: 900px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .chat-section {
-                width: 100%;
-                height: 40vh;
-                border-left: none;
-                border-top: 1px solid var(--line);
-            }
-
-            .video-grid {
-                flex-direction: row;
-                gap: 8px;
-            }
-
-            .video-card {
-                max-width: none;
-                width: 50%;
-                aspect-ratio: 1;
-            }
-        }
-
-        /* Scrollbar styling */
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: var(--bg);
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: var(--line);
-            border-radius: 3px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: var(--muted);
-        }
-    </style>
+    <link rel="stylesheet" href="/QuickHire/Public/assets/css/call.css">
 </head>
 
 <body>
@@ -367,6 +61,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             <div class="top-bar">
                 <div class="badge">Room: <strong><?= htmlspecialchars($room) ?></strong></div>
                 <div class="badge">You: <strong><?= htmlspecialchars(Auth::role()) ?></strong></div>
+                <div class="badge" id="connectionStatus">Connection: <strong>Connecting...</strong></div>
             </div>
 
             <div class="video-grid">
@@ -378,7 +73,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 <div class="video-card">
                     <div class="video-label">Partner's Video</div>
                     <video id="remoteVideo" autoplay playsinline></video>
-                    <div class="video-name" id="remoteVideoName">Connecting...</div>
+                    <div class="video-name" id="remoteVideoName">Waiting...</div>
                 </div>
             </div>
 
@@ -405,18 +100,172 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
         const ROOM = <?= json_encode($room) ?>;
         const MY_ID = <?= json_encode(Auth::userId()) ?>;
         const MY_ROLE = <?= json_encode(Auth::role()) ?>;
+        const CALL_STATUS = <?= json_encode($call['status']) ?>;
+
+        // Always show video interface - no waiting screen
+        // Regular call functionality
 
         let localStream = null;
         let pc = null;
         let afterSignalId = 0;
         let afterChatId = 0;
         let polling = true;
+        let isOfferer = false; // Track who should create offer
 
         const iceConfig = {
-            iceServers: [{
-                urls: "stun:stun.l.google.com:19302"
-            }]
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" },
+                {
+                    urls: "turn:openrelay.metered.ca:80",
+                    username: "openrelayproject",
+                    credential: "openrelayproject"
+                },
+                {
+                    urls: "turn:openrelay.metered.ca:443",
+                    username: "openrelayproject",
+                    credential: "openrelayproject"
+                },
+                {
+                    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+                    username: "openrelayproject",
+                    credential: "openrelayproject"
+                }
+            ],
+            iceTransportPolicy: 'all',
+            iceCandidatePoolSize: 10,
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require'
         };
+
+        // ===== CALL STATUS MANAGEMENT =====
+        // Removed complex status management - let's keep it simple
+
+        // ===== HEARTBEAT MECHANISM =====
+        let heartbeatInterval;
+        
+        function startHeartbeat() {
+            // Send heartbeat every 10 seconds - less frequent to reduce interference
+            heartbeatInterval = setInterval(() => {
+                if (!isLeavingPage && polling) {
+                    fetch("/QuickHire/Public/actions/heartbeat.php", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ room: ROOM })
+                    }).catch(() => {
+                        // Ignore heartbeat errors
+                    });
+                }
+            }, 10000); // 10 seconds
+        }
+        
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+        }
+
+        // ===== REAL-TIME STATUS MONITORING =====
+        // Simplified - only for detecting when partner leaves
+        let statusCheckInterval;
+        
+        function startStatusMonitoring() {
+            // Check call status every 10 seconds - less frequent to reduce interference
+            statusCheckInterval = setInterval(async () => {
+                if (!isLeavingPage && polling) {
+                    try {
+                        const response = await fetch('/QuickHire/Public/actions/check_room_status.php?room=' + encodeURIComponent(ROOM));
+                        const data = await response.json();
+                        
+                        if (data.ok && (data.status === 'COMPLETED' || data.status === 'MISSED')) {
+                            console.log('Call ended by partner, redirecting to dashboard');
+                            polling = false;
+                            stopHeartbeat();
+                            stopStatusMonitoring();
+                            
+                            // Redirect based on role
+                            if (MY_ROLE === 'EMPLOYER') {
+                                window.location.href = '/QuickHire/Public/employer-dashboard.php';
+                            } else {
+                                window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+                            }
+                        }
+                        
+                        // Update partner name if status changed (someone joined)
+                        if (data.ok && data.status === 'IN_CALL') {
+                            const currentPartnerName = document.getElementById('remoteVideoName').textContent;
+                            if (currentPartnerName === 'Waiting...') {
+                                // Partner joined, update name
+                                loadParticipantNames();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Status check error:', error);
+                    }
+                }
+            }, 10000); // Check every 10 seconds
+        }
+        
+        function stopStatusMonitoring() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
+        }
+
+        // ===== PAGE CLEANUP LOGIC =====
+        let isLeavingPage = false;
+        
+        // Handle page unload (browser close, navigation away, etc.)
+        window.addEventListener('beforeunload', function(e) {
+            isLeavingPage = true;
+            // Send cleanup signal synchronously
+            cleanupCall();
+        });
+        
+        // Handle page visibility change (tab switching, minimizing)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('Tab hidden - but keeping call active');
+                // Don't cleanup on tab switch - only on actual page unload
+            } else {
+                console.log('Tab visible again');
+            }
+        });
+        
+        // Cleanup function
+        function cleanupCall() {
+            if (isLeavingPage) return; // Prevent multiple calls
+            isLeavingPage = true;
+            
+            console.log("Cleaning up call...");
+            polling = false;
+            stopHeartbeat();
+            stopStatusMonitoring();
+            
+            // Send cleanup request
+            fetch("/QuickHire/Public/actions/cleanup_call.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ room: ROOM }),
+                keepalive: true // Ensure request completes even if page is closing
+            }).catch(() => {
+                // Ignore errors during cleanup
+            });
+            
+            // Close peer connection
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+        }
 
         // ===== CHAT FUNCTIONS =====
         async function sendChatMessage(message) {
@@ -480,104 +329,244 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             }
         });
 
-        // ===== WEBRTC FUNCTIONS =====
         async function sendSignal(type, payload) {
-            await fetch("/QuickHire/Public/actions/singal_send.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ room: ROOM, type, payload })
-            });
+            try {
+                await fetch("/QuickHire/Public/actions/signal_send.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ room: ROOM, type, payload })
+                });
+                console.log("Signal sent:", type);
+            } catch (error) {
+                console.error("Error sending signal:", type, error);
+            }
         }
 
         async function pollSignals() {
+            console.log("Starting signal polling...");
+            let pollCount = 0;
             while (polling) {
                 try {
                     const res = await fetch(`/QuickHire/Public/actions/signal_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterSignalId}`);
                     const data = await res.json();
+                    
+                    pollCount++;
+                    if (pollCount % 10 === 0) {
+                        console.log(`📊 Poll #${pollCount} - afterSignalId: ${afterSignalId}`);
+                    }
+                    
                     if (data.ok) {
                         afterSignalId = data.after;
-                        for (const m of data.messages) {
-                            await handleSignal(m.type, m.payload);
+                        if (data.messages && data.messages.length > 0) {
+                            console.log(`📬 Received ${data.messages.length} signal(s)`);
+                            for (const m of data.messages) {
+                                console.log("📨 Processing signal:", m.type);
+                                await handleSignal(m.type, m.payload);
+                            }
                         }
+                    } else {
+                        console.error("❌ Signal poll failed:", data);
                     }
                 } catch (e) {
-                    console.error("Signal poll error:", e);
+                    console.error("❌ Signal poll error:", e);
                 }
                 await new Promise(r => setTimeout(r, 700));
             }
+            console.log("Signal polling stopped");
         }
 
         async function initMedia() {
-            localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-            document.getElementById('localVideo').srcObject = localStream;
+            try {
+                console.log("Requesting user media...");
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                
+                console.log("User media obtained, tracks:", localStream.getTracks().length);
+                localStream.getTracks().forEach(track => {
+                    console.log("Local track:", track.kind, track.enabled, track.readyState);
+                });
+                
+                const localVideo = document.getElementById('localVideo');
+                if (localVideo) {
+                    localVideo.srcObject = localStream;
+                    console.log("Local video stream assigned");
+                    
+                    // Force local video to play
+                    localVideo.play().then(() => {
+                        console.log("Local video playing successfully");
+                    }).catch(e => {
+                        console.log("Local video play error:", e);
+                    });
+                } else {
+                    console.error("Local video element not found!");
+                }
+            } catch (error) {
+                console.error("Error getting user media:", error);
+                alert("Could not access camera/microphone. Please check permissions and try again.");
+            }
         }
 
         function initPeer() {
+            console.log("🔧 Initializing peer connection...");
             pc = new RTCPeerConnection(iceConfig);
-            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            
+            // Add local tracks
+            localStream.getTracks().forEach(track => {
+                console.log("➕ Adding track:", track.kind);
+                pc.addTrack(track, localStream);
+            });
 
-            pc.ontrack = (ev) => {
-                document.getElementById('remoteVideo').srcObject = ev.streams[0];
-            };
-
-            pc.onicecandidate = (ev) => {
-                if (ev.candidate) {
-                    sendSignal("candidate", ev.candidate);
+            // Handle incoming tracks
+            pc.ontrack = (event) => {
+                console.log("🎉 Remote track received:", event.track.kind);
+                const remoteVideo = document.getElementById('remoteVideo');
+                if (remoteVideo && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                    console.log("✅ Remote video connected!");
+                    
+                    const statusElement = document.getElementById('connectionStatus');
+                    if (statusElement) {
+                        statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
+                    }
                 }
             };
+
+            // Handle ICE candidates
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log("📤 Sending ICE candidate:", event.candidate.type || 'unknown');
+                    sendSignal("candidate", event.candidate);
+                } else {
+                    console.log("✅ ICE gathering complete");
+                }
+            };
+
+            // Monitor connection state
+            pc.onconnectionstatechange = () => {
+                console.log("🔄 Connection state:", pc.connectionState);
+                const statusElement = document.getElementById('connectionStatus');
+                if (statusElement) {
+                    if (pc.connectionState === 'connected') {
+                        statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
+                        console.log("🎉 WebRTC connection established!");
+                    } else if (pc.connectionState === 'connecting') {
+                        statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Connecting...</strong>';
+                    } else if (pc.connectionState === 'failed') {
+                        statusElement.innerHTML = 'Connection: <strong style="color: #dc2626;">Failed - Retrying...</strong>';
+                        console.log("❌ Connection failed, attempting to restart...");
+                        // Try to restart the connection
+                        setTimeout(() => {
+                            if (pc.connectionState === 'failed') {
+                                console.log("🔄 Restarting ICE...");
+                                pc.restartIce();
+                            }
+                        }, 1000);
+                    } else if (pc.connectionState === 'disconnected') {
+                        statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Reconnecting...</strong>';
+                    }
+                }
+            };
+            
+            pc.oniceconnectionstatechange = () => {
+                console.log("🧊 ICE state:", pc.iceConnectionState);
+                if (pc.iceConnectionState === 'failed') {
+                    console.log("❌ ICE connection failed");
+                } else if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    console.log("✅ ICE connection successful!");
+                }
+            };
+            
+            pc.onicegatheringstatechange = () => {
+                console.log("📊 ICE gathering state:", pc.iceGatheringState);
+            };
+            
+            console.log("✅ Peer connection initialized");
         }
 
         async function makeOffer() {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await sendSignal("offer", offer);
+            if (!pc || !localStream) {
+                console.error("❌ Cannot make offer - missing:", {
+                    pc: !!pc,
+                    localStream: !!localStream
+                });
+                return;
+            }
+            
+            try {
+                console.log("📤 Creating offer...");
+                const offer = await pc.createOffer();
+                console.log("✅ Offer created");
+                await pc.setLocalDescription(offer);
+                console.log("✅ Local description set");
+                await sendSignal("offer", offer);
+                console.log("✅ Offer sent to partner");
+            } catch (error) {
+                console.error("❌ Error making offer:", error);
+            }
         }
 
         async function handleSignal(type, payload) {
-            if (!pc) return;
-
-            if (type === "offer") {
-                console.log("Received offer");
-                await pc.setRemoteDescription(payload);
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                await sendSignal("answer", answer);
+            if (!pc) {
+                console.log("❌ No peer connection for signal:", type);
+                return;
             }
 
-            if (type === "answer") {
-                console.log("Received answer");
-                await pc.setRemoteDescription(payload);
-            }
+            try {
+                if (type === "offer") {
+                    console.log("📥 Received offer from partner");
+                    await pc.setRemoteDescription(new RTCSessionDescription(payload));
+                    console.log("✅ Remote description set");
+                    const answer = await pc.createAnswer();
+                    console.log("✅ Answer created");
+                    await pc.setLocalDescription(answer);
+                    console.log("✅ Local description set");
+                    await sendSignal("answer", answer);
+                    console.log("✅ Answer sent to partner");
+                }
 
-            if (type === "candidate") {
-                try {
-                    await pc.addIceCandidate(payload);
-                } catch (e) {}
-            }
+                if (type === "answer") {
+                    console.log("📥 Received answer from partner");
+                    await pc.setRemoteDescription(new RTCSessionDescription(payload));
+                    console.log("✅ Answer processed");
+                }
 
-            if (type === "leave") {
-                console.log("Partner left the call");
-                endCall();
+                if (type === "candidate") {
+                    console.log("📥 Received ICE candidate");
+                    if (payload && payload.candidate) {
+                        await pc.addIceCandidate(new RTCIceCandidate(payload));
+                        console.log("✅ ICE candidate added");
+                    } else {
+                        console.log("⚠️ Empty candidate (end of candidates)");
+                    }
+                }
+
+                if (type === "leave") {
+                    console.log("👋 Partner left");
+                    endCall();
+                }
+            } catch (error) {
+                console.error("❌ Error handling signal:", type, error);
             }
         }
 
         function endCall() {
             console.log("endCall() triggered - finding next match...");
-            polling = false;
-            sendSignal("leave", { bye: true }).catch(() => {});
-            if (pc) {
-                pc.close();
-                pc = null;
-            }
             
-            // Don't stop local stream - keep camera/mic running
-            // if (localStream) {
-            //     localStream.getTracks().forEach(t => t.stop());
-            //     localStream = null;
-            // }
+            if (isLeavingPage) return; // Already cleaning up
+            
+            polling = false;
+            
+            // Use cleanup endpoint instead of just sending signal
+            cleanupCall();
             
             // Auto-find next match instead of asking user
             findNextMatchAuto();
@@ -705,7 +694,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             hideFindingNextMatch();
             
             // Reset name displays
-            document.getElementById('remoteVideoName').textContent = 'Connecting...';
+            document.getElementById('remoteVideoName').textContent = 'Waiting...';
             
             // Initialize new peer connection
             initPeer();
@@ -713,8 +702,8 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             // Send join signal for new room
             sendSignal("join", { joined: true });
             
-            // Start offer after delay
-            setTimeout(() => makeOffer().catch(() => {}), 900);
+            // Don't create offer immediately - let join signal trigger it for employers
+            console.log("Join signal sent, waiting for connection...");
             
             // Restart polling
             pollSignals();
@@ -810,13 +799,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             if (!confirm(message)) return;
             
             console.log("User clicked Next - processing...");
-            polling = false;
-            sendSignal("leave", { bye: true }).catch(() => {});
-            
-            if (pc) {
-                pc.close();
-                pc = null;
-            }
+            cleanupCall();
             
             if (MY_ROLE === 'EMPLOYER') {
                 // Employers can find next match
@@ -826,10 +809,6 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
             } else {
                 // Jobseekers return to dashboard
                 console.log("Jobseeker returning to dashboard...");
-                if (localStream) {
-                    localStream.getTracks().forEach(t => t.stop());
-                    localStream = null;
-                }
                 window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
             }
         }
@@ -843,26 +822,12 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 if (choice) {
                     // Employer can find another match
                     console.log("Employer chose to find another match");
-                    polling = false;
-                    sendSignal("leave", { bye: true }).catch(() => {});
-                    if (pc) {
-                        pc.close();
-                        pc = null;
-                    }
+                    cleanupCall();
                     findNextMatchAuto();
                 } else {
                     // Return to dashboard
                     console.log("Employer chose to return to dashboard");
-                    polling = false;
-                    sendSignal("leave", { bye: true }).catch(() => {});
-                    if (pc) {
-                        pc.close();
-                        pc = null;
-                    }
-                    if (localStream) {
-                        localStream.getTracks().forEach(t => t.stop());
-                        localStream = null;
-                    }
+                    cleanupCall();
                     window.location.href = "/QuickHire/Public/employer-dashboard.php";
                 }
             } else {
@@ -871,16 +836,7 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                 choice = confirm(message);
                 if (choice) {
                     console.log("Jobseeker chose to return to dashboard");
-                    polling = false;
-                    sendSignal("leave", { bye: true }).catch(() => {});
-                    if (pc) {
-                        pc.close();
-                        pc = null;
-                    }
-                    if (localStream) {
-                        localStream.getTracks().forEach(t => t.stop());
-                        localStream = null;
-                    }
+                    cleanupCall();
                     window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
                 }
             }
@@ -925,53 +881,97 @@ $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='R
                     const partnerName = `${callData.partner.first_name} ${callData.partner.last_name}`;
                     const partnerRole = callData.partner.role === 'EMPLOYER' ? 'Employer' : 'Jobseeker';
                     document.getElementById('remoteVideoName').textContent = `${partnerName} (${partnerRole})`;
+                    console.log("👥 Partner found:", partnerName, "-", partnerRole);
+                    return true; // Partner exists
                 } else {
-                    document.getElementById('remoteVideoName').textContent = 'Partner';
+                    // Show "Waiting..." when no partner is connected
+                    document.getElementById('remoteVideoName').textContent = 'Waiting...';
+                    console.log("⏳ No partner yet");
+                    return false; // No partner
                 }
                 
             } catch (error) {
                 console.error('Error loading participant names:', error);
                 document.getElementById('localVideoName').textContent = 'You';
-                document.getElementById('remoteVideoName').textContent = 'Partner';
+                document.getElementById('remoteVideoName').textContent = 'Waiting...';
+                return false;
             }
         }
 
         (async () => {
             try {
-                console.log("Initializing call...");
+                console.log("=== INITIALIZING CALL ===");
+                console.log("Room:", ROOM, "| Role:", MY_ROLE, "| User ID:", MY_ID);
+                console.log("⚠️ IMPORTANT: Make sure you're testing with TWO DIFFERENT user accounts!");
+                console.log("⚠️ Employer account in one browser, Jobseeker account in another!");
                 
-                // Update button text based on role
-                console.log("Setting up buttons for role:", MY_ROLE);
+                // Setup buttons
                 if (MY_ROLE === 'EMPLOYER') {
-                    console.log("Setting up employer buttons");
                     document.getElementById('btnNext').innerHTML = '⏭️ Next Jobseeker';
-                    document.getElementById('btnHang').innerHTML = '📞 End Call';
-                    document.getElementById('btnNext').style.display = 'inline-flex';
-                    document.getElementById('btnHang').style.display = 'inline-flex';
                 } else {
-                    console.log("Setting up jobseeker buttons - hiding Next button");
-                    // For jobseekers, hide the Next button since they can't initiate new matches
                     document.getElementById('btnNext').style.display = 'none';
                     document.getElementById('btnHang').innerHTML = '🚪 Leave Call';
-                    document.getElementById('btnHang').style.display = 'inline-flex';
                 }
                 
+                // Initialize media and peer connection
                 await initMedia();
-                console.log("Media initialized");
                 initPeer();
-                console.log("Peer initialized");
-                await sendSignal("join", { joined: true });
-                console.log("Join signal sent");
-                setTimeout(() => makeOffer().catch(() => {}), 900);
+                
+                // Start monitoring
+                startHeartbeat();
+                startStatusMonitoring();
+                
+                // Start polling
                 pollSignals();
                 pollChatMessages();
-                console.log("Call setup complete");
                 
-                // Load participant names
+                // Load names
                 loadParticipantNames();
+                
+                // Check if we have a partner before attempting connection
+                setTimeout(async () => {
+                    try {
+                        const callResponse = await fetch('/QuickHire/Public/actions/get_call_info.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ room: ROOM })
+                        });
+                        const callData = await callResponse.json();
+                        
+                        if (callData.ok && callData.partner) {
+                            console.log("✅ Partner detected:", callData.partner.first_name);
+                            
+                            // Now create offer if employer
+                            if (MY_ROLE === 'EMPLOYER') {
+                                console.log("📤 Employer creating offer...");
+                                makeOffer();
+                            } else {
+                                console.log("⏳ Jobseeker waiting for offer...");
+                            }
+                        } else {
+                            console.log("⚠️ No partner in room yet, waiting...");
+                            // Check again in 2 seconds
+                            setTimeout(() => {
+                                if (MY_ROLE === 'EMPLOYER') {
+                                    console.log("📤 Employer creating offer (delayed)...");
+                                    makeOffer();
+                                }
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        console.error("Error checking for partner:", error);
+                        // Fallback: try creating offer anyway
+                        if (MY_ROLE === 'EMPLOYER') {
+                            console.log("📤 Employer creating offer (fallback)...");
+                            makeOffer();
+                        }
+                    }
+                }, 3000);
+                
+                console.log("=== INITIALIZATION COMPLETE ===");
             } catch (error) {
-                console.error("Call initialization error:", error);
-                alert("Failed to initialize call: " + error.message);
+                console.error("Initialization error:", error);
+                alert("Failed to initialize: " + error.message);
             }
         })();
     </script>
