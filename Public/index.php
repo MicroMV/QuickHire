@@ -51,7 +51,7 @@ $csrf = Csrf::token();
       get hired with <span class="hero__brand">QuickHire</span>
     </h1>
     <p class="hero__subtitle">
-      A web-based job recruitment platform designed to help job seekers quickly find
+      A web-based job recruitment platform designed to help technology related job seekers quickly find
       suitable employment and participate in interviews online.
     </p>
     <button class="btn btn--cta" type="button" data-open="register">Apply Now!</button>

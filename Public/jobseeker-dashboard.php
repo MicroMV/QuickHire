@@ -532,7 +532,7 @@ $flashSuccess = Session::flash('success');
     btnEditProfile2.classList.add('active');
     
     // Update title when showing edit form
-    document.querySelector('.title').textContent = 'Edit Your Profile ✏️';
+    document.querySelector('.title').textContent = 'Edit Your Profile';
     document.querySelector('.subtitle').textContent = 'Update your information to improve matching with employers.';
   }
 
