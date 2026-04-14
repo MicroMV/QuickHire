@@ -31,10 +31,12 @@ CREATE TABLE users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   is_profile_complete TINYINT(1) DEFAULT 0,
+  last_active TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email),
-  INDEX idx_role (role)
+  INDEX idx_role (role),
+  INDEX idx_last_active (last_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Skills table
@@ -150,8 +152,8 @@ CREATE TABLE calls (
   id INT PRIMARY KEY AUTO_INCREMENT,
   room_code VARCHAR(50) UNIQUE NOT NULL,
   employer_user_id INT NOT NULL,
-  jobseeker_user_id INT NOT NULL,
-  status ENUM('RINGING', 'IN_CALL', 'COMPLETED', 'MISSED', 'REJECTED') DEFAULT 'RINGING',
+  jobseeker_user_id INT NULL,
+  status ENUM('WAITING', 'RINGING', 'IN_CALL', 'COMPLETED', 'MISSED', 'REJECTED') DEFAULT 'RINGING',
   duration_seconds INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -179,17 +181,76 @@ CREATE TABLE webrtc_signals (
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Chat messages table
-CREATE TABLE chat_messages (
+-- Chat conversations table
+CREATE TABLE conversations (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  room_code VARCHAR(50) NOT NULL,
-  sender_id INT NOT NULL,
-  message TEXT NOT NULL,
+  employer_id INT NOT NULL,
+  jobseeker_id INT NOT NULL,
+  job_id INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employer_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (jobseeker_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_conversation (employer_id, jobseeker_id),
+  INDEX idx_employer_id (employer_id),
+  INDEX idx_jobseeker_id (jobseeker_id),
+  INDEX idx_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Messages table (unified for both call chat and main messaging)
+CREATE TABLE messages (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  conversation_id INT NOT NULL,
+  sender_id INT NOT NULL,
+  message_type ENUM('text', 'file', 'job_application') DEFAULT 'text',
+  content TEXT NOT NULL,
+  file_url VARCHAR(500) NULL,
+  file_name VARCHAR(255) NULL,
+  file_size INT NULL,
+  is_read TINYINT(1) DEFAULT 0,
+  room_code VARCHAR(50) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
   FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_room_code (room_code),
+  INDEX idx_conversation_id (conversation_id),
   INDEX idx_sender_id (sender_id),
+  INDEX idx_room_code (room_code),
+  INDEX idx_created_at (created_at),
+  INDEX idx_is_read (is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Job posts table
+CREATE TABLE job_posts (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  employer_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  role_title VARCHAR(100),
+  employment_type VARCHAR(50),
+  country VARCHAR(100),
+  rate_per_hour DECIMAL(10, 2),
+  hours_per_week INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (employer_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_employer_id (employer_id),
+  INDEX idx_is_active (is_active),
+  INDEX idx_role_title (role_title),
+  INDEX idx_country (country),
   INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Job post skills junction table
+CREATE TABLE job_post_skills (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  job_post_id INT NOT NULL,
+  skill_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (job_post_id) REFERENCES job_posts(id) ON DELETE CASCADE,
+  FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_job_skill (job_post_id, skill_id),
+  INDEX idx_job_post_id (job_post_id),
+  INDEX idx_skill_id (skill_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insert comprehensive skills data
@@ -340,29 +401,3 @@ INSERT INTO skills (name, category) VALUES
 CREATE INDEX idx_skills_category ON skills(category);
 CREATE INDEX idx_jobseeker_profiles_employment_type ON jobseeker_profiles(employment_type);
 CREATE INDEX idx_matchmaking_queue_employment_type ON matchmaking_queue(employment_type);
-
--- Add some sample data for testing (optional - remove if not needed)
--- Sample users
-INSERT INTO users (role, first_name, last_name, email, password_hash, is_profile_complete) VALUES
-('EMPLOYER', 'John', 'Doe', 'employer@test.com', '$2y$10$example_hash_here', 1),
-('JOBSEEKER', 'Jane', 'Smith', 'jobseeker@test.com', '$2y$10$example_hash_here', 1);
-
--- Sample employer profile
-INSERT INTO employer_profiles (user_id, country, company_name) VALUES
-(1, 'United States', 'Tech Solutions Inc');
-
--- Sample jobseeker profile
-INSERT INTO jobseeker_profiles (user_id, role_title, available_time, rate_per_hour, country, english_mastery, employment_type, profile_description) VALUES
-(2, 'Full Stack Developer', 8, 25.00, 'Philippines', 'FLUENT', 'FULL_TIME', 'Experienced developer with 3+ years in web development');
-
--- Sample skills assignments
-INSERT INTO jobseeker_skills (jobseeker_user_id, skill_id) VALUES
-(2, 1), -- JavaScript
-(2, 6), -- React
-(2, 9), -- Node.js
-(2, 12); -- MySQL
-
-INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES
-(1, 1), -- JavaScript
-(1, 6), -- React
-(1, 9); -- Node.js

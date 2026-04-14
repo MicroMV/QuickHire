@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require __DIR__ . '/../vendor/autoload.php';
 
 use Rongie\QuickHire\Core\Session;
@@ -6,6 +6,7 @@ use Rongie\QuickHire\Core\Auth;
 use Rongie\QuickHire\Core\Database;
 use Rongie\QuickHire\Services\ProfileService;
 use Rongie\QuickHire\Services\FileUpload;
+use Rongie\QuickHire\Services\MessagingService;
 
 Session::start();
 Auth::requireLogin();
@@ -17,6 +18,13 @@ if (Auth::role() !== 'JOBSEEKER') {
 
 $config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
+$messagingService = new MessagingService($db->pdo());
+
+// Get unread message count
+$userId = Auth::userId();
+$userRole = Auth::role();
+$conversations = $messagingService->getUserConversations($userId, $userRole);
+$unreadCount = array_sum(array_column($conversations, 'unread_count'));
 
 // Load profile details to display on dashboard
 $profileService = new ProfileService($db->pdo(), new FileUpload());
@@ -81,6 +89,13 @@ $flashSuccess = Session::flash('success');
 
     <nav class="nav">
       <button class="success" id="btnFindEmployer">🔍 Find Employer</button>
+      <button class="primary" id="btnBrowseJobs">📋 Browse Jobs</button>
+      <a href="#" class="nav-link" id="btnMessages" style="display: block; padding: 12px 20px; color: #3b82f6; text-decoration: none; border-radius: 8px; margin: 8px 0; background: #f1f5f9; text-align: center; font-weight: 600; position: relative;">
+        💬 Messages
+        <?php if ($unreadCount > 0): ?>
+          <span style="position: absolute; top: 4px; right: 8px; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 12px; font-weight: bold;"><?= $unreadCount ?></span>
+        <?php endif; ?>
+      </a>
 
       <button id="btnHome">🏠 Home</button>
       <button id="btnEditProfile">✏️ Edit Profile</button>
@@ -458,6 +473,79 @@ $flashSuccess = Session::flash('success');
         </div>
       </form>
     </div>
+
+    <!-- Job Browsing Content (Hidden by default) -->
+    <div class="card" id="jobBrowsingContent" style="display:none;">
+      <h2>📋 Browse Jobs</h2>
+      <p style="color: var(--muted); margin-bottom: 20px;">
+        Discover job opportunities posted by employers. Click "Message Employer" to start a conversation about any position that interests you.
+      </p>
+
+      <div id="jobListings" class="job-listings">
+        <div class="loading">Loading job opportunities...</div>
+      </div>
+
+      <div id="loadMoreContainer" style="text-align: center; margin-top: 20px; display: none;">
+        <button class="btn outline" id="loadMoreJobs">Load More Jobs</button>
+      </div>
+    </div>
+
+    <!-- MESSAGING PANEL -->
+    <div class="messaging-panel" id="messagingPanel" style="display: none;">
+      <div class="messaging-header">
+        <h3>💬 Messages</h3>
+        <button class="close-btn" id="closeMessages">✕</button>
+      </div>
+      
+      <div class="messaging-content">
+        <div class="conversations-sidebar">
+          <div class="conversations-list" id="conversationsList">
+            <div class="loading">Loading conversations...</div>
+          </div>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+          <div class="chat-header" id="chatHeader">
+            <button class="back-btn" id="backToConversations">← Back</button>
+            <div id="chatHeaderAvatar" style="display:none;width:38px;height:38px;border-radius:50%;background:#64748b;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:15px;flex-shrink:0;overflow:hidden;"></div>
+            <div class="chat-title" id="chatTitle">Select a conversation</div>
+            <div style="margin-left:auto;position:relative;">
+              <button id="chatMenuBtn" onclick="toggleChatMenu()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:4px 8px;border-radius:6px;line-height:1;" title="Options">⋮</button>
+              <div id="chatMenu" style="display:none;position:absolute;right:0;top:32px;background:white;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:180px;z-index:100;">
+                <button onclick="deleteConversation(currentConversationId)" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;font-weight:600;border-radius:10px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">🗑 Delete Conversation</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="messages-container" id="messagesContainer">
+            <div class="empty-state">
+              <h3>Select a conversation</h3>
+              <p>Choose a conversation from the sidebar to start messaging</p>
+            </div>
+          </div>
+          
+          <div class="message-input-area" id="messageInputArea" style="display: none;">
+            <div class="file-preview" id="filePreview" style="display: none;">
+              <div class="file-preview-content">
+                <div class="file-preview-icon">📎</div>
+                <div class="file-preview-info">
+                  <div class="file-preview-name" id="filePreviewName"></div>
+                  <div class="file-preview-size" id="filePreviewSize"></div>
+                </div>
+                <button type="button" class="file-preview-remove" id="filePreviewRemove">✕</button>
+              </div>
+            </div>
+            <form class="message-form" id="messageForm" enctype="multipart/form-data">
+              <input type="hidden" name="conversation_id" id="conversationId">
+              <textarea class="message-input" name="message" placeholder="Type your message..." rows="1" id="messageInput"></textarea>
+              <input type="file" id="fileInput" name="file" style="display: none;" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.zip">
+              <button type="button" class="file-button" onclick="document.getElementById('fileInput').click()">📎</button>
+              <button type="submit" class="send-button" id="sendButton">Send</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -469,10 +557,12 @@ $flashSuccess = Session::flash('success');
   const btnHome = document.getElementById('btnHome');
   const btnEditProfile = document.getElementById('btnEditProfile');
   const btnEditProfile2 = document.getElementById('btnEditProfile2');
+  const btnBrowseJobs = document.getElementById('btnBrowseJobs');
   const btnCancelEdit = document.getElementById('btnCancelEdit');
   
   const dashboardContent = document.getElementById('dashboardContent');
   const profileEditContent = document.getElementById('profileEditContent');
+  const jobBrowsingContent = document.getElementById('jobBrowsingContent');
 
   async function findEmployer() {
     // Disable buttons to prevent multiple clicks
@@ -511,11 +601,13 @@ $flashSuccess = Session::flash('success');
   function showDashboard() {
     dashboardContent.style.display = 'grid';
     profileEditContent.style.display = 'none';
+    jobBrowsingContent.style.display = 'none';
     
     // Update active states
     btnHome.classList.add('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnBrowseJobs.classList.remove('active');
     
     // Update title when showing dashboard
     document.querySelector('.title').textContent = 'Welcome back 👋';
@@ -525,26 +617,123 @@ $flashSuccess = Session::flash('success');
   function showProfileEdit() {
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'block';
+    jobBrowsingContent.style.display = 'none';
     
     // Update active states
     btnHome.classList.remove('active');
     btnEditProfile.classList.add('active');
     btnEditProfile2.classList.add('active');
+    btnBrowseJobs.classList.remove('active');
     
     // Update title when showing edit form
     document.querySelector('.title').textContent = 'Edit Your Profile';
     document.querySelector('.subtitle').textContent = 'Update your information to improve matching with employers.';
   }
 
+  function showJobBrowsing() {
+    dashboardContent.style.display = 'none';
+    profileEditContent.style.display = 'none';
+    jobBrowsingContent.style.display = 'block';
+    
+    // Update active states
+    btnHome.classList.remove('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    btnBrowseJobs.classList.add('active');
+    
+    // Update title when showing job browsing
+    document.querySelector('.title').textContent = 'Browse Jobs';
+    document.querySelector('.subtitle').textContent = 'Discover job opportunities from employers looking for candidates like you.';
+    
+    // Load job listings
+    loadJobListings();
+  }
+
   // Initialize with Home active
   btnHome.classList.add('active');
 
-  btnFindEmployer.addEventListener('click', findEmployer);
-  btnFindEmployer2.addEventListener('click', findEmployer);
-  btnHome.addEventListener('click', showDashboard);
-  btnEditProfile.addEventListener('click', showProfileEdit);
-  btnEditProfile2.addEventListener('click', showProfileEdit);
-  btnCancelEdit.addEventListener('click', showDashboard);
+  btnFindEmployer.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    findEmployer();
+  });
+  
+  btnFindEmployer2.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    findEmployer();
+  });
+  btnHome.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    showDashboard();
+  });
+  
+  btnEditProfile.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    showProfileEdit();
+  });
+  
+  btnEditProfile2.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    showProfileEdit();
+  });
+  
+  btnBrowseJobs.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    showJobBrowsing();
+  });
+  
+  btnCancelEdit.addEventListener('click', function() {
+    // Close messaging panel if open
+    if (messagingPanel && messagingPanel.style.display !== 'none') {
+      messagingPanel.style.display = 'none';
+      currentConversationId = null;
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    showDashboard();
+  });
 
   // Show toast notification if there's a success message
   <?php if ($flashSuccess): ?>
@@ -576,6 +765,230 @@ $flashSuccess = Session::flash('success');
       }, 300);
     }, 4000);
   }
+
+  // Job Browsing Functionality
+  let currentJobOffset = 0;
+  const jobsPerPage = 10;
+  let allJobsLoaded = false;
+
+  // Load job listings
+  async function loadJobListings(reset = true) {
+    const container = document.getElementById('jobListings');
+    const loadMoreContainer = document.getElementById('loadMoreContainer');
+    
+    if (reset) {
+      currentJobOffset = 0;
+      allJobsLoaded = false;
+      container.innerHTML = '<div class="loading">Loading job opportunities...</div>';
+      loadMoreContainer.style.display = 'none';
+    }
+    
+    try {
+      console.log('Loading job listings with offset:', currentJobOffset);
+      const response = await fetch(`/QuickHire/Public/actions/get_job_posts.php?limit=${jobsPerPage}&offset=${currentJobOffset}`);
+      
+      console.log('Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      console.log('Response content type:', contentType);
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned non-JSON response');
+      }
+      
+      const result = await response.json();
+      console.log('Job posts API response:', result);
+      
+      if (result.ok) {
+        console.log('Successfully loaded', result.job_posts.length, 'job posts');
+        if (reset) {
+          displayJobListings(result.job_posts);
+        } else {
+          appendJobListings(result.job_posts);
+        }
+        
+        currentJobOffset += result.job_posts.length;
+        
+        // Show/hide load more button
+        if (result.job_posts.length < jobsPerPage) {
+          allJobsLoaded = true;
+          loadMoreContainer.style.display = 'none';
+        } else {
+          loadMoreContainer.style.display = 'block';
+        }
+      } else {
+        console.error('API returned error:', result.error);
+        container.innerHTML = `<div class="empty-state">
+          <h3>Error loading job listings</h3>
+          <p>${result.error || 'Unknown error occurred'}</p>
+          <button class="btn outline" onclick="loadJobListings(true)" style="margin-top: 12px;">Try Again</button>
+        </div>`;
+      }
+    } catch (error) {
+      console.error('Error loading job listings:', error);
+      container.innerHTML = `<div class="empty-state">
+        <h3>Error loading job listings</h3>
+        <p>${error.message}</p>
+        <button class="btn outline" onclick="loadJobListings(true)" style="margin-top: 12px;">Try Again</button>
+        <br><br>
+      </div>`;
+    }
+  }
+
+  // Display job listings
+  function displayJobListings(jobs) {
+    const container = document.getElementById('jobListings');
+    
+    if (jobs.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <h3>No job opportunities available</h3>
+          <p>There are currently no job postings available. Check back later or encourage employers to post jobs!</p>
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = generateJobListingsHTML(jobs);
+  }
+
+  // Append job listings (for load more)
+  function appendJobListings(jobs) {
+    const container = document.getElementById('jobListings');
+    container.innerHTML += generateJobListingsHTML(jobs);
+  }
+
+  // Generate HTML for job listings
+  function generateJobListingsHTML(jobs) {
+    let html = '';
+    
+    jobs.forEach(job => {
+      const skillsHtml = job.skills.length > 0 
+        ? job.skills.slice(0, 5).map(skill => `<span class="skill-tag">${skill.name}</span>`).join('')
+        : '<span class="no-skills">No specific skills required</span>';
+      
+      const moreSkills = job.skills.length > 5 ? ` +${job.skills.length - 5} more` : '';
+      
+      const employerAvatar = job.employer_first_name ? job.employer_first_name.charAt(0).toUpperCase() : 'E';
+      
+      const rateDisplay = job.rate_per_hour ? `$${parseFloat(job.rate_per_hour).toFixed(2)}/hr` : null;
+      const hoursDisplay = job.hours_per_week ? `${job.hours_per_week} hrs/week` : null;
+      
+      html += `
+        <div class="job-listing-item">
+          <div class="job-listing-header">
+            <div class="job-listing-title">${job.title}</div>
+            <div class="job-listing-date">${new Date(job.created_at).toLocaleDateString()}</div>
+          </div>
+          
+          <div class="job-listing-company">
+            <div class="company-avatar">${employerAvatar}</div>
+            <div class="company-info">
+              <div class="company-name">${job.company_name || (job.employer_first_name + ' ' + job.employer_last_name)}</div>
+              <div class="company-location">${job.country || job.employer_country || 'Location not specified'}</div>
+            </div>
+          </div>
+          
+          <div class="job-listing-meta">
+            ${job.role_title ? `<span class="meta-item">💼 ${job.role_title}</span>` : ''}
+            ${job.employment_type ? `<span class="meta-item">⏰ ${job.employment_type.replace('_', ' ')}</span>` : ''}
+            ${rateDisplay ? `<span class="meta-item">💰 ${rateDisplay}</span>` : ''}${hoursDisplay ? `<span class="meta-item">🕐 ${hoursDisplay}</span>` : ''}
+          </div>
+          
+          <div class="job-listing-description">
+            ${job.description.length > 200 ? job.description.substring(0, 200) + '...' : job.description}
+          </div>
+          
+          <div class="job-listing-skills">
+            <strong>Required Skills:</strong> ${skillsHtml}${moreSkills}
+          </div>
+          
+          <div class="job-listing-actions">
+            <button class="btn primary" onclick="messageEmployerAboutJob(${job.employer_id}, ${job.id}, '${job.title.replace(/'/g, "\\'")}', this)">
+              💬 Message Employer
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    
+    return html;
+  }
+
+  // Message employer about a job
+  async function messageEmployerAboutJob(employerId, jobPostId, jobTitle, buttonElement) {
+    const button = buttonElement;
+    
+    if (!button) {
+      console.error('Button element not found');
+      showToast('Failed to start conversation: Button not found', 'error');
+      return;
+    }
+    
+    button.disabled = true;
+    button.textContent = 'Starting...';
+
+    try {
+      const formData = new FormData();
+      formData.append('employer_id', employerId);
+      if (jobPostId) formData.append('job_post_id', jobPostId);
+
+      const response = await fetch('/QuickHire/Public/actions/start_conversation_with_employer.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.ok) {
+        const actionText = data.is_existing ? 'Opened existing conversation' : 'Started new conversation';
+        
+        // Open messaging panel first
+        messagingPanel.style.display = 'flex';
+        
+        // Load conversations to get the latest list
+        await loadConversations();
+        
+        // Give a small delay to ensure conversations are loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Find the conversation by ID
+        const conversation = conversations.find(c => c.id == data.conversation_id);
+        
+        if (conversation) {
+          await openConversation(conversation.id);
+          showToast(`${actionText} about "${jobTitle}"`, 'success');
+        } else {
+          showToast(`Conversation about "${jobTitle}" is ready. Please check your messages.`, 'success');
+        }
+      } else {
+        showToast('Failed to start conversation: ' + data.error, 'error');
+      }
+    } catch (error) {
+      console.error('Start conversation error:', error);
+      showToast('Failed to start conversation: ' + error.message, 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = '💬 Message Employer';
+    }
+  }
+
+  // Load more jobs button
+  document.getElementById('loadMoreJobs').addEventListener('click', function() {
+    if (!allJobsLoaded) {
+      loadJobListings(false);
+    }
+  });
 
   // Avatar preview functionality
   document.getElementById('profile_picture_js').addEventListener('change', function(e) {
@@ -731,4 +1144,490 @@ $flashSuccess = Session::flash('success');
   }
 </script>
 
+<script>
+// Messaging Panel Functionality
+const messagingPanel = document.getElementById('messagingPanel');
+const btnMessages = document.getElementById('btnMessages');
+const closeMessages = document.getElementById('closeMessages');
+const conversationsList = document.getElementById('conversationsList');
+const chatArea = document.getElementById('chatArea');
+const backToConversations = document.getElementById('backToConversations');
+const messagesContainer = document.getElementById('messagesContainer');
+const messageForm = document.getElementById('messageForm');
+const messageInput = document.getElementById('messageInput');
+
+let currentConversationId = null;
+let conversations = [];
+
+// Open messaging panel
+btnMessages.addEventListener('click', (e) => {
+  e.preventDefault();
+  messagingPanel.style.display = 'flex';
+  loadConversations();
+});
+
+// Close messaging panel
+closeMessages.addEventListener('click', () => {
+  messagingPanel.style.display = 'none';
+  currentConversationId = null;
+  document.getElementById('messageInputArea').style.display = 'none';
+});
+
+// Back to conversations
+backToConversations.addEventListener('click', () => {
+  // On mobile, hide chat area and show conversations
+  if (window.innerWidth <= 768) {
+    chatArea.style.display = 'none';
+    document.querySelector('.conversations-sidebar').style.display = 'block';
+  }
+  currentConversationId = null;
+  document.getElementById('messageInputArea').style.display = 'none';
+});
+
+// Load conversations
+async function loadConversations() {
+  try {
+    conversationsList.innerHTML = '<div class="loading">Loading conversations...</div>';
+    
+    const response = await fetch('/QuickHire/Public/actions/get_conversations.php');
+    const data = await response.json();
+    
+    if (data.ok) {
+      conversations = data.conversations;
+      displayConversations();
+    } else {
+      conversationsList.innerHTML = '<div class="empty-state">No conversations yet</div>';
+    }
+  } catch (error) {
+    conversationsList.innerHTML = '<div class="empty-state">Error loading conversations</div>';
+  }
+}
+
+// Display conversations
+function displayConversations() {
+  if (conversations.length === 0) {
+    conversationsList.innerHTML = '<div class="empty-state">No conversations yet</div>';
+    return;
+  }
+  
+  let html = '';
+  conversations.forEach(conv => {
+    // Active now = within 60 seconds, show green dot
+    const isActive = conv.other_last_active && (new Date() - new Date(conv.other_last_active)) < 60000;
+    const minutesAgo = conv.other_last_active ? Math.floor((new Date() - new Date(conv.other_last_active)) / 60000) : null;
+    // Show badge only for 1-5 minutes ago
+    const showBadge = minutesAgo !== null && minutesAgo >= 1 && minutesAgo <= 5;
+    const activeIndicator = isActive ? `<span class="active-dot"></span>` : "";
+    const minuteBadge = showBadge ? `<span class="minute-badge">${minutesAgo}</span>` : "";
+    const avatarHtml = conv.other_avatar
+      ? `<img src="/QuickHire/Public/${conv.other_avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+      : conv.other_first_name.charAt(0).toUpperCase();
+    html += `
+      <div class="conversation-item" data-conversation-id="${conv.id}" onclick="openConversation(${conv.id})">
+        <div class="conversation-avatar">
+          ${avatarHtml}
+          ${activeIndicator}
+          ${minuteBadge}
+        </div>
+        <div class="conversation-info">
+          <div class="conversation-name">
+            ${conv.other_first_name} ${conv.other_last_name}
+          </div>
+          <div class="conversation-preview">
+            ${conv.other_role || 'User'}
+          </div>
+          ${conv.last_message ? `
+            <div class="conversation-preview">
+              ${conv.last_message.substring(0, 50)}${conv.last_message.length > 50 ? '...' : ''}
+            </div>
+          ` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+          ${conv.unread_count > 0 ? `<div class="unread-badge">${conv.unread_count}</div>` : ''}
+        </div>
+      </div>
+    `;
+  });
+  
+  conversationsList.innerHTML = html;
+}
+
+// Toggle chat options menu
+function toggleChatMenu() {
+  const menu = document.getElementById('chatMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#chatMenuBtn') && !e.target.closest('#chatMenu')) {
+    const menu = document.getElementById('chatMenu');
+    if (menu) menu.style.display = 'none';
+  }
+});
+
+// Delete conversation
+async function deleteConversation(conversationId) {
+  if (!confirm('Delete this conversation? This cannot be undone.')) return;
+  const fd = new FormData();
+  fd.append('conversation_id', conversationId);
+  const res = await fetch('/QuickHire/Public/actions/delete_conversation.php', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.ok) {
+    if (currentConversationId === conversationId) {
+      currentConversationId = null;
+      document.getElementById('chatArea').style.display = 'none';
+    }
+    await loadConversations();
+  } else {
+    alert('Failed to delete conversation');
+  }
+}
+
+// Open conversation
+async function openConversation(conversationId) {
+  currentConversationId = conversationId;
+  const conversation = conversations.find(c => c.id === conversationId);
+  
+  if (!conversation) return;
+  
+  // Update active conversation
+  document.querySelectorAll('.conversation-item').forEach(item => {
+    item.classList.remove("active");
+    if (item.getAttribute("data-conversation-id") == conversationId) {
+      item.classList.add("active");
+    }
+  });
+
+  
+  // Update chat header
+  // Update chat header with active status
+  const isActive = conversation.other_last_active && (new Date() - new Date(conversation.other_last_active)) < 60000;
+  let statusText = "";
+  if (isActive) {
+    statusText = `<span style="color:#10b981; font-size:13px; font-weight:normal;">● Active now</span>`;
+  } else if (conversation.other_last_active) {
+    const minutesAgo = Math.floor((new Date() - new Date(conversation.other_last_active)) / 60000);
+    // Only show status for 1-5 minutes ago, nothing after 5 minutes
+    if (minutesAgo >= 1 && minutesAgo <= 5) {
+      statusText = `<span style="color:#64748b; font-size:13px; font-weight:normal;">Active ${minutesAgo} min ago</span>`;
+    }
+  }
+  document.getElementById("chatTitle").innerHTML = `${conversation.other_first_name} ${conversation.other_last_name}<br>${statusText}`;
+
+  // Update chat header avatar
+  const avatarEl = document.getElementById('chatHeaderAvatar');
+  avatarEl.style.display = 'flex';
+  if (conversation.other_avatar) {
+    avatarEl.innerHTML = `<img src="/QuickHire/Public/${conversation.other_avatar}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    avatarEl.innerHTML = conversation.other_first_name.charAt(0).toUpperCase();
+  }
+  document.getElementById('chatMenu').style.display = 'none';
+  
+  // On mobile, hide conversations and show chat
+  if (window.innerWidth <= 768) {
+    document.querySelector('.conversations-sidebar').style.display = 'none';
+    chatArea.style.display = 'flex';
+  }
+  
+  // Set conversation ID in form
+  document.getElementById('conversationId').value = conversationId;
+  
+  // Show message input area
+  document.getElementById('messageInputArea').style.display = 'block';
+  
+  // Load messages
+  await loadMessages(conversationId);
+}
+
+// Load messages
+async function loadMessages(conversationId) {
+  try {
+    messagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
+    
+    const response = await fetch(`/QuickHire/Public/actions/get_messages.php?conversation_id=${conversationId}`);
+    const data = await response.json();
+    
+    if (data.ok) {
+      displayMessages(data.messages);
+    } else {
+      messagesContainer.innerHTML = '<div class="empty-state">No messages yet</div>';
+    }
+  } catch (error) {
+    messagesContainer.innerHTML = '<div class="empty-state">Error loading messages</div>';
+  }
+}
+
+// Display messages
+function displayMessages(messages) {
+  if (messages.length === 0) {
+    messagesContainer.innerHTML = '<div class="empty-state">No messages yet</div>';
+    return;
+  }
+  
+  let html = '';
+  const currentUserId = <?= Auth::userId() ?>;
+  
+  messages.forEach(msg => {
+    const isOwn = msg.sender_id == currentUserId;
+    
+    // Handle file messages
+    let messageContent = '';
+    if (msg.message_type === 'file' && msg.file_url) {
+      const fileName = msg.file_name || 'File';
+      const fileSize = msg.file_size ? `(${(msg.file_size / 1024 / 1024).toFixed(2)}MB)` : '';
+      messageContent = `
+        <div class="file-message">
+          <div class="file-icon">📎</div>
+          <div class="file-info">
+            <a href="${msg.file_url}" target="_blank" class="file-link">${fileName}</a>
+            <div class="file-size">${fileSize}</div>
+          </div>
+        </div>
+        ${msg.content && msg.content !== `Sent a file: ${fileName}` ? `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>` : ''}
+      `;
+    } else {
+      messageContent = `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>`;
+    }
+    
+    html += `
+      <div class="message ${isOwn ? 'own' : ''}">
+        <div class="message-avatar" style="overflow:hidden;flex-shrink:0;">
+          ${msg.sender_avatar
+            ? `<img src="/QuickHire/Public/${msg.sender_avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+            : msg.first_name.charAt(0).toUpperCase()}
+        </div>
+        <div class="message-content">
+          ${msg.room_code ? '<div class="call-indicator">📞 Video Call Message</div>' : ''}
+          ${messageContent}
+          <div class="message-time">
+            ${new Date(msg.created_at).toLocaleDateString()} ${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  messagesContainer.innerHTML = html;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Handle file selection
+const fileInput = document.getElementById('fileInput');
+const fileButton = document.querySelector('.file-button');
+const filePreview = document.getElementById('filePreview');
+const filePreviewName = document.getElementById('filePreviewName');
+const filePreviewSize = document.getElementById('filePreviewSize');
+const filePreviewRemove = document.getElementById('filePreviewRemove');
+
+if (fileInput) {
+  fileInput.addEventListener('change', function() {
+    console.log('File input changed:', this.files);
+    if (this.files.length > 0) {
+      const file = this.files[0];
+      const fileName = file.name;
+      const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
+      
+      console.log('File selected:', fileName, fileSize + 'MB');
+      
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File too large. Maximum size is 10MB.');
+        this.value = '';
+        return;
+      }
+      
+      // Show file preview
+      filePreviewName.textContent = fileName;
+      filePreviewSize.textContent = `${fileSize} MB`;
+      filePreview.style.display = 'block';
+      
+      // Update message input placeholder
+      messageInput.placeholder = `File selected: ${fileName}. Type a message or press Send to upload...`;
+    } else {
+      hideFilePreview();
+    }
+  });
+}
+
+// Handle file preview removal
+if (filePreviewRemove) {
+  filePreviewRemove.addEventListener('click', function() {
+    removeSelectedFile();
+  });
+}
+
+function removeSelectedFile() {
+  fileInput.value = '';
+  hideFilePreview();
+}
+
+function hideFilePreview() {
+  filePreview.style.display = 'none';
+  messageInput.placeholder = 'Type your message...';
+}
+
+// Toggle chat options menu
+function toggleChatMenu() {
+  const menu = document.getElementById('chatMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#chatMenuBtn') && !e.target.closest('#chatMenu')) {
+    const menu = document.getElementById('chatMenu');
+    if (menu) menu.style.display = 'none';
+  }
+});
+
+// Delete conversation
+async function deleteConversation(conversationId) {
+  if (!confirm('Delete this conversation? This cannot be undone.')) return;
+  const fd = new FormData();
+  fd.append('conversation_id', conversationId);
+  const res = await fetch('/QuickHire/Public/actions/delete_conversation.php', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.ok) {
+    if (currentConversationId === conversationId) {
+      currentConversationId = null;
+      document.getElementById('chatArea').style.display = 'none';
+    }
+    await loadConversations();
+  } else {
+    alert('Failed to delete conversation');
+  }
+}
+
+// Handle message form submission
+messageForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(messageForm);
+  const message = formData.get('message').trim();
+  const file = formData.get('file');
+  
+  console.log('Form submission:', { message, file: file?.name, fileSize: file?.size });
+  
+  // Check if we have either a message or a file
+  if (!message && (!file || !file.name)) {
+    console.log('No message or file to send');
+    return;
+  }
+  
+  const sendButton = document.getElementById('sendButton');
+  sendButton.disabled = true;
+  sendButton.textContent = 'Sending...';
+  
+  try {
+    console.log('Sending request to server...');
+    const response = await fetch('/QuickHire/Public/actions/send_message.php', {
+      method: 'POST',
+      body: formData
+    });
+    
+    console.log('Response status:', response.status);
+    const result = await response.json();
+    console.log('Response data:', result);
+    
+    if (result.ok) {
+      messageInput.value = '';
+      messageInput.placeholder = 'Type your message...';
+      
+      // Reset file input and preview
+      fileInput.value = '';
+      hideFilePreview();
+      
+      await loadMessages(currentConversationId);
+      await loadConversations(); // Refresh conversations to update last message
+    } else {
+      console.error('Server error:', result.error);
+      alert('Error: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Send message error:', error);
+    alert('Error sending message');
+  } finally {
+    sendButton.disabled = false;
+    sendButton.textContent = 'Send';
+  }
+});
+
+// Auto-resize textarea
+messageInput.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// Send on Enter (but not Shift+Enter)
+messageInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    messageForm.dispatchEvent(new Event('submit'));
+  }
+});
+
+// Close messaging panel when other navigation items are clicked
+document.addEventListener('DOMContentLoaded', function() {
+  // Get all navigation buttons except Messages
+  const navButtons = document.querySelectorAll('.nav button:not(#btnMessages), .nav a:not(#btnMessages)');
+  
+  navButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      // Close messaging panel if it's open
+      if (messagingPanel && messagingPanel.style.display !== 'none') {
+        messagingPanel.style.display = 'none';
+        currentConversationId = null;
+        if (document.getElementById('messageInputArea')) {
+          document.getElementById('messageInputArea').style.display = 'none';
+        }
+      }
+    });
+  });
+});
+
+// Activity tracking - update on any click/interaction
+let lastActivityUpdate = Date.now();
+const updateActivity = () => {
+  const now = Date.now();
+  // Only send update if 5 seconds have passed since last update (throttle)
+  if (now - lastActivityUpdate > 5000) {
+    console.log('Updating activity...');
+    fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => console.log('Activity updated:', data))
+      .catch(err => console.error('Activity update failed:', err));
+    lastActivityUpdate = now;
+  }
+};
+
+// Track clicks anywhere in the app
+document.addEventListener('click', updateActivity);
+document.addEventListener('keypress', updateActivity);
+document.addEventListener('scroll', updateActivity);
+
+// Fallback: update every 30 seconds if user is idle but page is open
+setInterval(() => {
+  console.log('Fallback activity update...');
+  fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => console.log('Fallback activity updated:', data))
+    .catch(err => console.error('Fallback activity update failed:', err));
+}, 30000);
+
+// Refresh conversations every 10 seconds to update active status
+setInterval(() => {
+  if (messagingPanel.style.display === 'flex') {
+    console.log('Refreshing conversations for active status...');
+    loadConversations();
+  }
+}, 10000);
+
+console.log('Initial activity update...');
+fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' })
+  .then(r => r.json())
+  .then(data => console.log('Initial activity updated:', data))
+  .catch(err => console.error('Initial activity update failed:', err));
+</script>
+
 </html>
+
+

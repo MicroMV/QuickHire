@@ -18,4 +18,9 @@ class Csrf
         $sessionToken = Session::get('csrf_token');
         return is_string($token) && is_string($sessionToken) && hash_equals($sessionToken, $token);
     }
+
+    public static function validate(?string $token): bool
+    {
+        return self::verify($token);
+    }
 }

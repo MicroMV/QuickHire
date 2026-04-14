@@ -1,0 +1,60 @@
+🧩 PART 1 — MESSAGING (DO THIS FIRST)
+Add a chat system where:
+Employer and job seeker can message each other
+They can send text
+They can send files (attachments)
+
+🔍 PART 2 — SEARCH (FOR EMPLOYER)
+Add a search bar for employers
+Employer can search using:
+Job role (example: “designer”)
+Skills (example: “Photoshop”)
+Show results:
+List of job seekers that match
+Each result has a Message button
+When employer clicks Message:
+Open chat with that job seeker
+
+📢 PART 3 — JOB POSTING
+Allow employer to:
+Post a job (title, description)
+Show these jobs to job seekers
+
+📩 PART 4 — APPLY FEATURE (VERY IMPORTANT)
+Add an Apply button on each job post (Only visible to job seeker)
+
+✍️ PART 5 — WHEN JOB SEEKER CLICKS APPLY
+Show a small form with:
+A textbox → where they write a message to employer
+
+
+⚙️ PART 6 — WHAT HAPPENS AFTER CLICKING APPLY
+
+👉 This must happen in exact order:
+
+Step 1:
+Create chat between job seeker and employer
+(or open existing one)
+Step 2:
+Send the FIRST message
+This message must include:
+The job link at the top
+Then the message written by the job seeker
+
+Example:
+
+[Job Link]
+
+Hello, I want to apply for this job...
+
+
+
+
+
+to be done:
+
+active status
+Scamming
+View profile
+Review rating
+

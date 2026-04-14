@@ -12,6 +12,11 @@ class Auth
         }
     }
 
+    public static function isLoggedIn(): bool
+    {
+        return Session::get('user_id') !== null;
+    }
+
     public static function userId(): int
     {
         return (int) Session::get('user_id');

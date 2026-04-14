@@ -4,6 +4,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 use Rongie\QuickHire\Core\Session;
 use Rongie\QuickHire\Core\Auth;
 use Rongie\QuickHire\Core\Database;
+use Rongie\QuickHire\Services\MessagingService;
 
 Session::start();
 Auth::requireLogin();
@@ -21,6 +22,7 @@ if (empty($room)) {
 $config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 $pdo = $db->pdo();
+$messagingService = new MessagingService($pdo);
 
 // Verify user is in this room
 $stmt = $pdo->prepare("SELECT * FROM calls WHERE room_code = ? LIMIT 1");
@@ -33,31 +35,37 @@ if (!$call) {
 }
 
 $uid = Auth::userId();
-if ($uid !== (int)$call['employer_user_id'] && $uid !== (int)$call['jobseeker_user_id']) {
+if ($uid !== (int)$call['employer_user_id'] && ($call['jobseeker_user_id'] && $uid !== (int)$call['jobseeker_user_id'])) {
     echo json_encode(['ok' => false, 'error' => 'Not authorized']);
     exit;
 }
 
-// Get messages after the given ID
+// Get messages for this room using unified messaging system
 try {
-    $stmt = $pdo->prepare("
-        SELECT cm.*, u.first_name, u.last_name, u.role
-        FROM chat_messages cm
-        JOIN users u ON u.id = cm.sender_id
-        WHERE cm.room_code = ? AND cm.id > ?
-        ORDER BY cm.id ASC
-    ");
-    $stmt->execute([$room, $after]);
-    $messages = $stmt->fetchAll();
+    $messages = $messagingService->getRoomMessages($room, $after);
     
     $lastId = $after;
     if (!empty($messages)) {
         $lastId = (int)$messages[count($messages) - 1]['id'];
     }
     
+    // Format messages for call chat display
+    $formattedMessages = [];
+    foreach ($messages as $msg) {
+        $formattedMessages[] = [
+            'id' => $msg['id'],
+            'sender_id' => $msg['sender_id'],
+            'message' => $msg['content'],
+            'first_name' => $msg['first_name'],
+            'last_name' => $msg['last_name'],
+            'role' => $msg['role'],
+            'created_at' => $msg['created_at']
+        ];
+    }
+    
     echo json_encode([
         'ok' => true,
-        'messages' => $messages,
+        'messages' => $formattedMessages,
         'after' => $lastId
     ]);
 } catch (\Throwable $e) {
