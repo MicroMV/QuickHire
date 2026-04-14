@@ -55,10 +55,17 @@ try {
     // Create or get existing conversation
     $conversationId = $messagingService->getOrCreateConversation($employerId, $jobseekerId, $jobPostId ?? null);
 
+    // Check if this was an existing conversation by looking for messages
+    $stmt = $db->pdo()->prepare("SELECT COUNT(*) as message_count FROM messages WHERE conversation_id = ?");
+    $stmt->execute([$conversationId]);
+    $messageCount = $stmt->fetch()['message_count'];
+    
+    $isExisting = $messageCount > 0;
+
     echo json_encode([
         'ok' => true,
         'conversation_id' => $conversationId,
-        'is_existing' => true,
+        'is_existing' => $isExisting,
         'employer_name' => $employer['first_name'] . ' ' . $employer['last_name']
     ]);
 

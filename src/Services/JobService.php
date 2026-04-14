@@ -136,6 +136,7 @@ class JobService
                     u.last_name as employer_last_name,
                     ep.company_name,
                     ep.country as employer_country,
+                    ep.profile_picture_url as employer_profile_picture_url,
                     COUNT(jps.skill_id) as skill_count
                 FROM job_posts jp
                 JOIN users u ON jp.employer_id = u.id
@@ -268,6 +269,50 @@ class JobService
                 'ok' => false,
                 'error' => 'Failed to update job post: ' . $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * Update a job post
+     */
+    public function updateJobPost(int $jobPostId, array $jobData, array $skillIds = []): bool
+    {
+        try {
+            $this->pdo->beginTransaction();
+
+            // Update job post
+            $stmt = $this->pdo->prepare("
+                UPDATE job_posts 
+                SET title = ?, description = ?, role_title = ?, employment_type = ?, 
+                    country = ?, rate_per_hour = ?, hours_per_week = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ");
+            
+            $stmt->execute([
+                $jobData['title'],
+                $jobData['description'],
+                $jobData['role_title'],
+                $jobData['employment_type'],
+                $jobData['country'],
+                $jobData['rate_per_hour'],
+                $jobData['hours_per_week'],
+                $jobPostId
+            ]);
+
+            // Update skills - delete existing and add new ones
+            $this->pdo->prepare("DELETE FROM job_post_skills WHERE job_post_id = ?")->execute([$jobPostId]);
+            
+            if (!empty($skillIds)) {
+                $this->addJobPostSkills($jobPostId, $skillIds);
+            }
+
+            $this->pdo->commit();
+            return true;
+
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            error_log("JobService::updateJobPost error: " . $e->getMessage());
+            return false;
         }
     }
 

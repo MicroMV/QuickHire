@@ -16,10 +16,11 @@ try {
     }
 
     $userId = $_SESSION['user_id'];
-    $db = Database::getInstance()->getConnection();
+    $config = require __DIR__ . '/../../Config/config.php';
+    $db = new Database($config['db']);
 
     // Update last_active timestamp in UTC
-    $stmt = $db->prepare("UPDATE users SET last_active = UTC_TIMESTAMP() WHERE id = ?");
+    $stmt = $db->pdo()->prepare("UPDATE users SET last_active = UTC_TIMESTAMP() WHERE id = ?");
     $stmt->execute([$userId]);
 
     echo json_encode(['ok' => true, 'updated_at' => gmdate('Y-m-d\TH:i:s\Z')]);

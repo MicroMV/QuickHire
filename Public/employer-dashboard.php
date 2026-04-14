@@ -1371,6 +1371,7 @@ $flashSuccess = Session::flash('success');
   // Display employer's job posts
   function displayMyJobPosts(jobPosts) {
     const container = document.getElementById('myJobPosts');
+    currentJobPosts = jobPosts; // Store for editing
     
     if (jobPosts.length === 0) {
       container.innerHTML = '<div class="empty-state">No job posts yet. Create your first job posting above!</div>';
@@ -1409,9 +1410,8 @@ $flashSuccess = Session::flash('success');
             ${skillsHtml}
           </div>
           <div class="job-post-actions">
-            <button class="btn-small outline" onclick="toggleJobStatus(${job.id}, ${job.is_active ? 0 : 1})">
-              ${job.is_active ? 'Deactivate' : 'Activate'}
-            </button>
+            <button class="btn-small outline" onclick="editJob(${job.id})">✏️ Edit</button>
+            <button class="btn-small" onclick="deleteJob(${job.id})" style="background:#ef4444;color:white;border-color:#ef4444;">🗑️ Delete</button>
           </div>
         </div>
       `;
@@ -1420,15 +1420,98 @@ $flashSuccess = Session::flash('success');
     container.innerHTML = html;
   }
 
-  // Toggle job post status
-  async function toggleJobStatus(jobId, newStatus) {
+  // Edit job post
+  function editJob(jobId) {
+    // Find the job data
+    const jobData = currentJobPosts.find(job => job.id === jobId);
+    if (!jobData) {
+      showToast('Job not found', 'error');
+      return;
+    }
+    
+    // Populate the form with existing data
+    document.getElementById('job_title').value = jobData.title || '';
+    document.getElementById('job_description').value = jobData.description || '';
+    document.getElementById('job_role_title').value = jobData.role_title || '';
+    document.getElementById('job_employment_type').value = jobData.employment_type || '';
+    document.getElementById('job_country').value = jobData.country || '';
+    document.getElementById('job_rate_per_hour').value = jobData.rate_per_hour || '';
+    document.getElementById('job_hours_per_week').value = jobData.hours_per_week || '';
+    
+    // Check the skills
+    document.querySelectorAll('input[name="skill_ids[]"]').forEach(checkbox => {
+      checkbox.checked = jobData.skills.some(skill => skill.id == checkbox.value);
+    });
+    
+    // Change form to edit mode
+    document.getElementById('submitJobPost').textContent = '💾 Update Job';
+    document.getElementById('submitJobPost').setAttribute('data-edit-id', jobId);
+    
+    // Show the job posting section
+    showJobPostingContent();
+    
+    // Scroll to form
+    document.getElementById('jobPostingContent').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Delete job post
+  async function deleteJob(jobId) {
+    if (!confirm('Are you sure you want to delete this job post? This action cannot be undone.')) {
+      return;
+    }
+    
     try {
       const formData = new FormData();
       formData.append('job_id', jobId);
-      formData.append('is_active', newStatus);
       formData.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
       
-      const response = await fetch('/QuickHire/Public/actions/toggle_job_status.php', {
+      const response = await fetch('/QuickHire/Public/actions/delete_job.php', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (result.ok) {
+        showToast('Job post deleted successfully', 'success');
+        await loadMyJobPosts();
+      } else {
+        showToast('Error: ' + result.error, 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      showToast('Error deleting job post', 'error');
+    }
+  }
+
+  let currentJobPosts = [];
+
+  // Job posting form submission
+  document.getElementById('jobPostingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitJobPost');
+    const isEdit = submitBtn.hasAttribute('data-edit-id');
+    const editId = submitBtn.getAttribute('data-edit-id');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = isEdit ? '💾 Updating...' : '📢 Posting...';
+    
+    try {
+      const formData = new FormData(this);
+      
+      // Collect checked skills
+      const skillCheckboxes = document.querySelectorAll('input[name="skill_ids[]"]:checked');
+      skillCheckboxes.forEach(checkbox => {
+        formData.append('skill_ids[]', checkbox.value);
+      });
+      
+      if (isEdit) {
+        formData.append('job_id', editId);
+      }
+      
+      const endpoint = isEdit ? '/QuickHire/Public/actions/update_job.php' : '/QuickHire/Public/actions/post_job.php';
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData
       });
@@ -1437,15 +1520,41 @@ $flashSuccess = Session::flash('success');
       
       if (result.ok) {
         showToast(result.message, 'success');
+        
+        // Reset form
+        document.getElementById('jobPostingForm').reset();
+        submitBtn.textContent = '📢 Post Job';
+        submitBtn.removeAttribute('data-edit-id');
+        
+        // Reload job posts
         await loadMyJobPosts();
+        
+        // Hide job posting form
+        showHomeContent();
       } else {
         showToast('Error: ' + result.error, 'error');
       }
     } catch (error) {
-      console.error('Error toggling job status:', error);
-      showToast('Error updating job status', 'error');
+      console.error('Job posting error:', error);
+      showToast('Error posting job', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      if (!submitBtn.hasAttribute('data-edit-id')) {
+        submitBtn.textContent = '📢 Post Job';
+      }
     }
-  }
+  });
+
+  // Cancel job posting
+  document.getElementById('btnCancelJobPost').addEventListener('click', function() {
+    // Reset form
+    document.getElementById('jobPostingForm').reset();
+    document.getElementById('submitJobPost').textContent = '📢 Post Job';
+    document.getElementById('submitJobPost').removeAttribute('data-edit-id');
+    
+    // Show home content
+    showHomeContent();
+  });
 
   // Create sample job for testing
   document.getElementById('createSampleJob').addEventListener('click', async function() {
@@ -1940,18 +2049,32 @@ document.addEventListener('click', (e) => {
 // Delete conversation
 async function deleteConversation(conversationId) {
   if (!confirm('Delete this conversation? This cannot be undone.')) return;
-  const fd = new FormData();
-  fd.append('conversation_id', conversationId);
-  const res = await fetch('/QuickHire/Public/actions/delete_conversation.php', { method: 'POST', body: fd });
-  const data = await res.json();
-  if (data.ok) {
-    if (currentConversationId === conversationId) {
-      currentConversationId = null;
-      document.getElementById('chatArea').style.display = 'none';
+  
+  try {
+    const fd = new FormData();
+    fd.append('conversation_id', conversationId);
+    
+    console.log('Deleting conversation:', conversationId);
+    const res = await fetch('/QuickHire/Public/actions/delete_conversation.php', { method: 'POST', body: fd });
+    console.log('Delete response status:', res.status);
+    
+    const data = await res.json();
+    console.log('Delete response data:', data);
+    
+    if (data.ok) {
+      if (currentConversationId === conversationId) {
+        currentConversationId = null;
+        document.getElementById('chatArea').style.display = 'none';
+      }
+      await loadConversations();
+      alert('Conversation deleted successfully');
+    } else {
+      console.error('Delete failed:', data.error);
+      alert('Failed to delete conversation: ' + data.error);
     }
-    await loadConversations();
-  } else {
-    alert('Failed to delete conversation');
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    alert('Error deleting conversation: ' + error.message);
   }
 }
 
