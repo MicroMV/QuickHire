@@ -981,44 +981,30 @@ $flashSuccess = Session::flash('success');
 
   // Show messaging panel
   function showMessaging() {
-    console.log('Showing messaging panel');
     const panel = document.getElementById('messagingPanel');
-    if (!panel) {
-      console.error('Messaging panel not found!');
-      return;
-    }
+    if (!panel) return;
     
     panel.style.display = 'flex';
     
-    // Always load conversations when opening messaging panel
-    console.log('Loading conversations...');
+    // Always show conversations list
+    const conversationsList = document.getElementById('conversationsList');
+    if (conversationsList) conversationsList.style.display = 'block';
+    
+    // Load conversations
     loadConversations();
     
-    // Start auto-refresh for conversations every 10 seconds
-    if (conversationRefreshInterval) {
-      clearInterval(conversationRefreshInterval);
-    }
+    // Start auto-refresh
+    if (conversationRefreshInterval) clearInterval(conversationRefreshInterval);
     conversationRefreshInterval = setInterval(loadConversations, 10000);
-    
-    console.log('Messaging panel shown');
   }
 
   // Hide messaging panel
   function hideMessaging() {
-    console.log('Hiding messaging panel');
-    
-    // Clean up only truly empty conversations
-    cleanupEmptyConversation();
-    
     const panel = document.getElementById('messagingPanel');
-    if (!panel) {
-      console.error('Messaging panel not found!');
-      return;
-    }
+    if (!panel) return;
     
     panel.style.display = 'none';
     
-    // Stop polling and refreshing
     if (messagePollingInterval) {
       clearInterval(messagePollingInterval);
       messagePollingInterval = null;
@@ -1028,19 +1014,14 @@ $flashSuccess = Session::flash('success');
       conversationRefreshInterval = null;
     }
     
-    // Reset state to show conversations list when reopened
     currentConversationId = null;
     const chatArea = document.getElementById('chatArea');
     const conversationsList = document.getElementById('conversationsList');
+    const messageInputArea = document.getElementById('messageInputArea');
     
     if (chatArea) chatArea.style.display = 'none';
     if (conversationsList) conversationsList.style.display = 'block';
-    
-    // Hide message input area
-    const messageInputArea = document.getElementById('messageInputArea');
     if (messageInputArea) messageInputArea.style.display = 'none';
-    
-    console.log('Messaging panel hidden and reset to conversations list');
   }
 
   // Load conversations
@@ -1147,13 +1128,11 @@ $flashSuccess = Session::flash('success');
     console.log('Opening conversation:', conversationId, 'with', participantName);
     currentConversationId = conversationId;
     
-    // Clear pending conversation since we're opening an existing one
-    if (window.pendingConversation && window.pendingConversation.id == conversationId) {
-      window.pendingConversation = null;
+    // Update UI - keep conversations sidebar visible on desktop, only hide on mobile
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      document.getElementById('conversationsList').style.display = 'none';
     }
-    
-    // Update UI
-    document.getElementById('conversationsList').style.display = 'none';
     document.getElementById('chatArea').style.display = 'flex';
     document.getElementById('chatTitle').textContent = participantName;
     
@@ -1169,8 +1148,7 @@ $flashSuccess = Session::flash('success');
     });
     
     // Find and mark the correct conversation as active
-    const conversationItems = document.querySelectorAll('.conversation-item');
-    conversationItems.forEach(item => {
+    document.querySelectorAll('.conversation-item').forEach(item => {
       const onclick = item.getAttribute('onclick');
       if (onclick && onclick.includes(`openConversation(${conversationId},`)) {
         item.classList.add('active');
@@ -1178,7 +1156,6 @@ $flashSuccess = Session::flash('success');
     });
     
     // Load messages
-    console.log('Loading messages for conversation:', conversationId);
     await loadMessages(conversationId);
     
     // Start polling for new messages
@@ -1186,8 +1163,6 @@ $flashSuccess = Session::flash('success');
       clearInterval(messagePollingInterval);
     }
     messagePollingInterval = setInterval(() => loadMessages(conversationId), 3000);
-    
-    console.log('Conversation opened successfully');
   }
 
   // Load messages
