@@ -54,6 +54,18 @@ try {
 $skillsStmt = $db->pdo()->query("SELECT id, name, category FROM skills ORDER BY category ASC, name ASC");
 $allSkills = $skillsStmt->fetchAll();
 
+// Check if profile is complete
+$profileCompleteStmt = $db->pdo()->prepare("SELECT is_profile_complete FROM users WHERE id = ?");
+$profileCompleteStmt->execute([$userId]);
+$profileCompleteRow = $profileCompleteStmt->fetch();
+$isProfileComplete = !empty($profileCompleteRow['is_profile_complete']);
+
+// Build skills by category for overlay form
+$overlayEmpSkillsByCategory = [];
+foreach ($allSkills as $skill) {
+  $overlayEmpSkillsByCategory[$skill['category']][] = $skill;
+}
+
 $flashError = Session::flash('error');
 $flashSuccess = Session::flash('success');
 ?>
@@ -66,16 +78,280 @@ $flashSuccess = Session::flash('success');
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Employer Dashboard - QuickHire</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/employer-dashboard.css">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
 </head>
-<body>
+<body class="landing-body">
+
+<?php if (!$isProfileComplete): ?>
+<!-- ── PROFILE COMPLETION OVERLAY (STEP WIZARD) ── -->
+<div class="profile-overlay" id="profileCompletionOverlay">
+  <div class="profile-overlay-card">
+
+    <!-- Step progress bar -->
+    <div class="cp-steps">
+      <div class="cp-step active" data-step="1"><span class="cp-step-num">1</span><span class="cp-step-label">Company Info</span></div>
+      <div class="cp-step-line"></div>
+      <div class="cp-step" data-step="2"><span class="cp-step-num">2</span><span class="cp-step-label">Skills</span></div>
+      <div class="cp-step-line"></div>
+      <div class="cp-step" data-step="3"><span class="cp-step-num">3</span><span class="cp-step-label">Finish</span></div>
+    </div>
+
+    <?php if ($flashError): ?>
+      <div class="cp-alert cp-err"><?= htmlspecialchars($flashError) ?></div>
+    <?php endif; ?>
+
+    <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="empProfileForm">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+      <input type="hidden" name="profile_type" value="EMPLOYER">
+
+      <!-- ── STEP 1: Company Info ── -->
+      <div class="cp-step-panel active" id="emp-step-1">
+        <h2 class="cp-step-title">🏢 Company Information</h2>
+        <p class="cp-step-desc">Set up your company profile so jobseekers can find you.</p>
+
+        <div class="cp-grid">
+          <div class="cp-full">
+            <div class="avatar-upload" onclick="document.getElementById('ov_emp_pic').click()">
+              <div class="avatar-preview" id="ovEmpAvatarPreview">
+                <?php if (!empty($profile['profile_picture_url'])): ?>
+                  <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
+                <?php else: ?>
+                  <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
+                <?php endif; ?>
+              </div>
+              <div class="avatar-overlay"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+              <input type="file" id="ov_emp_pic" name="profile_picture" accept="image/*">
+            </div>
+            <div class="cp-avatar-name"><?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?></div>
+          </div>
+
+          <div>
+            <label>Business Name / Company Name *</label>
+            <input name="company_name" value="<?= htmlspecialchars($profile['company_name'] ?? '') ?>" required placeholder="e.g. Acme Corp">
+          </div>
+
+          <div>
+            <label>Country *</label>
+            <select name="country" required>
+              <option value="">Select Country</option>
+              <?php foreach (['Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh','Belgium','Brazil','Canada','China','Colombia','Denmark','Egypt','Finland','France','Germany','Greece','India','Indonesia','Ireland','Italy','Japan','Malaysia','Mexico','Netherlands','New Zealand','Norway','Pakistan','Philippines','Poland','Portugal','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam','Other'] as $c): ?>
+                <option value="<?= $c ?>" <?= ($profile['country'] ?? '') === $c ? 'selected' : '' ?>><?= $c ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+
+        <div class="cp-nav">
+          <span></span>
+          <button type="button" class="cp-btn-next" onclick="empNextStep(1)">Next →</button>
+        </div>
+      </div><!-- /emp-step-1 -->
+
+      <!-- ── STEP 2: Skills ── -->
+      <div class="cp-step-panel" id="emp-step-2">
+        <h2 class="cp-step-title">🛠️ Skills You Look For</h2>
+        <p class="cp-step-desc">Select skills you commonly require from jobseekers. This helps with matching.</p>
+
+        <div class="skills-container">
+          <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="ovEmpSkillsSearch">
+          <div class="skills-tabs">
+            <div class="skills-tab active" data-category="all">All</div>
+            <?php foreach (array_keys($overlayEmpSkillsByCategory) as $cat): ?>
+              <div class="skills-tab" data-category="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></div>
+            <?php endforeach; ?>
+          </div>
+          <div class="skills-grid" id="ovEmpSkillsContainer">
+            <?php foreach ($overlayEmpSkillsByCategory as $cat => $skills): ?>
+              <div class="category-section" data-category="<?= htmlspecialchars($cat) ?>">
+                <div class="category-title"><?= htmlspecialchars($cat) ?></div>
+                <div class="skills-row">
+                  <?php foreach ($skills as $skill): ?>
+                    <label class="skill-checkbox" data-skill-name="<?= strtolower(htmlspecialchars($skill['name'])) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
+                      <input type="checkbox" name="required_skill_ids[]" value="<?= $skill['id'] ?>" <?= in_array($skill['id'], $currentRequiredSkills) ? 'checked' : '' ?> style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#6366f1;margin:0;">
+                      <?= htmlspecialchars($skill['name']) ?>
+                    </label>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+        <div class="cp-nav">
+          <button type="button" class="cp-btn-back" onclick="empGoStep(1)">← Back</button>
+          <button type="button" class="cp-btn-next" onclick="empGoStep(3)">Next →</button>
+        </div>
+      </div><!-- /emp-step-2 -->
+
+      <!-- ── STEP 3: Review & Submit ── -->
+      <div class="cp-step-panel" id="emp-step-3">
+        <h2 class="cp-step-title">✅ All Set!</h2>
+        <p class="cp-step-desc">Your profile is ready. Click below to enter your dashboard.</p>
+
+        <div class="cp-review-box">
+          <div class="cp-review-row"><span class="cp-review-label">Company</span><span class="cp-review-val" id="empReviewCompany">—</span></div>
+          <div class="cp-review-row"><span class="cp-review-label">Country</span><span class="cp-review-val" id="empReviewCountry">—</span></div>
+          <div class="cp-review-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+            <span class="cp-review-label">Skills selected (<span id="empReviewSkillCount">0</span>)</span>
+            <div id="empReviewSkillPills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
+        </div>
+
+        <div class="cp-nav">
+          <button type="button" class="cp-btn-back" onclick="empGoStep(2)">← Back</button>
+          <button type="submit" class="cp-btn-submit">Complete Profile</button>
+        </div>
+      </div><!-- /emp-step-3 -->
+
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  document.body.style.overflow = 'hidden';
+  let currentStep = 1;
+
+  function empGoStep(n) {
+    document.getElementById('emp-step-' + currentStep).classList.remove('active');
+    document.getElementById('emp-step-' + n).classList.add('active');
+    document.querySelectorAll('#profileCompletionOverlay .cp-step').forEach(el => {
+      const s = parseInt(el.dataset.step);
+      el.classList.remove('active','done');
+      if (s === n) el.classList.add('active');
+      if (s < n)  el.classList.add('done');
+    });
+    document.querySelectorAll('#profileCompletionOverlay .cp-step-line').forEach((line, i) => {
+      line.classList.toggle('done', i < n - 1);
+    });
+    currentStep = n;
+    document.querySelector('.profile-overlay').scrollTop = 0;
+
+    // Populate review on step 3
+    if (n === 3) {
+      const company = document.querySelector('[name=company_name]')?.value || '—';
+      const country = document.querySelector('[name=country]')?.value || '—';
+      const checkedBoxes = document.querySelectorAll('#ovEmpSkillsContainer input[type=checkbox]:checked');
+
+      document.getElementById('empReviewCompany').textContent = company;
+      document.getElementById('empReviewCountry').textContent = country;
+      document.getElementById('empReviewSkillCount').textContent = checkedBoxes.length;
+
+      // Render skill pills
+      const pillsContainer = document.getElementById('empReviewSkillPills');
+      pillsContainer.innerHTML = '';
+      if (checkedBoxes.length === 0) {
+        pillsContainer.innerHTML = '<span style="color:#64748b;font-size:13px;font-style:italic;">No skills selected</span>';
+      } else {
+        checkedBoxes.forEach(cb => {
+          const label = cb.closest('label');
+          const name = label ? label.textContent.trim() : cb.value;
+          const pill = document.createElement('span');
+          pill.textContent = name;
+          pill.style.cssText = 'background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;';
+          pillsContainer.appendChild(pill);
+        });
+      }
+    }
+  }
+  window.empGoStep = empGoStep;
+
+  window.empNextStep = function(from) {
+    const panel = document.getElementById('emp-step-' + from);
+    panel.querySelectorAll('.cp-invalid').forEach(el => el.classList.remove('cp-invalid'));
+    panel.querySelector('.cp-validation-msg')?.remove();
+    let valid = true;
+    panel.querySelectorAll('[required]').forEach(el => {
+      if (!el.value.trim()) { el.classList.add('cp-invalid'); valid = false; }
+    });
+    if (!valid) {
+      const msg = document.createElement('p');
+      msg.className = 'cp-validation-msg';
+      msg.textContent = 'Please fill in all required fields.';
+      const grid = panel.querySelector('.cp-grid');
+      if (grid) {
+        grid.style.marginBottom = '0';
+        grid.after(msg);
+      } else {
+        panel.querySelector('.cp-nav').before(msg);
+      }
+      return;
+    }
+    empGoStep(from + 1);
+  };
+
+  // Avatar preview
+  const picInput = document.getElementById('ov_emp_pic');
+  const preview  = document.getElementById('ovEmpAvatarPreview');
+  if (picInput && preview) {
+    picInput.addEventListener('change', () => {
+      const file = picInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { preview.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">'; };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Skills search & tab filter
+  const search = document.getElementById('ovEmpSkillsSearch');
+  const tabs   = document.querySelectorAll('#emp-step-2 .skills-tab');
+  const sects  = document.querySelectorAll('#ovEmpSkillsContainer .category-section');
+  let activeCategory = 'all';
+  function filterSkills() {
+    const q = search ? search.value.toLowerCase() : '';
+    sects.forEach(sect => {
+      const catMatch = activeCategory === 'all' || sect.dataset.category === activeCategory;
+      let anyVisible = false;
+      sect.querySelectorAll('.skill-checkbox').forEach(cb => {
+        const show = catMatch && (!q || (cb.dataset.skillName || '').includes(q));
+        cb.style.display = show ? '' : 'none';
+        if (show) anyVisible = true;
+      });
+      sect.style.display = anyVisible ? '' : 'none';
+    });
+  }
+  if (search) search.addEventListener('input', filterSkills);
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeCategory = tab.dataset.category;
+      if (search) search.value = '';
+      filterSkills();
+    });
+  });
+
+  // Skill limit: max 10
+  const SKILL_LIMIT = 10;
+  const skillContainer = document.getElementById('ovEmpSkillsContainer');
+  const limitMsg = document.createElement('p');
+  limitMsg.style.cssText = 'color:#fca5a5;font-size:13px;font-weight:600;margin:8px 0 0;display:none;';
+  limitMsg.textContent = 'Maximum of 10 skills reached.';
+  skillContainer.parentElement.appendChild(limitMsg);
+  skillContainer.addEventListener('change', e => {
+    if (!e.target.matches('input[type=checkbox]')) return;
+    const checked = skillContainer.querySelectorAll('input[type=checkbox]:checked');
+    if (checked.length > SKILL_LIMIT) { e.target.checked = false; }
+    const count = skillContainer.querySelectorAll('input[type=checkbox]:checked').length;
+    limitMsg.style.display = count >= SKILL_LIMIT ? 'block' : 'none';
+    skillContainer.querySelectorAll('input[type=checkbox]:not(:checked)').forEach(cb => {
+      cb.disabled = count >= SKILL_LIMIT;
+    });
+  });
+})();
+</script>
+<?php endif; ?>
 
 <div class="layout">
   <!-- SIDEBAR -->
   <aside class="side">
-    <div class="brandRow" style="flex-direction: column; align-items: center; text-align: center;">
-      <img src="/QuickHire/Public/images/quickhire-logo.jpg" alt="QuickHire Logo" style="width: auto; height: 32px; border-radius: 4px;">
+    <div class="brandRow">
+      <img src="/QuickHire/Public/images/quickhire-logo.png" alt="QuickHire Logo">
     </div>
 
     <div class="profileCard">
@@ -91,28 +367,32 @@ $flashSuccess = Session::flash('success');
           <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
         </div>
         <div class="meta">
-          <?= htmlspecialchars(($profile['country'] ?? 'Country not set')) ?>
+          <?= htmlspecialchars(($profile['company_name'] ?? 'Employer')) ?>
         </div>
       </div>
     </div>
 
     <nav class="nav">
       <button class="success" id="btnFindMatch">🔍 Find Jobseeker</button>
-      <button class="primary" id="btnSearchJobseekers">🔍 Search Jobseekers</button>
-      <button class="primary" id="btnPostJob">📢 Post Job</button>
-      <a href="#" class="nav-link" id="btnMessages" style="display: block; padding: 12px 20px; color: #3b82f6; text-decoration: none; border-radius: 8px; margin: 8px 0; background: #f1f5f9; text-align: center; font-weight: 600; position: relative;">
+
+      <div class="nav-section-label">HIRING</div>
+      <button id="btnSearchJobseekers">🔍 Search Jobseekers</button>
+      <button id="btnPostJob">📢 Post Job</button>
+      <button id="btnMessages" style="position:relative;">
         💬 Messages
         <?php if ($unreadCount > 0): ?>
-          <span style="position: absolute; top: 4px; right: 8px; background: #ef4444; color: white; border-radius: 10px; padding: 2px 6px; font-size: 12px; font-weight: bold;"><?= $unreadCount ?></span>
+          <span style="margin-left:auto;background:#ef4444;color:white;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;"><?= $unreadCount ?></span>
         <?php endif; ?>
-      </a>
+      </button>
 
+      <div class="nav-section-label">ACCOUNT</div>
       <button id="btnHome">🏠 Home</button>
       <button id="btnEditProfile">✏️ Edit Profile</button>
       <button id="btnEditPreferences">⚙️ Edit Preferences</button>
 
+      <div class="nav-section-label">SESSION</div>
       <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
-        <button class="danger" type="submit">Logout</button>
+        <button class="danger" type="submit">🚪 Logout</button>
       </form>
     </nav>
   </aside>
@@ -198,25 +478,25 @@ $flashSuccess = Session::flash('success');
             <div class="avatar-upload" onclick="document.getElementById('profile_picture_emp').click()">
               <div class="avatar-preview">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
-                  <img src="<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
+                  <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
                 <?php else: ?>
                   <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
                 <?php endif; ?>
               </div>
-              <div class="avatar-overlay">✏️</div>
+              <div class="avatar-overlay"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
               <input type="file" id="profile_picture_emp" name="profile_picture" accept="image/*">
             </div>
-            <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
-              <div id="nameDisplay" style="cursor: pointer; padding: 5px; border-radius: 5px; transition: background 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='transparent'" onclick="editName()">
+            <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #f8fafc;">
+              <div id="nameDisplay" style="cursor: pointer; padding: 5px; border-radius: 5px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" onclick="editName()">
                 <?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?>
-                <span style="font-size: 12px; color: #666; margin-left: 5px;">✏️</span>
+                <span style="margin-left: 6px; opacity: 0.5;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
               </div>
               <div id="nameEdit" style="display: none;">
                 <input type="text" id="firstNameInput" name="first_name" value="<?= htmlspecialchars($userInfo['first_name'] ?? '') ?>" placeholder="First Name" style="width: 45%; padding: 8px; margin: 5px 2%; border: 1px solid var(--line); border-radius: 8px;">
                 <input type="text" id="lastNameInput" name="last_name" value="<?= htmlspecialchars($userInfo['last_name'] ?? '') ?>" placeholder="Last Name" style="width: 45%; padding: 8px; margin: 5px 2%; border: 1px solid var(--line); border-radius: 8px;">
                 <div style="margin-top: 10px;">
                   <button type="button" onclick="saveName()" style="padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; margin-right: 5px;">Save</button>
-                  <button type="button" onclick="cancelEditName()" style="padding: 6px 12px; background: #ccc; color: #333; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                  <button type="button" onclick="cancelEditName()" style="padding: 6px 12px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
                 </div>
               </div>
             </div>
@@ -324,10 +604,7 @@ $flashSuccess = Session::flash('success');
 
     <!-- Job Posting Content (Hidden by default) -->
     <div class="card" id="jobPostingContent" style="display:none;">
-      <h2>📢 Post a Job</h2>
-      <p style="color: var(--muted); margin-bottom: 20px;">
-        Create a job posting to attract qualified candidates. Your job will be visible to all job seekers on the platform.
-      </p>
+
 
       <!-- Job Posting Form -->
       <form id="jobPostingForm" style="margin-bottom: 30px;">
@@ -397,17 +674,9 @@ $flashSuccess = Session::flash('success');
             <select id="job_country" name="country">
               <option value="">Select Country</option>
               <option value="Remote">Remote</option>
-              <option value="United States">United States</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="Canada">Canada</option>
-              <option value="Australia">Australia</option>
-              <option value="Germany">Germany</option>
-              <option value="France">France</option>
-              <option value="Netherlands">Netherlands</option>
-              <option value="Singapore">Singapore</option>
-              <option value="India">India</option>
-              <option value="Philippines">Philippines</option>
-              <option value="Other">Other</option>
+              <?php foreach (['Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh','Belgium','Brazil','Canada','China','Colombia','Denmark','Egypt','Finland','France','Germany','Greece','India','Indonesia','Ireland','Italy','Japan','Malaysia','Mexico','Netherlands','New Zealand','Norway','Pakistan','Philippines','Poland','Portugal','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam','Other'] as $c): ?>
+                <option value="<?= $c ?>"><?= $c ?></option>
+              <?php endforeach; ?>
             </select>
           </div>
 
@@ -456,10 +725,10 @@ $flashSuccess = Session::flash('success');
                   <div class="category-title"><?= htmlspecialchars($category) ?></div>
                   <div class="skills-row">
                     <?php foreach ($skills as $skill): ?>
-                      <div class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>">
-                        <input type="checkbox" id="job_skill_<?= $skill['id'] ?>" name="skill_ids[]" value="<?= $skill['id'] ?>">
-                        <label for="job_skill_<?= $skill['id'] ?>" style="margin:0; font-weight:600;"><?= htmlspecialchars($skill['name']) ?></label>
-                      </div>
+                      <label class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
+                        <input type="checkbox" name="skill_ids[]" value="<?= $skill['id'] ?>" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#6366f1;margin:0;">
+                        <?= htmlspecialchars($skill['name']) ?>
+                      </label>
                     <?php endforeach; ?>
                   </div>
                 </div>
@@ -469,7 +738,7 @@ $flashSuccess = Session::flash('success');
         </div>
 
         <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
-          <button type="submit" class="btn primary" id="submitJobPost">📢 Post Job</button>
+          <button type="submit" class="btn primary" id="submitJobPost">Post Job</button>
           <button type="button" class="btn outline" id="btnCancelJobPost">Cancel</button>
         </div>
       </form>
@@ -628,10 +897,10 @@ $flashSuccess = Session::flash('success');
                     <div class="category-title"><?= htmlspecialchars($category) ?></div>
                     <div class="skills-row">
                       <?php foreach ($skills as $skill): ?>
-                        <div class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>">
-                          <input type="checkbox" id="pref_skill_<?= $skill['id'] ?>" name="skill_ids[]" value="<?= $skill['id'] ?>">
-                          <label for="pref_skill_<?= $skill['id'] ?>" style="margin:0; font-weight:600;"><?= htmlspecialchars($skill['name']) ?></label>
-                        </div>
+                        <label class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
+                          <input type="checkbox" name="skill_ids[]" value="<?= $skill['id'] ?>" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#6366f1;margin:0;">
+                          <?= htmlspecialchars($skill['name']) ?>
+                        </label>
                       <?php endforeach; ?>
                     </div>
                   </div>
@@ -649,10 +918,9 @@ $flashSuccess = Session::flash('success');
     </div>
 
     <!-- MESSAGING PANEL -->
-    <div class="messaging-panel" id="messagingPanel" style="display: none;">
+    <div class="messaging-panel" id="messagingPanel">
       <div class="messaging-header">
         <h3>💬 Messages</h3>
-        <button class="close-btn" id="closeMessages">✕</button>
       </div>
       
       <div class="messaging-content">
@@ -673,10 +941,7 @@ $flashSuccess = Session::flash('success');
             <div id="chatHeaderAvatar" style="display:none;width:38px;height:38px;border-radius:50%;background:#64748b;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:15px;flex-shrink:0;overflow:hidden;"></div>
             <div class="chat-title" id="chatTitle">Select a conversation</div>
             <div style="margin-left:auto;position:relative;">
-              <button id="chatMenuBtn" onclick="toggleChatMenu()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:4px 8px;border-radius:6px;line-height:1;" title="Options">⋮</button>
-              <div id="chatMenu" style="display:none;position:absolute;right:0;top:32px;background:white;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:180px;z-index:100;">
-                <button onclick="deleteConversation(currentConversationId)" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;font-weight:600;border-radius:10px;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='none'">🗑 Delete Conversation</button>
-              </div>
+              <button id="chatMenuBtn" onclick="toggleChatMenu()" style="display:none;background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:4px 8px;border-radius:6px;line-height:1;" title="Options">⋮</button>
             </div>
           </div>
           
@@ -709,6 +974,44 @@ $flashSuccess = Session::flash('success');
         </div>
       </div>
     </div>
+
+    <!-- ── JOBSEEKER PROFILE VIEW ── -->
+    <div class="card" id="jsProfileView" style="display:none; max-width:none; width:100%; padding:0; overflow:hidden;">
+      <!-- Cover -->
+      <div id="jsProfileCover" style="height:160px;background:linear-gradient(135deg,#1e293b 0%,#0f172a 50%,#1e1b4b 100%);position:relative;border-radius:18px 18px 0 0;">
+        <div style="position:absolute;bottom:-50px;left:32px;">
+          <div id="jsProfileAvatar" style="width:100px;height:100px;border-radius:50%;border:4px solid #0f172a;overflow:hidden;background:#1e293b;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#a5b4fc;"></div>
+        </div>
+        <div style="position:absolute;top:16px;right:16px;display:flex;gap:10px;">
+          <button id="jsProfileMsgBtn" style="padding:8px 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:10px;color:white;font-weight:700;font-size:13px;cursor:pointer;">💬 Message</button>
+          <button onclick="showSearchJobseekers()" style="padding:8px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#e2e8f0;font-weight:700;font-size:13px;cursor:pointer;">← Back</button>
+        </div>
+      </div>
+
+      <div style="padding:64px 32px 32px;">
+        <h2 id="jsProfileName" style="margin:0 0 4px;font-size:26px;font-weight:900;color:#f8fafc;"></h2>
+        <p id="jsProfileRole" style="margin:0 0 6px;color:#6366f1;font-weight:600;font-size:16px;"></p>
+        <p id="jsProfileMeta" style="margin:0 0 20px;color:#64748b;font-size:14px;"></p>
+
+        <div id="jsProfilePills" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div style="grid-column:1/-1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;">
+            <h3 style="margin:0 0 12px;font-size:15px;font-weight:800;color:#f8fafc;">About</h3>
+            <p id="jsProfileAbout" style="margin:0;color:#94a3b8;line-height:1.7;font-size:14px;"></p>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;">
+            <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;color:#f8fafc;">Skills</h3>
+            <div id="jsProfileSkills" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;">
+            <h3 style="margin:0 0 14px;font-size:15px;font-weight:800;color:#f8fafc;">Details</h3>
+            <div id="jsProfileDetails" style="display:flex;flex-direction:column;gap:10px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 <script>
@@ -845,11 +1148,17 @@ $flashSuccess = Session::flash('success');
   }
 
   async function executeJobseekerSearch(preferences) {
-    // Disable buttons to prevent multiple clicks
     btnFindMatch.disabled = true;
     btnFindMatch2.disabled = true;
     btnFindMatch.textContent = '🔍 Searching...';
     btnFindMatch2.textContent = 'Searching...';
+
+    const resetButtons = () => {
+      btnFindMatch.disabled = false;
+      btnFindMatch2.disabled = false;
+      btnFindMatch.textContent = '🔍 Find Jobseeker';
+      btnFindMatch2.textContent = 'Find Jobseeker';
+    };
 
     try {
       // Proceed with matching using preferences
@@ -872,30 +1181,55 @@ $flashSuccess = Session::flash('success');
 
       // Check if response is a redirect (successful match)
       if (response.redirected) {
-        window.location.href = response.url;
+        const url = new URL(response.url);
+        const room = url.searchParams.get('room');
+        if (room) {
+          resetButtons();
+          showCallConfirmation(room);
+        } else {
+          window.location.href = response.url;
+        }
         return;
       }
 
       // If not redirected, check for error
       const text = await response.text();
       if (text.includes('No available jobseeker')) {
-        alert('No jobseekers available right now. Please try again later.');
+        resetButtons();
+        showToast('No jobseekers available right now. Please try again later.', 'info');
       } else {
-        // Try to extract room from response if it's a call page
         const roomMatch = text.match(/room=([^"&]+)/);
         if (roomMatch) {
-          window.location.href = '/QuickHire/Public/call.php?room=' + roomMatch[1];
+          resetButtons();
+          showCallConfirmation(roomMatch[1]);
           return;
         }
-        alert('No matches found. Please try again later.');
+        resetButtons();
+        showToast('No matches found. Please try again later.', 'info');
       }
     } catch (error) {
-      alert('Connection error. Please try again.');
+      resetButtons();
+      showToast('Connection error. Please try again.', 'error');
     }
 
-    // Re-enable buttons
-    btnFindMatch.disabled = false;
-    btnFindMatch2.disabled = false;
+  function showCallConfirmation(room) {
+    document.getElementById('callConfirmModal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'callConfirmModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:36px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+        <div style="font-size:52px;margin-bottom:16px;">📹</div>
+        <h2 style="margin:0 0 10px;font-size:22px;font-weight:900;color:#f8fafc;">Ready to Connect!</h2>
+        <p style="margin:0 0 28px;color:#94a3b8;font-size:15px;line-height:1.6;">A jobseeker is ready to connect with you. Make sure your camera and microphone are ready before joining.</p>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button onclick="document.getElementById('callConfirmModal').remove()" style="padding:12px 24px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#e2e8f0;font-weight:700;font-size:14px;cursor:pointer;">Cancel</button>
+          <button onclick="window.location.href='/QuickHire/Public/call.php?room=${encodeURIComponent(room)}'" style="padding:12px 28px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:12px;color:white;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 0 20px rgba(16,185,129,0.3);">Join Call →</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
     btnFindMatch.textContent = '🔍 Find Jobseeker';
     btnFindMatch2.textContent = 'Find Jobseeker';
   }
@@ -912,6 +1246,7 @@ $flashSuccess = Session::flash('success');
     btnEditProfile2.classList.remove('active');
     btnSearchJobseekers.classList.remove('active');
     btnPostJob.classList.remove('active');
+    btnMessages.classList.remove('active');
     
     // Update title when showing dashboard
     document.querySelector('.title').textContent = 'Welcome back 👋';
@@ -930,6 +1265,7 @@ $flashSuccess = Session::flash('success');
     btnEditProfile2.classList.add('active');
     btnSearchJobseekers.classList.remove('active');
     btnPostJob.classList.remove('active');
+    btnMessages.classList.remove('active');
     
     // Update title when showing edit form
     document.querySelector('.title').textContent = 'Edit Your Profile';
@@ -941,6 +1277,7 @@ $flashSuccess = Session::flash('success');
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'block';
     jobPostingContent.style.display = 'none';
+    document.getElementById('jsProfileView').style.display = 'none';
     
     // Update active states
     btnHome.classList.remove('active');
@@ -948,6 +1285,7 @@ $flashSuccess = Session::flash('success');
     btnEditProfile2.classList.remove('active');
     btnSearchJobseekers.classList.add('active');
     btnPostJob.classList.remove('active');
+    btnMessages.classList.remove('active');
     
     // Update title when showing search
     document.querySelector('.title').textContent = 'Search Job Seekers';
@@ -969,6 +1307,7 @@ $flashSuccess = Session::flash('success');
     btnEditProfile2.classList.remove('active');
     btnSearchJobseekers.classList.remove('active');
     btnPostJob.classList.add('active');
+    btnMessages.classList.remove('active');
     
     // Update title when showing job posting
     document.querySelector('.title').textContent = 'Post a Job';
@@ -986,8 +1325,8 @@ $flashSuccess = Session::flash('success');
 
   btnFindMatch.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -998,8 +1337,8 @@ $flashSuccess = Session::flash('success');
   
   btnFindMatch2.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1009,8 +1348,8 @@ $flashSuccess = Session::flash('success');
   });
   btnHome.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1021,8 +1360,8 @@ $flashSuccess = Session::flash('success');
   
   btnEditProfile.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1033,8 +1372,8 @@ $flashSuccess = Session::flash('success');
   
   btnEditProfile2.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1045,8 +1384,8 @@ $flashSuccess = Session::flash('success');
   
   btnEditPreferences.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1056,9 +1395,8 @@ $flashSuccess = Session::flash('success');
   });
   
   btnSearchJobseekers.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1067,10 +1405,12 @@ $flashSuccess = Session::flash('success');
     showSearch();
   });
 
+  window.showSearchJobseekers = showSearch;
+
   btnPostJob.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1081,8 +1421,8 @@ $flashSuccess = Session::flash('success');
   
   btnCancelEdit.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1093,8 +1433,8 @@ $flashSuccess = Session::flash('success');
 
   btnCancelJobPost.addEventListener('click', function() {
     // Close messaging panel if open
-    if (messagingPanel && messagingPanel.style.display !== 'none') {
-      messagingPanel.style.display = 'none';
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
       currentConversationId = null;
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
@@ -1342,7 +1682,7 @@ $flashSuccess = Session::flash('success');
         showToast('Error posting job: ' + error.message, 'error');
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = '📢 Post Job';
+        submitButton.textContent = 'Post Job';
       }
     });
   }
@@ -1420,38 +1760,9 @@ $flashSuccess = Session::flash('success');
     container.innerHTML = html;
   }
 
-  // Edit job post
+  // Edit job post — opens modal
   function editJob(jobId) {
-    // Find the job data
-    const jobData = currentJobPosts.find(job => job.id === jobId);
-    if (!jobData) {
-      showToast('Job not found', 'error');
-      return;
-    }
-    
-    // Populate the form with existing data
-    document.getElementById('job_title').value = jobData.title || '';
-    document.getElementById('job_description').value = jobData.description || '';
-    document.getElementById('job_role_title').value = jobData.role_title || '';
-    document.getElementById('job_employment_type').value = jobData.employment_type || '';
-    document.getElementById('job_country').value = jobData.country || '';
-    document.getElementById('job_rate_per_hour').value = jobData.rate_per_hour || '';
-    document.getElementById('job_hours_per_week').value = jobData.hours_per_week || '';
-    
-    // Check the skills
-    document.querySelectorAll('input[name="skill_ids[]"]').forEach(checkbox => {
-      checkbox.checked = jobData.skills.some(skill => skill.id == checkbox.value);
-    });
-    
-    // Change form to edit mode
-    document.getElementById('submitJobPost').textContent = '💾 Update Job';
-    document.getElementById('submitJobPost').setAttribute('data-edit-id', jobId);
-    
-    // Show the job posting section
-    showJobPostingContent();
-    
-    // Scroll to form
-    document.getElementById('jobPostingContent').scrollIntoView({ behavior: 'smooth' });
+    openEditJobModal(jobId);
   }
 
   // Delete job post
@@ -1523,7 +1834,7 @@ $flashSuccess = Session::flash('success');
         
         // Reset form
         document.getElementById('jobPostingForm').reset();
-        submitBtn.textContent = '📢 Post Job';
+        submitBtn.textContent = 'Post Job';
         submitBtn.removeAttribute('data-edit-id');
         
         // Reload job posts
@@ -1540,7 +1851,7 @@ $flashSuccess = Session::flash('success');
     } finally {
       submitBtn.disabled = false;
       if (!submitBtn.hasAttribute('data-edit-id')) {
-        submitBtn.textContent = '📢 Post Job';
+        submitBtn.textContent = 'Post Job';
       }
     }
   });
@@ -1549,7 +1860,7 @@ $flashSuccess = Session::flash('success');
   document.getElementById('btnCancelJobPost').addEventListener('click', function() {
     // Reset form
     document.getElementById('jobPostingForm').reset();
-    document.getElementById('submitJobPost').textContent = '📢 Post Job';
+    document.getElementById('submitJobPost').textContent = 'Post Job';
     document.getElementById('submitJobPost').removeAttribute('data-edit-id');
     
     // Show home content
@@ -1660,6 +1971,9 @@ async function performSearch() {
 }
 
 function displaySearchResults(results, query) {
+  // Store results for profile view
+  window._searchResults = {};
+  results.forEach(j => { window._searchResults[j.id] = j; });
   if (results.length === 0) {
     searchResults.style.display = 'none';
     searchEmpty.style.display = 'block';
@@ -1682,7 +1996,7 @@ function displaySearchResults(results, query) {
       ? ` +${jobseeker.skills.split(', ').length - 5} more` : '';
 
     html += `
-      <div class="search-result-item">
+      <div class="search-result-item" onclick="viewJobseekerProfile(this)" style="cursor:pointer;" data-id="${jobseeker.id}">
         <div class="search-result-avatar">
           ${avatar}
         </div>
@@ -1711,7 +2025,7 @@ function displaySearchResults(results, query) {
             <strong>Skills:</strong> ${skills}${moreSkills}
           </div>
         </div>
-        <div class="search-result-actions">
+        <div class="search-result-actions" onclick="event.stopPropagation()">
           <button class="message-button" onclick="startConversationWithJobseeker(${jobseeker.id}, this)">
             💬 Message
           </button>
@@ -1726,6 +2040,78 @@ function displaySearchResults(results, query) {
 function hideSearchResults() {
   searchResults.style.display = 'none';
   searchEmpty.style.display = 'none';
+}
+
+// View jobseeker profile
+function viewJobseekerProfile(el) {
+  const id = parseInt(el.dataset.id);
+  const js = window._searchResults && window._searchResults[id];
+  if (!js) return;
+
+  // Populate panel
+  const avatarEl = document.getElementById('jsProfileAvatar');
+  if (js.profile_picture_url) {
+    avatarEl.innerHTML = `<img src="/QuickHire/Public/${js.profile_picture_url}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    avatarEl.textContent = (js.first_name || 'J').charAt(0).toUpperCase();
+  }
+
+  document.getElementById('jsProfileName').textContent = `${js.first_name} ${js.last_name}`;
+  document.getElementById('jsProfileRole').textContent = js.role_title || 'Job Seeker';
+
+  let meta = js.country || '';
+  if (js.portfolio_url) meta += (meta ? ' · ' : '') + `<a href="${js.portfolio_url}" target="_blank" style="color:#6366f1;text-decoration:none;">${js.portfolio_url}</a>`;
+  document.getElementById('jsProfileMeta').innerHTML = meta;
+
+  // Pills
+  const pills = [
+    js.rate_per_hour ? `<span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💵 $${js.rate_per_hour}/hr</span>` : '',
+    js.available_time ? `<span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">🕐 ${js.available_time}h/day</span>` : '',
+    js.english_mastery ? `<span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">💬 ${js.english_mastery}</span>` : '',
+    js.employment_type ? `<span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">💼 ${js.employment_type.replace('_','-')}</span>` : '',
+    js.age ? `<span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">🎂 ${js.age} yrs</span>` : '',
+  ].filter(Boolean).join('');
+  document.getElementById('jsProfilePills').innerHTML = pills;
+
+  // About
+  document.getElementById('jsProfileAbout').innerHTML = (js.profile_description || 'No description.').replace(/\n/g, '<br>');
+
+  // Skills
+  const skillsArr = js.skills ? js.skills.split(', ').filter(Boolean) : [];
+  document.getElementById('jsProfileSkills').innerHTML = skillsArr.length
+    ? skillsArr.map(s => `<span style="padding:5px 12px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:20px;color:#a5b4fc;font-size:12px;font-weight:600;">${s}</span>`).join('')
+    : '<span style="color:#64748b;font-size:13px;">No skills listed.</span>';
+
+  // Details
+  let details = '';
+  if (js.bachelors_degree) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">🎓</span><div><div style="font-size:12px;color:#64748b;">Education</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.bachelors_degree}</div></div></div>`;
+  if (js.gender) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">👤</span><div><div style="font-size:12px;color:#64748b;">Gender</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.gender.charAt(0)+js.gender.slice(1).toLowerCase()}</div></div></div>`;
+  if (js.resume_url) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📄</span><div><div style="font-size:12px;color:#64748b;">Resume</div><a href="/QuickHire/Public/${js.resume_url}" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a></div></div>`;
+  document.getElementById('jsProfileDetails').innerHTML = details || '<span style="color:#64748b;font-size:13px;">No details available.</span>';
+
+  // Message button
+  document.getElementById('jsProfileMsgBtn').onclick = () => startConversationWithJobseeker(js.id, document.getElementById('jsProfileMsgBtn'));
+
+  // Show panel
+  showJobseekerProfileView();
+}
+
+function showJobseekerProfileView() {
+  document.getElementById('dashboardContent').style.display = 'none';
+  document.getElementById('searchContent').style.display = 'none';
+  document.getElementById('jobPostingContent').style.display = 'none';
+  document.getElementById('profileEditContent').style.display = 'none';
+  document.getElementById('jsProfileView').style.display = 'block';
+
+  btnHome.classList.remove('active');
+  btnSearchJobseekers.classList.add('active');
+  btnPostJob.classList.remove('active');
+  btnEditProfile.classList.remove('active');
+  btnEditProfile2.classList.remove('active');
+  btnMessages.classList.remove('active');
+
+  document.querySelector('.title').textContent = 'Jobseeker Profile';
+  document.querySelector('.subtitle').textContent = 'Viewing candidate profile.';
 }
 
 async function startConversationWithJobseeker(jobseekerId, buttonElement) {
@@ -1779,7 +2165,7 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement) {
       console.log(`${actionText} with ${data.jobseeker_name}, ID: ${data.conversation_id}`);
       
       // Open messaging panel first
-      messagingPanel.style.display = 'flex';
+      messagingPanel.classList.add('open');
       
       // Load conversations to get the latest list
       await loadConversations();
@@ -1875,7 +2261,7 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement) {
 
       if (result.ok) {
         // Update the display
-        document.getElementById('nameDisplay').innerHTML = `${firstName} ${lastName} <span style="font-size: 12px; color: #666; margin-left: 5px;">✏️</span>`;
+        document.getElementById('nameDisplay').innerHTML = `${firstName} ${lastName} <span style="margin-left:6px;opacity:0.5;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>`;
         cancelEditName();
         showToast('Name updated successfully', 'success');
         
@@ -1898,7 +2284,6 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement) {
 // Messaging Panel Functionality
 const messagingPanel = document.getElementById('messagingPanel');
 const btnMessages = document.getElementById('btnMessages');
-const closeMessages = document.getElementById('closeMessages');
 const conversationsList = document.getElementById('conversationsList');
 const chatArea = document.getElementById('chatArea');
 const backToConversations = document.getElementById('backToConversations');
@@ -1913,17 +2298,41 @@ let conversations = [];
 btnMessages.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
-  console.log('Messages button clicked');
-  messagingPanel.style.display = 'flex';
+  messagingPanel.classList.add('open');
+
+  // Reset chat header to default state when opening fresh
+  currentConversationId = null;
+  document.getElementById('chatTitle').textContent = 'Select a conversation';
+  const menuBtnReset = document.getElementById('chatMenuBtn');
+  if (menuBtnReset) menuBtnReset.style.display = 'none';
+  const avatarEl = document.getElementById('chatHeaderAvatar');
+  if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
+  document.getElementById('messagesContainer').innerHTML = `
+    <div class="empty-state">
+      <h3>Select a conversation</h3>
+      <p>Choose a conversation from the sidebar to start messaging</p>
+    </div>`;
+  document.getElementById('messageInputArea').style.display = 'none';
+
   loadConversations();
+
+  // Update active states
+  btnHome.classList.remove('active');
+  btnEditProfile.classList.remove('active');
+  btnEditProfile2.classList.remove('active');
+  btnSearchJobseekers.classList.remove('active');
+  btnPostJob.classList.remove('active');
+  btnMessages.classList.add('active');
 });
 
-// Close messaging panel
-closeMessages.addEventListener('click', () => {
-  messagingPanel.style.display = 'none';
+// Close messaging panel (via sidebar nav buttons)
+function closeMessagingPanel() {
+  messagingPanel.classList.remove('open');
   currentConversationId = null;
   document.getElementById('messageInputArea').style.display = 'none';
-});
+  const menuBtn = document.getElementById('chatMenuBtn');
+  if (menuBtn) menuBtn.style.display = 'none';
+}
 
 // Back to conversations
 backToConversations.addEventListener('click', () => {
@@ -2033,10 +2442,23 @@ function displayConversations() {
 
   conversationsList.innerHTML = html;
 }
-// Toggle chat options menu
+// Toggle chat options menu — positioned fixed relative to button to escape overflow:hidden
 function toggleChatMenu() {
   const menu = document.getElementById('chatMenu');
-  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+  const btn  = document.getElementById('chatMenuBtn');
+  if (!menu || !btn) return;
+
+  if (menu.style.display !== 'none') {
+    menu.style.display = 'none';
+    return;
+  }
+
+  // Position relative to button using getBoundingClientRect
+  const rect = btn.getBoundingClientRect();
+  menu.style.top    = (rect.bottom + 6) + 'px';
+  menu.style.right  = (window.innerWidth - rect.right) + 'px';
+  menu.style.left   = 'auto';
+  menu.style.display = 'block';
 }
 // Close menu when clicking outside
 document.addEventListener('click', (e) => {
@@ -2048,33 +2470,40 @@ document.addEventListener('click', (e) => {
 
 // Delete conversation
 async function deleteConversation(conversationId) {
+  // Hide the menu first
+  const menu = document.getElementById('chatMenu');
+  if (menu) menu.style.display = 'none';
+
   if (!confirm('Delete this conversation? This cannot be undone.')) return;
   
   try {
     const fd = new FormData();
     fd.append('conversation_id', conversationId);
     
-    console.log('Deleting conversation:', conversationId);
     const res = await fetch('/QuickHire/Public/actions/delete_conversation.php', { method: 'POST', body: fd });
-    console.log('Delete response status:', res.status);
-    
     const data = await res.json();
-    console.log('Delete response data:', data);
     
     if (data.ok) {
-      if (currentConversationId === conversationId) {
-        currentConversationId = null;
-        document.getElementById('chatArea').style.display = 'none';
-      }
+      // Reset chat area
+      currentConversationId = null;
+      document.getElementById('chatTitle').textContent = 'Select a conversation';
+      const menuBtnDel = document.getElementById('chatMenuBtn');
+      if (menuBtnDel) menuBtnDel.style.display = 'none';
+      const avatarEl = document.getElementById('chatHeaderAvatar');
+      if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
+      document.getElementById('messagesContainer').innerHTML = `
+        <div class="empty-state">
+          <h3>Select a conversation</h3>
+          <p>Choose a conversation from the sidebar to start messaging</p>
+        </div>`;
+      document.getElementById('messageInputArea').style.display = 'none';
       await loadConversations();
-      alert('Conversation deleted successfully');
+      showToast('Conversation deleted.', 'success');
     } else {
-      console.error('Delete failed:', data.error);
-      alert('Failed to delete conversation: ' + data.error);
+      showToast('Failed to delete: ' + data.error, 'error');
     }
   } catch (error) {
-    console.error('Delete conversation error:', error);
-    alert('Error deleting conversation: ' + error.message);
+    showToast('Error deleting conversation.', 'error');
   }
 }
 
@@ -2121,6 +2550,9 @@ async function openConversation(conversationId) {
     }
   }
   document.getElementById("chatTitle").innerHTML = `${conversation.other_first_name} ${conversation.other_last_name}<br>${statusText}`;
+  // Show the ⋮ menu button now that a conversation is open
+  const menuBtn = document.getElementById('chatMenuBtn');
+  if (menuBtn) menuBtn.style.display = 'block';
 
   // Update chat header avatar
   const avatarEl = document.getElementById('chatHeaderAvatar');
@@ -2370,8 +2802,8 @@ document.addEventListener('DOMContentLoaded', function() {
   navButtons.forEach(button => {
     button.addEventListener('click', function() {
       // Close messaging panel if it's open
-      if (messagingPanel && messagingPanel.style.display !== 'none') {
-        messagingPanel.style.display = 'none';
+      if (messagingPanel && messagingPanel.classList.contains('open')) {
+        messagingPanel.classList.remove('open');
         currentConversationId = null;
         if (document.getElementById('messageInputArea')) {
           document.getElementById('messageInputArea').style.display = 'none';
@@ -2404,13 +2836,246 @@ setInterval(() => {
 
 // Refresh conversations every 10 seconds to update active status
 setInterval(() => {
-  if (messagingPanel.style.display === 'flex') {
+  if (messagingPanel.classList.contains('open')) {
     loadConversations();
   }
 }, 10000);
 
 // Initial activity update
 fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
+</script>
+
+<!-- Floating chat menu — appended to body to escape overflow:hidden containers -->
+<div id="chatMenu" style="display:none;position:fixed;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:190px;z-index:99999;overflow:hidden;">
+  <button onclick="deleteConversation(currentConversationId)" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;cursor:pointer;color:#fca5a5;font-size:14px;font-weight:600;" onmouseover="this.style.background='rgba(239,68,68,0.12)'" onmouseout="this.style.background='none'">🗑 Delete Conversation</button>
+</div>
+
+<!-- ── Edit Job Modal ── -->
+<div id="editJobModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;max-width:760px;width:100%;margin:0 auto;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h2 style="margin:0;font-size:20px;font-weight:900;color:#f8fafc;">Edit Job Post</h2>
+      <button onclick="closeEditJobModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;padding:4px;">✕</button>
+    </div>
+
+    <form id="editJobForm">
+      <input type="hidden" id="edit_job_id">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+
+      <div style="display:grid;grid-template-columns:1fr;gap:16px;">
+
+        <div>
+          <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Job Title *</label>
+          <input type="text" id="edit_job_title" required maxlength="255" placeholder="e.g., Senior Frontend Developer"
+            style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;box-sizing:border-box;">
+        </div>
+
+        <div>
+          <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Job Description *</label>
+          <textarea id="edit_job_description" required maxlength="5000" rows="5" placeholder="Describe the role..."
+            style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Role Category</label>
+            <select id="edit_job_role_title" style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#1e293b;color:#f8fafc;font-family:inherit;font-size:14px;">
+              <option value="">Select Role</option>
+              <?php foreach (['Software Engineer','Software Developer','Web Developer','Mobile Developer','Full Stack Developer','Frontend Developer','Backend Developer','DevOps Engineer','Cloud Engineer','Data Scientist','Data Engineer','Data Analyst','Machine Learning Engineer','AI Engineer','Database Administrator','System Administrator','Network Engineer','Security Engineer','QA Engineer','QA Automation Engineer','UI/UX Designer','Product Designer','Technical Product Manager','IT Project Manager','Scrum Master','Business Intelligence Analyst','IT Support Specialist','Technical Writer'] as $r): ?>
+                <option value="<?= $r ?>"><?= $r ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Employment Type</label>
+            <select id="edit_job_employment_type" style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#1e293b;color:#f8fafc;font-family:inherit;font-size:14px;">
+              <option value="">Select Type</option>
+              <option value="FULL_TIME">Full-time</option>
+              <option value="PART_TIME">Part-time</option>
+              <option value="CONTRACT">Contract</option>
+              <option value="FREELANCE">Freelance</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+          <div>
+            <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Country</label>
+            <select id="edit_job_country" style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#1e293b;color:#f8fafc;font-family:inherit;font-size:14px;">
+              <option value="">Select Country</option>
+              <?php foreach (['Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh','Belgium','Brazil','Canada','China','Colombia','Denmark','Egypt','Finland','France','Germany','Greece','India','Indonesia','Ireland','Italy','Japan','Malaysia','Mexico','Netherlands','New Zealand','Norway','Pakistan','Philippines','Poland','Portugal','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam','Remote','Other'] as $c): ?>
+                <option value="<?= $c ?>"><?= $c ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Rate/hr (USD)</label>
+            <input type="number" id="edit_job_rate" step="0.01" min="0" placeholder="e.g. 50.00"
+              style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Hrs/week</label>
+            <input type="number" id="edit_job_hours" min="1" max="168" placeholder="e.g. 40"
+              style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;box-sizing:border-box;">
+          </div>
+        </div>
+
+        <!-- Required Skills -->
+        <div>
+          <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Required Skills <span style="color:#64748b;font-weight:400;">(optional)</span></label>
+          <div class="skills-container">
+            <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="editJobSkillsSearch">
+            <div class="skills-tabs">
+              <div class="skills-tab active" data-category="all">All</div>
+              <?php
+                $editSkillsStmt = $db->pdo()->query("SELECT DISTINCT category FROM skills ORDER BY category ASC");
+                foreach ($editSkillsStmt->fetchAll(PDO::FETCH_COLUMN) as $cat):
+              ?>
+                <div class="skills-tab" data-category="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></div>
+              <?php endforeach; ?>
+            </div>
+            <div class="skills-grid" id="editJobSkillsContainer">
+              <?php
+                $editAllSkillsStmt = $db->pdo()->query("SELECT id, name, category FROM skills ORDER BY category ASC, name ASC");
+                $editAllSkills = $editAllSkillsStmt->fetchAll();
+                $editSkillsByCategory = [];
+                foreach ($editAllSkills as $skill) {
+                  $editSkillsByCategory[$skill['category']][] = $skill;
+                }
+                foreach ($editSkillsByCategory as $cat => $skills):
+              ?>
+                <div class="category-section" data-category="<?= htmlspecialchars($cat) ?>">
+                  <div class="category-title"><?= htmlspecialchars($cat) ?></div>
+                  <div class="skills-row">
+                    <?php foreach ($skills as $skill): ?>
+                      <label class="skill-checkbox" data-skill-name="<?= strtolower(htmlspecialchars($skill['name'])) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
+                        <input type="checkbox" class="edit-job-skill" name="edit_skill_ids[]" value="<?= $skill['id'] ?>" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#6366f1;margin:0;">
+                        <?= htmlspecialchars($skill['name']) ?>
+                      </label>
+                    <?php endforeach; ?>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
+        <button type="button" onclick="closeEditJobModal()" style="padding:11px 22px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#e2e8f0;font-weight:700;font-size:14px;cursor:pointer;">Cancel</button>
+        <button type="submit" id="editJobSubmitBtn" style="padding:11px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:white;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 0 20px rgba(99,102,241,0.3);">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditJobModal(jobId) {
+  const jobData = currentJobPosts.find(j => j.id === jobId);
+  if (!jobData) { showToast('Job not found', 'error'); return; }
+
+  document.getElementById('edit_job_id').value = jobId;
+  document.getElementById('edit_job_title').value = jobData.title || '';
+  document.getElementById('edit_job_description').value = jobData.description || '';
+  document.getElementById('edit_job_role_title').value = jobData.role_title || '';
+  document.getElementById('edit_job_employment_type').value = jobData.employment_type || '';
+  document.getElementById('edit_job_country').value = jobData.country || '';
+  document.getElementById('edit_job_rate').value = jobData.rate_per_hour || '';
+  document.getElementById('edit_job_hours').value = jobData.hours_per_week || '';
+
+  // Pre-check existing skills
+  const currentSkillIds = (jobData.skills || []).map(s => parseInt(s.id));
+  document.querySelectorAll('.edit-job-skill').forEach(cb => {
+    cb.checked = currentSkillIds.includes(parseInt(cb.value));
+  });
+
+  document.getElementById('editJobModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditJobModal() {
+  document.getElementById('editJobModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.getElementById('editJobModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditJobModal();
+});
+
+// Skills search & tab filter for edit modal
+(function() {
+  const search = document.getElementById('editJobSkillsSearch');
+  const tabs   = document.querySelectorAll('#editJobModal .skills-tab');
+  const sects  = document.querySelectorAll('#editJobSkillsContainer .category-section');
+  let activeCategory = 'all';
+
+  function filterSkills() {
+    const q = search ? search.value.toLowerCase() : '';
+    sects.forEach(sect => {
+      const catMatch = activeCategory === 'all' || sect.dataset.category === activeCategory;
+      let anyVisible = false;
+      sect.querySelectorAll('.skill-checkbox').forEach(cb => {
+        const show = catMatch && (!q || (cb.dataset.skillName || '').includes(q));
+        cb.style.display = show ? '' : 'none';
+        if (show) anyVisible = true;
+      });
+      sect.style.display = anyVisible ? '' : 'none';
+    });
+  }
+
+  if (search) search.addEventListener('input', filterSkills);
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeCategory = tab.dataset.category;
+      if (search) search.value = '';
+      filterSkills();
+    });
+  });
+})();
+
+document.getElementById('editJobForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('editJobSubmitBtn');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append('job_id', document.getElementById('edit_job_id').value);
+    fd.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
+    fd.append('title', document.getElementById('edit_job_title').value);
+    fd.append('description', document.getElementById('edit_job_description').value);
+    fd.append('role_title', document.getElementById('edit_job_role_title').value);
+    fd.append('employment_type', document.getElementById('edit_job_employment_type').value);
+    fd.append('country', document.getElementById('edit_job_country').value);
+    fd.append('rate_per_hour', document.getElementById('edit_job_rate').value);
+    fd.append('hours_per_week', document.getElementById('edit_job_hours').value);
+
+    // Collect checked skills
+    document.querySelectorAll('.edit-job-skill:checked').forEach(cb => {
+      fd.append('skill_ids[]', cb.value);
+    });
+
+    const res = await fetch('/QuickHire/Public/actions/update_job.php', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.ok) {
+      closeEditJobModal();
+      showToast('Job updated successfully!', 'success');
+      await loadMyJobPosts();
+    } else {
+      showToast(data.error || 'Failed to update job.', 'error');
+    }
+  } catch (err) {
+    showToast('Connection error.', 'error');
+  } finally {
+    btn.textContent = 'Save Changes';
+    btn.disabled = false;
+  }
+});
 </script>
 
 </body>

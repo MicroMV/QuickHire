@@ -21,12 +21,9 @@ if (!Csrf::verify($_POST['csrf_token'] ?? null)) {
 try {
     $user = $auth->login($_POST['email'] ?? '', $_POST['password'] ?? '');
 
-    // redirect based on profile completion
-    if ((int)$user['is_profile_complete'] === 0) {
-        header('Location: /QuickHire/public/complete-profile.php');
-    } else {
-        header('Location: /QuickHire/public/' . ($user['role'] === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php'));
-    }
+    // Always redirect to the appropriate dashboard — the dashboard handles
+    // the profile-completion overlay if is_profile_complete = 0
+    header('Location: /QuickHire/public/' . ($user['role'] === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php'));
     exit;
 
 } catch (Exception $e) {

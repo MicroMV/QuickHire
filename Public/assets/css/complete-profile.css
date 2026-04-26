@@ -143,28 +143,35 @@ textarea {
 }
 
 .skills-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .skill-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: table;
+  width: auto;
 }
 
 .skill-checkbox input {
-  width: 18px;
-  height: 18px;
+  display: table-cell;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
+  vertical-align: top;
+  padding-top: 2px;
+  accent-color: #1f6f82;
 }
 
 .skill-checkbox label {
-  margin: 0;
+  display: table-cell;
+  margin: 0 !important;
+  padding: 0 0 0 6px;
   font-weight: 600;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  vertical-align: top;
 }
 
 /* Skills grid styling - keep for backward compatibility */
@@ -174,14 +181,38 @@ textarea {
 
 .skills-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0 20px;
+  align-items: start;
   margin-top: 10px;
   max-height: 300px;
   overflow-y: auto;
   border: 1px solid #ddd;
   border-radius: 12px;
   padding: 16px;
+}
+
+.skills-grid::-webkit-scrollbar {
+  width: 3px;
+}
+
+.skills-grid::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 12px;
+}
+
+.skills-grid::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 99px;
+}
+
+.skills-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.3);
+}
+
+.category-section {
+  display: block;
+  margin-bottom: 15px;
 }
 
 .skill-item {
@@ -251,19 +282,17 @@ textarea {
 
 .avatar-overlay {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  background: #1f6f82;
-  color: white;
+  bottom: 2px;
+  right: 2px;
+  width: 32px;
+  height: 32px;
+  background: rgba(240,242,245,0.95);
   border-radius: 50%;
-  width: 36px;
-  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  border: 3px solid white;
-  cursor: pointer;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
 
 /* Add spacing after avatar name */
@@ -273,13 +302,6 @@ textarea {
 
 .avatar-upload input[type="file"] {
   display: none !important;
-  visibility: hidden !important;
-  position: absolute !important;
-  left: -9999px !important;
-  width: 0 !important;
-  height: 0 !important;
-  opacity: 0 !important;
-  z-index: -1 !important;
 }
 
 /* Hide any file input related elements */

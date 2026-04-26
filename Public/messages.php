@@ -47,7 +47,10 @@ if ($selectedConversationId > 0) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Messages - QuickHire</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
+    <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
     <style>
         .messages-container {
             display: flex;
@@ -353,7 +356,7 @@ if ($selectedConversationId > 0) {
         }
     </style>
 </head>
-<body>
+<body class="landing-body">
     <div class="container">
         <a href="/QuickHire/Public/<?= $userRole === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php' ?>" class="back-button">
             ← Back to Dashboard

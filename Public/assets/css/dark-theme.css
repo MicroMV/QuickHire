@@ -1,0 +1,900 @@
+/* Dark theme styles for QuickHire dashboards */
+
+/* This file contains dark theme overrides for the dashboard components */
+/* It should be loaded after the main dashboard CSS files */
+
+:root {
+  /* Dark theme color palette matching landing page */
+  --bg-primary: #060b18;
+  --bg-secondary: #0f172a;
+  --bg-card: rgba(15,23,42,0.8);
+  --bg-card-hover: rgba(15,23,42,0.9);
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-accent: #64748b;
+  --border-primary: rgba(255,255,255,0.08);
+  --border-secondary: rgba(255,255,255,0.06);
+  --accent-primary: #6366f1;
+  --accent-secondary: #8b5cf6;
+  --accent-success: #10b981;
+  --accent-danger: #ef4444;
+  --accent-warning: #f59e0b;
+}
+
+/* Global dark theme overrides */
+html {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Layout components */
+.layout {
+  background: var(--bg-primary);
+  min-height: 100vh;
+}
+
+.side {
+  background: var(--bg-secondary) !important;
+  border-right: 1px solid var(--border-primary) !important;
+}
+
+.main {
+  background: var(--bg-primary) !important;
+}
+
+/* Cards and containers */
+.card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4) !important;
+}
+
+.profileCard {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Text colors */
+.title {
+  color: var(--text-primary) !important;
+}
+
+.subtitle {
+  color: var(--text-muted) !important;
+}
+
+.name {
+  color: var(--text-primary) !important;
+}
+
+.meta {
+  color: var(--text-muted) !important;
+}
+
+.card h3 {
+  color: var(--text-primary) !important;
+}
+
+/* Navigation - Modern Sidebar Style */
+.nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  margin-top: 20px !important;
+}
+
+.nav a, .nav button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  margin: 0 !important;
+}
+
+.nav a:hover, .nav button:hover {
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--text-secondary) !important;
+}
+
+.nav a.active, .nav button.active {
+  background: var(--accent-primary) !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+.nav .primary {
+  background: var(--accent-success) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.nav .primary:hover {
+  background: #0ea472 !important;
+}
+
+.nav .success {
+  background: var(--accent-success) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.nav .success:hover {
+  background: #0ea472 !important;
+}
+
+.nav .danger {
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  font-weight: 500 !important;
+}
+
+.nav .danger:hover {
+  background: rgba(239,68,68,0.1) !important;
+  color: #fca5a5 !important;
+}
+
+.nav-section-label {
+  color: var(--text-accent) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+  margin: 24px 16px 8px 16px !important;
+  opacity: 0.6 !important;
+}
+
+/* Profile Card - Modern Style */
+.profileCard {
+  background: transparent !important;
+  border: none !important;
+  padding: 12px 8px !important;
+  margin: 8px 0 !important;
+}
+
+.profileCard .avatar {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 50% !important;
+  background: var(--bg-secondary) !important;
+  color: #a5b4fc !important;
+  font-size: 20px !important;
+  overflow: hidden !important;
+}
+
+.profileCard .avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+  display: block !important;
+}
+
+.profileCard .name {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 2px !important;
+}
+
+.profileCard .meta {
+  font-size: 13px !important;
+  color: var(--text-muted) !important;
+  opacity: 0.8 !important;
+}
+
+/* Brand Row - Cleaner Style */
+.brandRow {
+  padding: 20px 16px 16px 16px !important;
+  border-bottom: 1px solid var(--border-secondary) !important;
+  margin-bottom: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.brandRow img {
+  width: auto !important;
+  height: 44px !important;
+  max-width: 220px !important;
+  border-radius: 8px !important;
+  object-fit: contain !important;
+}
+
+/* Buttons */
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  border-color: var(--accent-primary) !important;
+  color: white !important;
+  box-shadow: 0 0 20px rgba(99,102,241,0.3) !important;
+}
+
+.btn.outline {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.btn.outline:hover {
+  border-color: rgba(99,102,241,0.4) !important;
+  background: rgba(99,102,241,0.05) !important;
+}
+
+/* Form elements */
+input, select, textarea {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(99,102,241,0.5) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-accent) !important;
+}
+
+label {
+  color: var(--text-secondary) !important;
+}
+
+/* Pills and tags */
+.pill {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.skill-tag {
+  background: rgba(99,102,241,0.15) !important;
+  color: #a5b4fc !important;
+  border: 1px solid rgba(99,102,241,0.3) !important;
+}
+
+/* Skills interface */
+.skills-container {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-primary);
+  backdrop-filter: blur(20px);
+}
+
+.skills-search {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.skills-tab {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.skills-tab.active {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  border-color: var(--accent-primary) !important;
+  color: white !important;
+}
+
+.category-title {
+  color: var(--accent-primary) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+}
+
+/* Messaging panel */
+.messaging-panel {
+  background: var(--bg-secondary) !important;
+  border-left: 1px solid var(--border-primary) !important;
+}
+
+.messaging-header {
+  background: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.messaging-header h3 {
+  color: var(--text-primary) !important;
+}
+
+.conversations-sidebar {
+  background: var(--bg-secondary) !important;
+  border-right: 1px solid var(--border-primary) !important;
+}
+
+.conversation-item {
+  border-bottom: 1px solid var(--border-secondary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.conversation-item:hover {
+  background: rgba(255,255,255,0.05) !important;
+}
+
+.conversation-item.active {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  color: white !important;
+}
+
+.chat-area {
+  background: var(--bg-primary) !important;
+}
+
+.chat-header {
+  background: var(--bg-card) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.chat-title {
+  color: var(--text-primary) !important;
+}
+
+.messages-container {
+  background: var(--bg-primary) !important;
+}
+
+.message-content {
+  background: var(--bg-card) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.message.own .message-content {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  color: white !important;
+}
+
+.message-input-area {
+  background: var(--bg-card) !important;
+  border-top: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.message-input {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.send-button {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  box-shadow: 0 0 20px rgba(99,102,241,0.3) !important;
+}
+
+/* Job cards */
+.job-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.job-card:hover {
+  border-color: rgba(99,102,241,0.3) !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4) !important;
+}
+
+.job-card-title {
+  color: var(--text-primary) !important;
+}
+
+.job-card-description {
+  color: var(--text-secondary) !important;
+}
+
+.meta-tag {
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border-secondary) !important;
+}
+
+/* Search interface */
+.search-input {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.search-button {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  box-shadow: 0 0 20px rgba(99,102,241,0.3) !important;
+}
+
+.search-results {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.search-results-header {
+  background: var(--bg-secondary) !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.search-result-item {
+  border-bottom: 1px solid var(--border-secondary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.search-result-item:hover {
+  background: rgba(255,255,255,0.03) !important;
+}
+
+.search-result-name {
+  color: var(--text-primary) !important;
+}
+
+.search-result-role {
+  color: var(--accent-primary) !important;
+}
+
+/* Modal */
+.modal {
+  background: rgba(0,0,0,0.7) !important;
+  backdrop-filter: blur(8px);
+}
+
+.modal-content {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5) !important;
+}
+
+.modal-header h2 {
+  color: var(--text-primary) !important;
+}
+
+/* Notices */
+.notice.err {
+  background: rgba(239,68,68,0.1) !important;
+  border: 1px solid rgba(239,68,68,0.3) !important;
+  color: #fca5a5 !important;
+}
+
+.notice.ok {
+  background: rgba(16,185,129,0.1) !important;
+  border: 1px solid rgba(16,185,129,0.3) !important;
+  color: #6ee7b7 !important;
+}
+
+/* Avatar */
+.avatar {
+  background: rgba(99,102,241,0.15) !important;
+  color: #a5b4fc !important;
+}
+
+.avatar-preview {
+  background: rgba(99,102,241,0.15) !important;
+  color: #a5b4fc !important;
+  border: 3px solid var(--border-primary) !important;
+}
+
+.avatar-preview:hover {
+  border-color: var(--accent-primary) !important;
+}
+
+/* Status badges */
+.status-active {
+  background: rgba(16,185,129,0.15) !important;
+  color: #34d399 !important;
+}
+
+.status-inactive {
+  background: rgba(239,68,68,0.15) !important;
+  color: #fca5a5 !important;
+}
+
+/* Job post items */
+.job-post-item {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.job-post-item:hover {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4) !important;
+}
+
+.job-post-title {
+  color: var(--text-primary) !important;
+}
+
+.job-post-description {
+  color: var(--text-secondary) !important;
+}
+
+.job-post-meta {
+  color: var(--text-muted) !important;
+}
+
+/* Loading and empty states */
+.loading {
+  color: var(--text-muted) !important;
+}
+
+.empty-state {
+  color: var(--text-muted) !important;
+}
+
+.empty-state h3 {
+  color: var(--text-primary) !important;
+}
+
+/* Close button */
+.close-btn {
+  color: var(--text-accent) !important;
+}
+
+.close-btn:hover {
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* File preview */
+.file-preview {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+.file-preview-name {
+  color: var(--text-primary) !important;
+}
+
+.file-preview-size {
+  color: var(--text-muted) !important;
+}
+
+/* Message button */
+.message-button {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+  box-shadow: 0 0 20px rgba(99,102,241,0.3) !important;
+}
+
+/* Form groups */
+.form-group label {
+  color: var(--text-secondary) !important;
+}
+
+/* Back button */
+.back-btn {
+  color: var(--accent-primary) !important;
+}
+
+.back-btn:hover {
+  background: rgba(99,102,241,0.1) !important;
+}
+
+/* Conversation name and preview */
+.conversation-name {
+  color: inherit !important;
+}
+
+.conversation-preview {
+  color: inherit !important;
+  opacity: 0.7 !important;
+}
+
+/* Message time */
+.message-time {
+  color: var(--text-accent) !important;
+}
+
+.message.own .message-time {
+  color: rgba(255,255,255,0.8) !important;
+}
+
+/* File button */
+.file-button {
+  background: var(--text-accent) !important;
+}
+
+.file-button:hover {
+  background: var(--text-muted) !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Additional landing page elements that might appear in dashboards */
+.ln-badge {
+  background: rgba(99,102,241,0.15) !important;
+  border: 1px solid rgba(99,102,241,0.3) !important;
+  color: #a5b4fc !important;
+}
+
+/* Toast notifications */
+.toast {
+  backdrop-filter: blur(20px) !important;
+}
+
+/* Brand row logo handled above */
+
+/* Ensure proper text contrast */
+p, span, div {
+  color: inherit;
+}
+
+/* Table styles for any tables that might appear */
+table {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+}
+
+th, td {
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+th {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Select dropdown styling */
+select option {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Additional specific overrides for better consistency */
+.container {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+.wrap {
+  background: var(--bg-primary) !important;
+}
+
+.h {
+  color: var(--text-primary) !important;
+}
+
+.sub {
+  color: var(--text-muted) !important;
+}
+
+.alert.err {
+  background: rgba(239,68,68,0.1) !important;
+  border: 1px solid rgba(239,68,68,0.3) !important;
+  color: #fca5a5 !important;
+}
+
+/* Call page specific styles */
+.video-section {
+  background: var(--bg-secondary) !important;
+}
+
+.top-bar {
+  background: var(--bg-card) !important;
+  backdrop-filter: blur(20px);
+}
+
+.badge {
+  background: rgba(99,102,241,0.15) !important;
+  border: 1px solid rgba(99,102,241,0.3) !important;
+  color: #a5b4fc !important;
+}
+
+.video-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.video-label {
+  color: var(--text-secondary) !important;
+}
+
+/* Messages page specific styles */
+.messages-container {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.back-button {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.back-button:hover {
+  border-color: rgba(99,102,241,0.3) !important;
+  background: rgba(99,102,241,0.1) !important;
+}
+
+/* Find employer page specific styles */
+.matching-screen {
+  background: var(--bg-secondary) !important;
+}
+
+.matching-text {
+  color: var(--text-primary) !important;
+}
+
+.matching-subtext {
+  color: var(--text-muted) !important;
+}
+
+.spinner {
+  border-color: var(--border-primary) !important;
+  border-top-color: var(--accent-primary) !important;
+}
+
+.error-screen {
+  background: var(--bg-secondary) !important;
+}
+
+.error-title {
+  color: var(--text-primary) !important;
+}
+
+.error-message {
+  color: var(--text-muted) !important;
+}
+
+/* Ensure all text elements inherit proper colors */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+}
+
+strong {
+  color: inherit !important;
+}
+
+/* Read more button */
+.read-more-btn {
+  color: var(--accent-primary) !important;
+}
+
+.read-more-btn:hover {
+  color: var(--accent-secondary) !important;
+}
+
+/* Job detail specific styles */
+.job-detail-company {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+}
+
+.company-name {
+  color: var(--text-primary) !important;
+}
+
+.company-location {
+  color: var(--text-muted) !important;
+}
+
+.job-detail-description {
+  color: var(--text-secondary) !important;
+}
+
+.job-detail-actions {
+  border-top: 1px solid var(--border-primary) !important;
+}
+
+/* Small buttons */
+.btn-small {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.btn-small:hover {
+  background: rgba(99,102,241,0.1) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.btn-small.outline {
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+}
+
+.btn-small.outline:hover {
+  background: var(--accent-primary) !important;
+  color: white !important;
+}
+
+/* ── Profile Completion Overlay dark theme ── */
+.profile-overlay-card {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.5) !important;
+}
+
+.profile-overlay-card .cp-h {
+  color: var(--text-primary) !important;
+}
+
+.profile-overlay-card .cp-sub {
+  color: var(--text-muted) !important;
+}
+
+.profile-overlay-card .cp-avatar-name {
+  color: var(--text-primary) !important;
+}
+
+.profile-overlay-card label {
+  color: var(--text-secondary) !important;
+}
+
+.profile-overlay-card input,
+.profile-overlay-card select,
+.profile-overlay-card textarea {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  border-radius: 12px;
+  padding: 10px 12px;
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.profile-overlay-card input:focus,
+.profile-overlay-card select:focus,
+.profile-overlay-card textarea:focus {
+  border-color: rgba(99,102,241,0.5) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+  outline: none;
+}
+
+.profile-overlay-card textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.profile-overlay-card select option {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}

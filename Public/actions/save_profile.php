@@ -52,6 +52,15 @@ try {
     error_log("Profile save error: " . $e->getMessage());
     error_log("Files received: " . print_r($_FILES, true));
     Session::flash('error', $e->getMessage());
-    header("Location: /QuickHire/Public/complete-profile.php");
+    // Redirect back to the appropriate dashboard (overlay will re-appear if profile incomplete)
+    // or to complete-profile.php if accessed directly
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    if (str_contains($referer, 'jobseeker-dashboard')) {
+        header("Location: /QuickHire/Public/jobseeker-dashboard.php");
+    } elseif (str_contains($referer, 'employer-dashboard')) {
+        header("Location: /QuickHire/Public/employer-dashboard.php");
+    } else {
+        header("Location: /QuickHire/Public/complete-profile.php");
+    }
     exit;
 }

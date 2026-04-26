@@ -51,10 +51,13 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuickHire Call</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/QuickHire/Public/assets/css/call.css">
+    <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
 </head>
 
-<body>
+<body class="landing-body">
     <div class="container">
         <!-- Video Section -->
         <div class="video-section">
@@ -90,8 +93,8 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             <div class="chat-header">💬 Chat</div>
             <div class="chat-messages" id="chatMessages"></div>
             <div class="chat-input-area">
-                <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." />
-                <button id="btnSend" class="send-btn">Send</button>
+                <input type="text" id="chatInput" class="chat-input" placeholder="Connect to chat..." disabled />
+                <button id="btnSend" class="send-btn" disabled style="opacity:0.4;cursor:not-allowed;">Send</button>
             </div>
         </div>
     </div>
@@ -454,16 +457,30 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             pc.onconnectionstatechange = () => {
                 console.log("🔄 Connection state:", pc.connectionState);
                 const statusElement = document.getElementById('connectionStatus');
+                const chatInput = document.getElementById('chatInput');
+                const btnSend = document.getElementById('btnSend');
+
                 if (statusElement) {
                     if (pc.connectionState === 'connected') {
                         statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
+                        // Enable chat
+                        chatInput.disabled = false;
+                        chatInput.placeholder = 'Type a message...';
+                        btnSend.disabled = false;
+                        btnSend.style.opacity = '1';
+                        btnSend.style.cursor = 'pointer';
                         console.log("🎉 WebRTC connection established!");
                     } else if (pc.connectionState === 'connecting') {
                         statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Connecting...</strong>';
                     } else if (pc.connectionState === 'failed') {
                         statusElement.innerHTML = 'Connection: <strong style="color: #dc2626;">Failed - Retrying...</strong>';
+                        // Disable chat on failure
+                        chatInput.disabled = true;
+                        chatInput.placeholder = 'Connect to chat...';
+                        btnSend.disabled = true;
+                        btnSend.style.opacity = '0.4';
+                        btnSend.style.cursor = 'not-allowed';
                         console.log("❌ Connection failed, attempting to restart...");
-                        // Try to restart the connection
                         setTimeout(() => {
                             if (pc.connectionState === 'failed') {
                                 console.log("🔄 Restarting ICE...");
@@ -472,6 +489,12 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         }, 1000);
                     } else if (pc.connectionState === 'disconnected') {
                         statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Reconnecting...</strong>';
+                        // Disable chat while reconnecting
+                        chatInput.disabled = true;
+                        chatInput.placeholder = 'Reconnecting...';
+                        btnSend.disabled = true;
+                        btnSend.style.opacity = '0.4';
+                        btnSend.style.cursor = 'not-allowed';
                     }
                 }
             };
@@ -734,16 +757,16 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: var(--card);
+                background: #0f172a;
                 padding: 30px 40px;
                 border-radius: 16px;
-                z-index: 1000;
-                color: #111;
+                z-index: 9999;
+                color: #f8fafc;
                 font-size: 20px;
                 font-weight: 900;
                 text-align: center;
-                border: 2px solid var(--primary);
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 0 24px 60px rgba(0,0,0,0.5);
             `;
             overlay.innerHTML = `
                 <div style="margin-bottom: 15px;">🔍 Finding next match...</div>
@@ -773,14 +796,14 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             const overlay = document.getElementById('findingOverlay');
             if (overlay) {
                 overlay.innerHTML = `
-                    <div style="margin-bottom: 20px;">😔 No more matches available</div>
-                    <div style="font-size: 14px; margin-bottom: 25px; opacity: 0.8;">Try again later or return to dashboard</div>
+                    <div style="margin-bottom:20px;font-size:22px;font-weight:900;color:#f8fafc;">😔 No more matches available</div>
+                    <div style="font-size:14px;margin-bottom:25px;color:#94a3b8;">Try again later or return to dashboard</div>
                     <button onclick="findNextMatchAuto()" 
-                            style="padding: 10px 20px; background: #1f6f82; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; margin-right: 10px;">
+                            style="padding:11px 22px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-right:10px;font-size:14px;">
                         Try Again
                     </button>
                     <button onclick="window.location.href='/QuickHire/Public/' + (MY_ROLE === 'EMPLOYER' ? 'employer' : 'jobseeker') + '-dashboard.php'" 
-                            style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer;">
+                            style="padding:11px 22px;background:rgba(255,255,255,0.08);color:#e2e8f0;border:1px solid rgba(255,255,255,0.15);border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">
                         Dashboard
                     </button>
                 `;

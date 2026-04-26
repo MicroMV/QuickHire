@@ -18,14 +18,25 @@ class ProfileService
     /** Save jobseeker profile + mark profile complete */
     public function saveJobseeker(int $userId, array $data, array $files, string $avatarAbs, string $avatarRel, string $resumeAbs, string $resumeRel): void
     {
-        // Required fields (based on your scenario)
-        $roleTitle = trim($data['role_title'] ?? '');
-        $available = trim($data['available_time'] ?? '');
-        $rate = $data['rate_per_hour'] ?? '';
-        $country = trim($data['country'] ?? '');
-        $english = $data['english_mastery'] ?? '';
+        $roleTitle      = trim($data['role_title'] ?? '');
+        $available      = trim($data['available_time'] ?? '');
+        $rate           = $data['rate_per_hour'] ?? '';
+        $country        = trim($data['country'] ?? '');
+        $english        = $data['english_mastery'] ?? '';
         $employmentType = $data['employment_type'] ?? '';
-        $desc = trim($data['profile_description'] ?? '');
+        $desc           = trim($data['profile_description'] ?? '');
+
+        // Get existing profile to fill in any missing values
+        $existing = $this->getJobseeker($userId);
+
+        // Fall back to existing values if not provided
+        if ($roleTitle === '')      $roleTitle      = $existing['role_title'] ?? '';
+        if ($available === '')      $available      = $existing['available_time'] ?? '';
+        if ($rate === '')           $rate           = $existing['rate_per_hour'] ?? '';
+        if ($country === '')        $country        = $existing['country'] ?? '';
+        if ($english === '')        $english        = $existing['english_mastery'] ?? '';
+        if ($employmentType === '') $employmentType = $existing['employment_type'] ?? '';
+        if ($desc === '')           $desc           = $existing['profile_description'] ?? '';
 
         if ($roleTitle === '' || $available === '' || $rate === '' || $country === '' || $english === '' || $employmentType === '' || $desc === '') {
             throw new Exception("Please fill out all required jobseeker fields.");
@@ -37,13 +48,19 @@ class ProfileService
         $avatarPath = $this->upload->uploadAvatar($files['profile_picture'] ?? [], $avatarAbs, $avatarRel);
         $resumePath = $this->upload->uploadResume($files['resume'] ?? [], $resumeAbs, $resumeRel);
 
-        // Keep existing files if user didn't re-upload
-        $existing = $this->getJobseeker($userId);
         if (!$avatarPath) $avatarPath = $existing['profile_picture_url'] ?? null;
         if (!$resumePath) $resumePath = $existing['resume_url'] ?? null;
 
         $this->pdo->beginTransaction();
         try {
+            // Update name if provided
+            $firstName = trim($data['first_name'] ?? '');
+            $lastName  = trim($data['last_name'] ?? '');
+            if ($firstName !== '' || $lastName !== '') {
+                $nameStmt = $this->pdo->prepare("UPDATE users SET first_name = COALESCE(NULLIF(?, ''), first_name), last_name = COALESCE(NULLIF(?, ''), last_name) WHERE id = ?");
+                $nameStmt->execute([$firstName, $lastName, $userId]);
+            }
+
             $stmt = $this->pdo->prepare("
                 INSERT INTO jobseeker_profiles (
                   user_id, profile_picture_url, role_title, available_time, rate_per_hour,
@@ -68,34 +85,36 @@ class ProfileService
                   resume_url = COALESCE(VALUES(resume_url), resume_url)
             ");
 
+            $age    = isset($data['age']) && $data['age'] !== '' ? (int)$data['age'] : ($existing['age'] ?? null);
+            $gender = isset($data['gender']) && $data['gender'] !== '' ? $data['gender'] : ($existing['gender'] ?? null);
+
             $stmt->execute([
                 $userId,
                 $avatarPath,
                 $roleTitle,
                 $available,
                 $rateNum,
-                trim($data['bachelors_degree'] ?? ''),
+                trim($data['bachelors_degree'] ?? '') ?: ($existing['bachelors_degree'] ?? ''),
                 $desc,
-                $data['age'] !== '' ? (int)$data['age'] : null,
-                $data['gender'] ?? null,
-                trim($data['portfolio_url'] ?? ''),
+                $age,
+                $gender,
+                trim($data['portfolio_url'] ?? '') ?: ($existing['portfolio_url'] ?? ''),
                 $country,
                 $english,
                 $employmentType,
                 $resumePath
             ]);
 
-            // Handle skills
-            $skillIds = $data['skill_ids'] ?? [];
-            if (is_array($skillIds)) {
-                // Delete existing skills
-                $this->pdo->prepare("DELETE FROM jobseeker_skills WHERE jobseeker_user_id = ?")->execute([$userId]);
-                
-                // Insert new skills
-                if (!empty($skillIds)) {
-                    $skillStmt = $this->pdo->prepare("INSERT INTO jobseeker_skills (jobseeker_user_id, skill_id) VALUES (?, ?)");
-                    foreach ($skillIds as $skillId) {
-                        $skillStmt->execute([$userId, (int)$skillId]);
+            // Handle skills — only update if skill_ids was submitted
+            if (isset($data['skill_ids'])) {
+                $skillIds = $data['skill_ids'];
+                if (is_array($skillIds)) {
+                    $this->pdo->prepare("DELETE FROM jobseeker_skills WHERE jobseeker_user_id = ?")->execute([$userId]);
+                    if (!empty($skillIds)) {
+                        $skillStmt = $this->pdo->prepare("INSERT INTO jobseeker_skills (jobseeker_user_id, skill_id) VALUES (?, ?)");
+                        foreach ($skillIds as $skillId) {
+                            $skillStmt->execute([$userId, (int)$skillId]);
+                        }
                     }
                 }
             }
@@ -114,17 +133,27 @@ class ProfileService
         $company = trim($data['company_name'] ?? '');
         $country = trim($data['country'] ?? '');
 
+        $existing = $this->getEmployer($userId);
+        if ($company === '') $company = $existing['company_name'] ?? '';
+        if ($country === '') $country = $existing['country'] ?? '';
+
         if ($company === '' || $country === '') {
             throw new Exception("Please fill out all required employer fields.");
         }
 
         $avatarPath = $this->upload->uploadAvatar($files['profile_picture'] ?? [], $avatarAbs, $avatarRel);
-
-        $existing = $this->getEmployer($userId);
         if (!$avatarPath) $avatarPath = $existing['profile_picture_url'] ?? null;
 
         $this->pdo->beginTransaction();
         try {
+            // Update name if provided
+            $firstName = trim($data['first_name'] ?? '');
+            $lastName  = trim($data['last_name'] ?? '');
+            if ($firstName !== '' || $lastName !== '') {
+                $nameStmt = $this->pdo->prepare("UPDATE users SET first_name = COALESCE(NULLIF(?, ''), first_name), last_name = COALESCE(NULLIF(?, ''), last_name) WHERE id = ?");
+                $nameStmt->execute([$firstName, $lastName, $userId]);
+            }
+
             $stmt = $this->pdo->prepare("
                 INSERT INTO employer_profiles (user_id, profile_picture_url, country, company_name)
                 VALUES (?, ?, ?, ?)
@@ -135,17 +164,16 @@ class ProfileService
             ");
             $stmt->execute([$userId, $avatarPath, $country, $company]);
 
-            // Handle required skills
-            $requiredSkillIds = $data['required_skill_ids'] ?? [];
-            if (is_array($requiredSkillIds)) {
-                // Delete existing required skills
-                $this->pdo->prepare("DELETE FROM employer_required_skills WHERE employer_user_id = ?")->execute([$userId]);
-                
-                // Insert new required skills
-                if (!empty($requiredSkillIds)) {
-                    $skillStmt = $this->pdo->prepare("INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
-                    foreach ($requiredSkillIds as $skillId) {
-                        $skillStmt->execute([$userId, (int)$skillId]);
+            // Handle required skills — only update if submitted
+            if (isset($data['required_skill_ids'])) {
+                $requiredSkillIds = $data['required_skill_ids'];
+                if (is_array($requiredSkillIds)) {
+                    $this->pdo->prepare("DELETE FROM employer_required_skills WHERE employer_user_id = ?")->execute([$userId]);
+                    if (!empty($requiredSkillIds)) {
+                        $skillStmt = $this->pdo->prepare("INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
+                        foreach ($requiredSkillIds as $skillId) {
+                            $skillStmt->execute([$userId, (int)$skillId]);
+                        }
                     }
                 }
             }

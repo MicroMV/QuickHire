@@ -66,10 +66,13 @@ $csrf = Csrf::token();
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Complete Profile - QuickHire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/landingPage.css">
   <link rel="stylesheet" href="assets/css/complete-profile.css">
+  <link rel="stylesheet" href="assets/css/dark-theme.css">
 </head>
-<body>
+<body class="landing-body">
   <div class="wrap">
     <div class="card">
       <h1 class="h">Complete your profile</h1>
@@ -87,12 +90,12 @@ $csrf = Csrf::token();
               <div class="avatar-upload" onclick="document.getElementById('profile_picture_js_complete').click()">
                 <div class="avatar-preview">
                   <?php if (!empty($js['profile_picture_url'])): ?>
-                    <img src="<?= htmlspecialchars($js['profile_picture_url']) ?>" alt="Profile Picture">
+                    <img src="/QuickHire/Public/<?= htmlspecialchars($js['profile_picture_url']) ?>" alt="Profile Picture">
                   <?php else: ?>
                     <?= strtoupper(substr($userInfo['first_name'] ?? 'U', 0, 1)) ?>
                   <?php endif; ?>
                 </div>
-                <div class="avatar-overlay">✏️</div>
+                <div class="avatar-overlay"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
                 <input type="file" id="profile_picture_js_complete" name="profile_picture" accept="image/*">
               </div>
               <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
@@ -259,11 +262,10 @@ $csrf = Csrf::token();
                       <div class="category-title"><?= htmlspecialchars($category) ?></div>
                       <div class="skills-row">
                         <?php foreach ($skills as $skill): ?>
-                          <div class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>">
-                            <input type="checkbox" id="js_skill_<?= $skill['id'] ?>" name="skill_ids[]" value="<?= $skill['id'] ?>" 
-                                   <?= in_array($skill['id'], $currentSkills) ? 'checked' : '' ?>>
-                            <label for="js_skill_<?= $skill['id'] ?>"><?= htmlspecialchars($skill['name']) ?></label>
-                          </div>
+                          <label class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
+                            <input type="checkbox" name="skill_ids[]" value="<?= $skill['id'] ?>" <?= in_array($skill['id'], $currentSkills) ? 'checked' : '' ?> style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#1f6f82;margin:0;">
+                            <?= htmlspecialchars($skill['name']) ?>
+                          </label>
                         <?php endforeach; ?>
                       </div>
                     </div>
@@ -377,12 +379,12 @@ $csrf = Csrf::token();
               <div class="avatar-upload" onclick="document.getElementById('profile_picture_emp_complete').click()">
                 <div class="avatar-preview">
                   <?php if (!empty($emp['profile_picture_url'])): ?>
-                    <img src="<?= htmlspecialchars($emp['profile_picture_url']) ?>" alt="Profile Picture">
+                    <img src="/QuickHire/Public/<?= htmlspecialchars($emp['profile_picture_url']) ?>" alt="Profile Picture">
                   <?php else: ?>
                     <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
                   <?php endif; ?>
                 </div>
-                <div class="avatar-overlay">✏️</div>
+                <div class="avatar-overlay"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
                 <input type="file" id="profile_picture_emp_complete" name="profile_picture" accept="image/*">
               </div>
               <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #333;">
@@ -474,11 +476,10 @@ $csrf = Csrf::token();
                       <div class="category-title"><?= htmlspecialchars($category) ?></div>
                       <div class="skills-row">
                         <?php foreach ($skills as $skill): ?>
-                          <div class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>">
-                            <input type="checkbox" id="emp_skill_<?= $skill['id'] ?>" name="required_skill_ids[]" value="<?= $skill['id'] ?>" 
-                                   <?= in_array($skill['id'], $currentRequiredSkills) ? 'checked' : '' ?>>
-                            <label for="emp_skill_<?= $skill['id'] ?>"><?= htmlspecialchars($skill['name']) ?></label>
-                          </div>
+                          <label class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
+                            <input type="checkbox" name="required_skill_ids[]" value="<?= $skill['id'] ?>" <?= in_array($skill['id'], $currentRequiredSkills) ? 'checked' : '' ?> style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#1f6f82;margin:0;">
+                            <?= htmlspecialchars($skill['name']) ?>
+                          </label>
                         <?php endforeach; ?>
                       </div>
                     </div>
@@ -652,6 +653,30 @@ $csrf = Csrf::token();
     document.addEventListener('DOMContentLoaded', function() {
       initializeSkillsOrganization('jsSkillsSearch', '.skills-tab', 'jsSkillsContainer');
       initializeSkillsOrganization('empSkillsSearch', '.skills-tab', 'empSkillsContainer');
+
+      // Skill limit: max 10 per picker
+      function applySkillLimit(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const LIMIT = 10;
+        const msg = document.createElement('p');
+        msg.style.cssText = 'color:#c0392b;font-size:13px;font-weight:600;margin:8px 0 0;display:none;';
+        msg.textContent = 'Maximum of 10 skills reached.';
+        container.parentElement.appendChild(msg);
+        container.addEventListener('change', e => {
+          if (!e.target.matches('input[type=checkbox]')) return;
+          const checked = container.querySelectorAll('input[type=checkbox]:checked');
+          if (checked.length > LIMIT) { e.target.checked = false; }
+          const count = container.querySelectorAll('input[type=checkbox]:checked').length;
+          msg.style.display = count >= LIMIT ? 'block' : 'none';
+          container.querySelectorAll('input[type=checkbox]:not(:checked)').forEach(cb => {
+            cb.disabled = count >= LIMIT;
+          });
+        });
+      }
+
+      applySkillLimit('jsSkillsContainer');
+      applySkillLimit('empSkillsContainer');
     });
   </script>
 </body>

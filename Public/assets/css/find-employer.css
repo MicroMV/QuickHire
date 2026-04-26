@@ -146,6 +146,7 @@ video {
   display: none;
   text-align: center;
   padding: 40px 20px;
+  color: #f8fafc;
 }
 
 .error-icon {
@@ -157,10 +158,11 @@ video {
   font-size: 24px;
   font-weight: 900;
   margin-bottom: 10px;
+  color: #f8fafc;
 }
 
 .error-message {
-  color: #cbd5e1;
+  color: #94a3b8;
   margin-bottom: 30px;
   max-width: 500px;
   margin-left: auto;

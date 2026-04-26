@@ -37,10 +37,13 @@ if (!$jobseeker) {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Find Employer - QuickHire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/find-employer.css">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
 </head>
-<body>
+<body class="landing-body">
   <div class="container">
     <!-- MATCHING SCREEN -->
     <div class="matching-screen active" id="matchingScreen">

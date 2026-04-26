@@ -1,125 +1,316 @@
 <?php
 require __DIR__ . '/../vendor/autoload.php';
-
 use Rongie\QuickHire\Core\Session;
-use Rongie\QuickHire\Core\Csrf;
-
+use Rongie\QuickHire\Core\Auth;
 Session::start();
-
-$error = Session::flash('error');
-$success = Session::flash('success');
-
-$open = $_GET['open'] ?? '';
-if (($error || $success) && $open === '') {
-  $open = $error ? 'login' : 'register';
+if (Auth::isLoggedIn()) {
+  $role = Auth::role();
+  if ($role === 'EMPLOYER') header("Location: /QuickHire/Public/employer-dashboard.php");
+  else header("Location: /QuickHire/Public/jobseeker-dashboard.php");
+  exit;
 }
-$csrf = Csrf::token();
 ?>
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QuickHire - Find Your Dream Job</title>
-  <link rel="stylesheet" href="assets/css/landingPage.css">
-  <script src="assets/js/auth-modal.js" defer></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuickHire: Hire Smarter. Get Hired Faster.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/landing-new.css">
 </head>
+<body class="landing-body">
 
-<body>
-  <!-- top bar -->
-  <header class="topbar">
-    <div class="topbar__inner">
-      <a href="index.php" class="brand">
-        <img src="images/quickhire-logo.jpg" alt="QuickHire" class="brand__logo">
-      </a>
-      <div class="topbar__actions">
-        <button type="button" class="btn btn--outline" data-open="login">Log in</button>
-        <button type="button" class="btn btn--primary" data-open="register">Register</button>
-      </div>
-    </div>
-  </header>
-
-  <!-- hero -->
-  <main class="hero">
-    <h1 class="hero__title">
-      Find your desire,<br>
-      get hired with <span class="hero__brand">QuickHire</span>
-    </h1>
-    <p class="hero__subtitle">
-      A web-based job recruitment platform designed to help technology related job seekers quickly find
-      suitable employment and participate in interviews online.
-    </p>
-    <button class="btn btn--cta" type="button" data-open="register">Apply Now!</button>
-  </main>
-
-  <!-- AUTH MODAL -->
-  <div class="modal" id="authModal" aria-hidden="true">
-    <div class="modal__backdrop" data-close></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-      <button class="modal__close" type="button" data-close aria-label="Close">×</button>
-      <h2 class="modal__title" id="authTitle">Welcome to QuickHire</h2>
-      <div class="tabs">
-        <button class="tab" type="button" data-tab="login">Log in</button>
-        <button class="tab" type="button" data-tab="register">Register</button>
-      </div>
-      
-      <?php if ($error): ?>
-        <div class="modal__alert modal__alert--error">
-          <?= htmlspecialchars($error) ?>
-        </div>
-      <?php endif; ?>
-
-      <?php if ($success): ?>
-        <div class="modal__alert modal__alert--success">
-          <?= htmlspecialchars($success) ?>
-        </div>
-      <?php endif; ?>
-
-      <!-- LOGIN FORM -->
-      <form id="loginForm" method="POST" action="actions/login.php">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-        <label class="modal__label" for="login_email">Email Account</label>
-        <input class="modal__input" id="login_email" name="email" type="email" required>
-        <label class="modal__label" for="login_password">Password</label>
-        <input class="modal__input" id="login_password" name="password" type="password" required>
-        <div class="modal__row">
-          <span></span>
-          <a class="modal__link" href="#" onclick="alert('Forgot password feature can be added next.'); return false;">Forgot Password</a>
-        </div>
-        <button class="modal__submit" type="submit">Login</button>
-      </form>
-
-      <!-- REGISTER FORM -->
-      <form id="registerForm" class="hidden" method="POST" action="actions/register.php">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-        <label class="modal__label" for="role">Register as</label>
-        <select class="modal__select" id="role" name="role" required>
-          <option value="">Select role</option>
-          <option value="JOBSEEKER">Jobseeker</option>
-          <option value="EMPLOYER">Employer</option>
-        </select>
-        <label class="modal__label" for="first_name">First Name</label>
-        <input class="modal__input" id="first_name" name="first_name" type="text" required>
-        <label class="modal__label" for="last_name">Last Name</label>
-        <input class="modal__input" id="last_name" name="last_name" type="text" required>
-        <label class="modal__label" for="reg_email">Email</label>
-        <input class="modal__input" id="reg_email" name="email" type="email" required>
-        <label class="modal__label" for="reg_password">Password</label>
-        <input class="modal__input" id="reg_password" name="password" type="password" required>
-        <label class="modal__label" for="password_confirm">Confirm Password</label>
-        <input class="modal__input" id="password_confirm" name="password_confirm" type="password" required>
-        <button class="modal__submit" type="submit">Create Account</button>
-      </form>
+<!-- NAVBAR -->
+<nav class="ln-nav">
+  <div class="ln-nav-inner">
+    <a href="#" class="ln-logo">
+      <img src="/QuickHire/Public/images/quickhire-logo.png" alt="QuickHire" style="height:36px;border-radius:6px;">
+    </a>
+    <ul class="ln-nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#categories">Jobs</a></li>
+      <li><a href="#how">How it works</a></li>
+    </ul>
+    <div class="ln-nav-actions">
+      <a href="#" class="ln-btn-ghost" id="openLogin">Log In</a>
+      <a href="#" class="ln-btn-primary" id="openRegister">Get Started</a>
     </div>
   </div>
+</nav>
 
-  <script>
-    window.__OPEN_AUTH__ = "<?= htmlspecialchars($open) ?>";
-  </script>
+<!-- HERO -->
+<section class="ln-hero">
+  <div class="ln-glow ln-glow-1"></div>
+  <div class="ln-glow ln-glow-2"></div>
+  <div class="ln-dots"></div>
+  <div class="ln-hero-content">
+    <div class="ln-badge">⚡ Smart Skill-Based Matching</div>
+    <h1 class="ln-hero-title">
+      Hire top IT talent.<br>
+      <span class="ln-accent">Get hired faster.</span>
+    </h1>
+    <p class="ln-hero-sub">QuickHire connects developers, designers, and engineers with companies that need them, through real-time matching, video calls, and direct messaging.</p>
+    <div class="ln-hero-ctas">
+      <a href="#" class="ln-btn-primary ln-btn-lg" id="heroGetHired">Find Jobs →</a>
+      <a href="#" class="ln-btn-outline ln-btn-lg" id="heroHire">Post a Job</a>
+    </div>
+  </div>
+  <!-- Dashboard Preview -->
+  <div class="ln-hero-preview">
+    <div class="ln-preview-card ln-preview-main">
+      <div class="ln-preview-header">
+        <div class="ln-preview-dots"><span></span><span></span><span></span></div>
+        <span class="ln-preview-title">Live Job Matches</span>
+      </div>
+      <div class="ln-preview-job">
+        <div class="ln-pjob-avatar" style="background:#6366f1;">JS</div>
+        <div class="ln-pjob-info"><strong>Senior Frontend Dev</strong><span>TechCorp · Remote · $85/hr</span></div>
+        <div class="ln-pjob-badge ln-badge-green">98% match</div>
+      </div>
+      <div class="ln-preview-job">
+        <div class="ln-pjob-avatar" style="background:#ec4899;">PY</div>
+        <div class="ln-pjob-info"><strong>Python Backend Engineer</strong><span>DataFlow · US · $70/hr</span></div>
+        <div class="ln-pjob-badge ln-badge-blue">91% match</div>
+      </div>
+      <div class="ln-preview-job">
+        <div class="ln-pjob-avatar" style="background:#f59e0b;">UX</div>
+        <div class="ln-pjob-info"><strong>UI/UX Designer</strong><span>Pixel Studio · UK · $60/hr</span></div>
+        <div class="ln-pjob-badge ln-badge-purple">87% match</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST BAR removed -->
+
+<!-- FEATURES -->
+<section class="ln-features" id="features">
+  <div class="ln-section-label">Features</div>
+  <h2 class="ln-section-title">Everything you need to hire or get hired</h2>
+  <p class="ln-section-sub">Built specifically for the IT industry, not a generic job board.</p>
+  <div class="ln-features-grid">
+    <div class="ln-feat-card">
+      <div class="ln-feat-icon" style="background:rgba(99,102,241,0.15);color:#818cf8;">⚡</div>
+      <h3>Real-Time Matching</h3>
+      <p>Skill-based algorithm instantly connects jobseekers with employers who need exactly their stack.</p>
+    </div>
+    <div class="ln-feat-card">
+      <div class="ln-feat-icon" style="background:rgba(236,72,153,0.15);color:#f472b6;">📹</div>
+      <h3>Instant Video Calls</h3>
+      <p>Skip the back-and-forth. Jump straight into a video interview the moment a match is found.</p>
+    </div>
+    <div class="ln-feat-card">
+      <div class="ln-feat-icon" style="background:rgba(16,185,129,0.15);color:#34d399;">💬</div>
+      <h3>Direct Messaging</h3>
+      <p>Chat directly with candidates or employers. Share files, resumes, and portfolios in one thread.</p>
+    </div>
+    <div class="ln-feat-card">
+      <div class="ln-feat-icon" style="background:rgba(245,158,11,0.15);color:#fbbf24;">🎯</div>
+      <h3>Smart Job Browsing</h3>
+      <p>Jobseekers browse curated listings filtered by role, tech stack, rate, and employment type.</p>
+    </div>
+    <div class="ln-feat-card">
+      <div class="ln-feat-icon" style="background:rgba(59,130,246,0.15);color:#60a5fa;">🔍</div>
+      <h3>Candidate Search</h3>
+      <p>Employers search and filter thousands of IT professionals by skill, role, and availability.</p>
+    </div>
+    <div class="ln-feat-card">
+      <div class="ln-feat-icon" style="background:rgba(168,85,247,0.15);color:#c084fc;">📋</div>
+      <h3>Job Post Management</h3>
+      <p>Create, edit, and manage job posts. Track applicants and conversations from one dashboard.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="ln-how" id="how">
+  <div class="ln-glow ln-glow-3"></div>
+  <div class="ln-section-label">How it works</div>
+  <h2 class="ln-section-title">Up and running in minutes</h2>
+  <div class="ln-how-grid">
+    <div class="ln-how-card">
+      <div class="ln-how-num">01</div>
+      <h3>Create your profile</h3>
+      <p>Set your skills, role, rate, and availability. Employers see exactly what you bring to the table.</p>
+    </div>
+    <div class="ln-how-arrow">→</div>
+    <div class="ln-how-card">
+      <div class="ln-how-num">02</div>
+      <h3>Get matched instantly</h3>
+      <p>Our algorithm finds the best fit for both sides. No endless scrolling, no wasted time.</p>
+    </div>
+    <div class="ln-how-arrow">→</div>
+    <div class="ln-how-card">
+      <div class="ln-how-num">03</div>
+      <h3>Connect & get hired</h3>
+      <p>Chat, video call, and close the deal, all inside QuickHire. No third-party tools needed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- JOB CATEGORIES -->
+<section class="ln-categories" id="categories">
+  <div class="ln-section-label">Browse by role</div>
+  <h2 class="ln-section-title">Find your next opportunity</h2>
+  <div class="ln-search-bar">
+    <span class="ln-search-icon">🔍</span>
+    <input type="text" placeholder="Search by role, skill, or tech stack..." class="ln-search-input" readonly onclick="document.getElementById('openRegister').click()">
+    <button class="ln-btn-primary" onclick="document.getElementById('openRegister').click()">Search Jobs</button>
+  </div>
+  <div class="ln-categories-grid">
+    <div class="ln-cat-card"><div class="ln-cat-icon">⚛️</div><span>Frontend Dev</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">🖥️</div><span>Backend Dev</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">📱</div><span>Mobile Dev</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">☁️</div><span>Cloud / DevOps</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">🎨</div><span>UI/UX Design</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">🤖</div><span>AI / ML</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">🔒</div><span>Security</span></div>
+    <div class="ln-cat-card"><div class="ln-cat-icon">📊</div><span>Data Science</span></div>
+  </div>
+</section>
+
+<!-- CTA SECTION -->
+<section class="ln-cta">
+  <div class="ln-glow ln-glow-4"></div>
+  <div class="ln-cta-inner">
+    <div class="ln-badge">Free to get started</div>
+    <h2>Ready to find your perfect match?</h2>
+    <p>Join thousands of IT professionals and companies already using QuickHire.</p>
+    <div class="ln-cta-btns">
+      <a href="#" class="ln-btn-primary ln-btn-lg" id="ctaJobseeker">I'm looking for work</a>
+      <a href="#" class="ln-btn-outline ln-btn-lg" id="ctaEmployer">I'm hiring talent</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="ln-footer">
+  <div class="ln-footer-inner">
+    <div class="ln-footer-brand">
+      <div class="ln-footer-brand-name">
+        <img src="/QuickHire/Public/images/quickhire-logo.png" alt="QuickHire" style="height:32px;border-radius:4px;">
+      </div>
+      <p>Connecting IT talent with the companies that need them.</p>
+    </div>
+    <div class="ln-footer-links">
+      <div><strong>Platform</strong><a href="#">Browse Jobs</a><a href="#">Post a Job</a><a href="#">Matching</a></div>
+      <div><strong>Company</strong><a href="#">About</a><a href="#">Contact</a><a href="#">Privacy</a></div>
+    </div>
+  </div>
+  <div class="ln-footer-bottom">© 2025 QuickHire. All rights reserved.</div>
+</footer>
+
+<!-- AUTH MODAL -->
+<div class="ln-modal-overlay" id="authModal">
+  <div class="ln-modal">
+    <button class="ln-modal-close" id="closeModal">✕</button>
+    <div class="ln-modal-tabs">
+      <button class="ln-tab active" id="tabLogin">Log In</button>
+      <button class="ln-tab" id="tabRegister">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm" class="ln-auth-form" method="POST" action="/QuickHire/Public/actions/login.php">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+      <h3>Welcome back</h3>
+      <p class="ln-form-sub">Sign in to your QuickHire account</p>
+      <?php $loginError = \Rongie\QuickHire\Core\Session::flash('error'); ?>
+      <?php $loginSuccess = \Rongie\QuickHire\Core\Session::flash('success'); ?>
+      <?php if ($loginError && ($_GET['open'] ?? '') === 'login'): ?>
+        <div class="ln-alert-error"><?= htmlspecialchars($loginError) ?></div>
+      <?php endif; ?>
+      <?php if ($loginSuccess): ?>
+        <div class="ln-alert-success"><?= htmlspecialchars($loginSuccess) ?></div>
+      <?php endif; ?>
+      <div class="ln-form-group">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="you@example.com" required>
+      </div>
+      <div class="ln-form-group">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="ln-btn-primary ln-btn-full">Log In</button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" class="ln-auth-form" style="display:none;" method="POST" action="/QuickHire/Public/actions/register.php">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+      <h3>Create your account</h3>
+      <p class="ln-form-sub">Join QuickHire for free</p>
+      <?php if (($registerError = \Rongie\QuickHire\Core\Session::flash('error')) && ($_GET['open'] ?? '') === 'register'): ?>
+        <div class="ln-alert-error"><?= htmlspecialchars($registerError) ?></div>
+      <?php endif; ?>
+      <div class="ln-role-toggle">
+        <label class="ln-role-opt">
+          <input type="radio" name="role" value="JOBSEEKER" checked>
+          <span>👨‍💻 I'm a Jobseeker</span>
+        </label>
+        <label class="ln-role-opt">
+          <input type="radio" name="role" value="EMPLOYER">
+          <span>🏢 I'm an Employer</span>
+        </label>
+      </div>
+      <div class="ln-form-row">
+        <div class="ln-form-group"><label>First Name</label><input type="text" name="first_name" placeholder="John" required></div>
+        <div class="ln-form-group"><label>Last Name</label><input type="text" name="last_name" placeholder="Doe" required></div>
+      </div>
+      <div class="ln-form-group"><label>Email</label><input type="email" name="email" placeholder="you@example.com" required></div>
+      <div class="ln-form-group"><label>Password</label><input type="password" name="password" placeholder="Min. 8 characters" required></div>
+      <div class="ln-form-group"><label>Confirm Password</label><input type="password" name="password_confirm" placeholder="Repeat password" required></div>
+      <button type="submit" class="ln-btn-primary ln-btn-full">Create Account</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('authModal');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const tabLogin = document.getElementById('tabLogin');
+  const tabRegister = document.getElementById('tabRegister');
+
+  function openModal(tab = 'login') {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    if (tab === 'register') switchTab('register');
+    else switchTab('login');
+  }
+
+  function switchTab(tab) {
+    if (tab === 'login') {
+      loginForm.style.display = 'block';
+      registerForm.style.display = 'none';
+      tabLogin.classList.add('active');
+      tabRegister.classList.remove('active');
+    } else {
+      loginForm.style.display = 'none';
+      registerForm.style.display = 'block';
+      tabLogin.classList.remove('active');
+      tabRegister.classList.add('active');
+    }
+  }
+
+  document.getElementById('openLogin').addEventListener('click', e => { e.preventDefault(); openModal('login'); });
+  document.getElementById('openRegister').addEventListener('click', e => { e.preventDefault(); openModal('register'); });
+  document.getElementById('heroGetHired').addEventListener('click', e => { e.preventDefault(); openModal('register'); });
+  document.getElementById('heroHire').addEventListener('click', e => { e.preventDefault(); openModal('register'); });
+  document.getElementById('ctaJobseeker').addEventListener('click', e => { e.preventDefault(); openModal('register'); });
+  document.getElementById('ctaEmployer').addEventListener('click', e => { e.preventDefault(); openModal('register'); });
+  document.getElementById('closeModal').addEventListener('click', () => { modal.classList.remove('active'); document.body.style.overflow = ''; });
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.remove('active'); document.body.style.overflow = ''; } });
+  tabLogin.addEventListener('click', () => switchTab('login'));
+  tabRegister.addEventListener('click', () => switchTab('register'));
+
+  // Auto-open modal based on ?open= query param (after redirect from login/register actions)
+  const urlParams = new URLSearchParams(window.location.search);
+  const openTab = urlParams.get('open');
+  if (openTab === 'login' || openTab === 'register') {
+    openModal(openTab);
+  }
+</script>
 </body>
 </html>

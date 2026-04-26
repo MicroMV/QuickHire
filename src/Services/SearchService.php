@@ -32,6 +32,11 @@ class SearchService
                 jp.profile_picture_url,
                 jp.profile_description,
                 jp.available_time,
+                jp.bachelors_degree,
+                jp.gender,
+                jp.age,
+                jp.portfolio_url,
+                jp.resume_url,
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name ASC SEPARATOR ', ') as skills
             FROM users u
             JOIN jobseeker_profiles jp ON u.id = jp.user_id
@@ -47,7 +52,8 @@ class SearchService
             )
             GROUP BY u.id, u.first_name, u.last_name, jp.role_title, jp.rate_per_hour, 
                      jp.country, jp.employment_type, jp.english_mastery, jp.profile_picture_url,
-                     jp.profile_description, jp.available_time
+                     jp.profile_description, jp.available_time, jp.bachelors_degree, jp.gender,
+                     jp.age, jp.portfolio_url, jp.resume_url
             ORDER BY 
                 CASE 
                     WHEN jp.role_title LIKE ? THEN 1
