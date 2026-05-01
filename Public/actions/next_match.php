@@ -42,8 +42,14 @@ if ($uid !== (int)$call['employer_user_id'] && $uid !== (int)$call['jobseeker_us
     exit;
 }
 
-// Mark current call as completed
-$pdo->prepare("UPDATE calls SET status='COMPLETED' WHERE room_code=?")->execute([$currentRoom]);
+// Mark current call as completed AND send leave signal to notify the jobseeker
+$pdo->prepare("UPDATE calls SET status='COMPLETED', updated_at=CURRENT_TIMESTAMP WHERE room_code=?")->execute([$currentRoom]);
+
+// Insert leave signal so the jobseeker's polling picks it up immediately
+$pdo->prepare("
+    INSERT INTO webrtc_signals (room_code, sender_id, message_type, payload, created_at)
+    VALUES (?, ?, 'leave', ?, CURRENT_TIMESTAMP)
+")->execute([$currentRoom, $uid, json_encode(['bye' => true, 'reason' => 'employer_next'])]);
 
 // Handle next match based on role
 if ($role === 'JOBSEEKER') {

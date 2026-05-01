@@ -31,6 +31,9 @@ try {
     
     $userId = Auth::userId();
     
+    // Update user's last_active so they appear online during calls
+    $pdo->prepare("UPDATE users SET last_active = UTC_TIMESTAMP() WHERE id = ?")->execute([$userId]);
+
     // Update the call's updated_at timestamp to show activity
     $stmt = $pdo->prepare("
         UPDATE calls 

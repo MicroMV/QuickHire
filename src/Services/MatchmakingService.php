@@ -161,7 +161,7 @@ class MatchmakingService
     public function findNextMatch(int $userId, string $role, ?int $skipUserId = null): ?string
     {
         if ($role === 'EMPLOYER') {
-            // Get employer's last queue criteria
+            // Get employer's last active queue criteria
             $lastQueue = $this->pdo->prepare("
                 SELECT * FROM matchmaking_queue 
                 WHERE user_id=? AND role='EMPLOYER' 

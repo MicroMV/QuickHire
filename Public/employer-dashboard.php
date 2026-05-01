@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require __DIR__ . '/../vendor/autoload.php';
 
 use Rongie\QuickHire\Core\Session;
@@ -87,7 +87,7 @@ $flashSuccess = Session::flash('success');
 <body class="landing-body">
 
 <?php if (!$isProfileComplete): ?>
-<!-- ── PROFILE COMPLETION OVERLAY (STEP WIZARD) ── -->
+<!-- -- PROFILE COMPLETION OVERLAY (STEP WIZARD) -- -->
 <div class="profile-overlay" id="profileCompletionOverlay">
   <div class="profile-overlay-card">
 
@@ -108,7 +108,7 @@ $flashSuccess = Session::flash('success');
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
       <input type="hidden" name="profile_type" value="EMPLOYER">
 
-      <!-- ── STEP 1: Company Info ── -->
+      <!-- -- STEP 1: Company Info -- -->
       <div class="cp-step-panel active" id="emp-step-1">
         <h2 class="cp-step-title">🏢 Company Information</h2>
         <p class="cp-step-desc">Set up your company profile so jobseekers can find you.</p>
@@ -151,7 +151,7 @@ $flashSuccess = Session::flash('success');
         </div>
       </div><!-- /emp-step-1 -->
 
-      <!-- ── STEP 2: Skills ── -->
+      <!-- -- STEP 2: Skills -- -->
       <div class="cp-step-panel" id="emp-step-2">
         <h2 class="cp-step-title">🛠️ Skills You Look For</h2>
         <p class="cp-step-desc">Select skills you commonly require from jobseekers. This helps with matching.</p>
@@ -187,14 +187,14 @@ $flashSuccess = Session::flash('success');
         </div>
       </div><!-- /emp-step-2 -->
 
-      <!-- ── STEP 3: Review & Submit ── -->
+      <!-- -- STEP 3: Review & Submit -- -->
       <div class="cp-step-panel" id="emp-step-3">
         <h2 class="cp-step-title">✅ All Set!</h2>
         <p class="cp-step-desc">Your profile is ready. Click below to enter your dashboard.</p>
 
         <div class="cp-review-box">
-          <div class="cp-review-row"><span class="cp-review-label">Company</span><span class="cp-review-val" id="empReviewCompany">—</span></div>
-          <div class="cp-review-row"><span class="cp-review-label">Country</span><span class="cp-review-val" id="empReviewCountry">—</span></div>
+          <div class="cp-review-row"><span class="cp-review-label">Company</span><span class="cp-review-val" id="empReviewCompany"></span></div>
+          <div class="cp-review-row"><span class="cp-review-label">Country</span><span class="cp-review-val" id="empReviewCountry"></span></div>
           <div class="cp-review-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
             <span class="cp-review-label">Skills selected (<span id="empReviewSkillCount">0</span>)</span>
             <div id="empReviewSkillPills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -233,8 +233,8 @@ $flashSuccess = Session::flash('success');
 
     // Populate review on step 3
     if (n === 3) {
-      const company = document.querySelector('[name=company_name]')?.value || '—';
-      const country = document.querySelector('[name=country]')?.value || '—';
+      const company = document.querySelector('[name=company_name]')?.value || '';
+      const country = document.querySelector('[name=country]')?.value || '';
       const checkedBoxes = document.querySelectorAll('#ovEmpSkillsContainer input[type=checkbox]:checked');
 
       document.getElementById('empReviewCompany').textContent = company;
@@ -432,25 +432,25 @@ $flashSuccess = Session::flash('success');
       <aside class="card">
         <h3>Your Company</h3>
         <div class="pillRow">
-          <span class="pill">Company: <?= htmlspecialchars($profile['company_name'] ?? '—') ?></span>
-          <span class="pill">Country: <?= htmlspecialchars($profile['country'] ?? '—') ?></span>
+          <span class="pill">Company: <?= htmlspecialchars($profile['company_name'] ?? '') ?></span>
+          <span class="pill">Country: <?= htmlspecialchars($profile['country'] ?? '') ?></span>
         </div>
         <div class="pillRow">
           <span class="pill">Required Skills: <?= count($currentRequiredSkills) ?> selected</span>
         </div>
 
-        <div style="margin-top:14px; color:var(--muted); line-height:1.5;">
-          <strong style="color:#111;">Profile Status:</strong><br>
+        <div style="margin-top:14px; color:#f8fafc; line-height:1.5;">
+          <strong style="color:#f8fafc;">Profile Status:</strong><br>
           <?php if (!empty($profile['company_name']) && !empty($profile['country'])): ?>
-            ✅ Profile complete and active
+            <span style="color:#f8fafc;">✅ Profile complete and active</span>
           <?php else: ?>
-            ⚠️ Please complete your profile to start matching
+            <span style="color:#f8fafc;">⚠️ Please complete your profile to start matching</span>
           <?php endif; ?>
         </div>
 
         <?php if (!empty($currentRequiredSkills)): ?>
           <div style="margin-top:14px;">
-            <strong style="color:#111;">Skills You Look For:</strong><br>
+            <strong style="color:#f8fafc;">Skills You Look For:</strong><br>
             <div class="pillRow" style="margin-top:6px;">
               <?php 
                 foreach ($allSkills as $skill): 
@@ -748,9 +748,6 @@ $flashSuccess = Session::flash('success');
       <div style="border-top: 1px solid var(--line); padding-top: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3>📋 My Job Posts</h3>
-          <button type="button" class="btn outline" id="createSampleJob" style="font-size: 13px; padding: 6px 12px;">
-            Create Sample Job (for testing)
-          </button>
         </div>
         <div id="myJobPosts" class="job-posts-list">
           <div class="loading">Loading your job posts...</div>
@@ -926,11 +923,22 @@ $flashSuccess = Session::flash('success');
       
       <div class="messaging-content">
         <div class="conversations-sidebar">
-          <div id="jobFilterBar" style="padding:12px; border-bottom:2px solid var(--line); background:#f8fafc; display:none;">
-            <label style="display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Filter by Job Post</label>
-            <select id="jobFilterSelect" style="width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; cursor:pointer; font-weight:500;">
-            </select>
+
+          <!-- Search + Job filter -->
+          <div style="padding:12px 12px 0; background:#0f172a; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <!-- Search -->
+            <div style="position:relative; margin-bottom:10px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:14px;pointer-events:none;">🔍</span>
+              <input type="text" id="convSearchInput" placeholder="Search conversations..."
+                style="width:100%;padding:8px 10px 8px 32px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:13px;background:rgba(255,255,255,0.05);color:#f1f5f9;box-sizing:border-box;outline:none;font-family:inherit;"
+                oninput="filterConversations()">
+            </div>
+            <!-- Job filter pills -->
+            <div id="jobFilterBar" style="display:none; padding-bottom:10px;">
+              <div id="jobFilterPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            </div>
           </div>
+
           <div class="conversations-list" id="conversationsList">
             <div class="loading">Loading conversations...</div>
           </div>
@@ -939,13 +947,18 @@ $flashSuccess = Session::flash('success');
         <div class="chat-area" id="chatArea">
           <div class="chat-header" id="chatHeader">
             <button class="back-btn" id="backToConversations">← Back</button>
-            <div id="chatHeaderAvatar" style="display:none;width:38px;height:38px;border-radius:50%;background:#64748b;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:15px;flex-shrink:0;overflow:hidden;"></div>
-            <div class="chat-title" id="chatTitle">Select a conversation</div>
+            <div id="chatHeaderAvatar" style="display:none;width:38px;height:38px;border-radius:50%;background:#64748b;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:15px;flex-shrink:0;overflow:visible;position:relative;"></div>
+            <div style="display:flex;flex-direction:column;gap:1px;">
+              <div class="chat-title" id="chatTitle">Select a conversation</div>
+              <div id="chatStatus" style="min-height:16px;"></div>
+            </div>
             <div style="margin-left:auto;position:relative;">
               <button id="chatMenuBtn" onclick="toggleChatMenu()" style="display:none;background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:4px 8px;border-radius:6px;line-height:1;" title="Options">⋮</button>
             </div>
           </div>
           
+          <div id="jobBanner" style="display:none;padding:10px 16px;background:rgba(99,102,241,0.1);border-bottom:1px solid rgba(99,102,241,0.25);"></div>
+
           <div class="messages-container" id="messagesContainer">
             <div class="empty-state">
               <h3>Select a conversation</h3>
@@ -978,14 +991,17 @@ $flashSuccess = Session::flash('success');
       </div>
     </div>
 
-    <!-- ── JOBSEEKER PROFILE VIEW ── -->
+    <!-- -- JOBSEEKER PROFILE VIEW -- -->
     <div class="card" id="jsProfileView" style="display:none; max-width:none; width:100%; padding:0; overflow:hidden;">
       <!-- Cover -->
       <div id="jsProfileCover" style="height:160px;background:linear-gradient(135deg,#1e293b 0%,#0f172a 50%,#1e1b4b 100%);position:relative;border-radius:18px 18px 0 0;">
         <div style="position:absolute;bottom:-50px;left:32px;">
-          <div id="jsProfileAvatar" style="width:100px;height:100px;border-radius:50%;border:4px solid #0f172a;overflow:hidden;background:#1e293b;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#a5b4fc;"></div>
+          <div id="jsProfileAvatar" style="width:100px;height:100px;border-radius:50%;border:4px solid #0f172a;overflow:visible;background:#1e293b;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#a5b4fc;position:relative;"></div>
         </div>
-        <div style="position:absolute;top:16px;right:16px;display:flex;gap:10px;">
+        <div style="position:absolute;top:16px;right:16px;display:flex;gap:10px;align-items:center;">
+          <select id="jsProfileJobSelect" style="padding:7px 10px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:#1e293b;color:#e2e8f0;font-size:12px;font-family:inherit;max-width:160px;">
+            <option value="">No specific job</option>
+          </select>
           <button id="jsProfileMsgBtn" style="padding:8px 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:10px;color:white;font-weight:700;font-size:13px;cursor:pointer;">💬 Message</button>
           <button onclick="showSearchJobseekers()" style="padding:8px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#e2e8f0;font-weight:700;font-size:13px;cursor:pointer;">← Back</button>
         </div>
@@ -1058,7 +1074,6 @@ $flashSuccess = Session::flash('success');
         preferences.skill_ids = result.skill_ids;
       }
     } catch (error) {
-      console.error('Error loading preferences from database:', error);
     }
     
     // Load other preferences from localStorage if available
@@ -1097,10 +1112,8 @@ $flashSuccess = Session::flash('success');
         
         const result = await response.json();
         if (!result.ok) {
-          console.error('Failed to save preferences to database:', result.error);
         }
       } catch (error) {
-        console.error('Error saving preferences to database:', error);
       }
     }
   }
@@ -1222,7 +1235,7 @@ $flashSuccess = Session::flash('success');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
       <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:36px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
-        <div style="font-size:52px;margin-bottom:16px;">📹</div>
+        <div style="font-size:52px;margin-bottom:16px;">🤝</div>
         <h2 style="margin:0 0 10px;font-size:22px;font-weight:900;color:#f8fafc;">Ready to Connect!</h2>
         <p style="margin:0 0 28px;color:#94a3b8;font-size:15px;line-height:1.6;">A jobseeker is ready to connect with you. Make sure your camera and microphone are ready before joining.</p>
         <div style="display:flex;gap:12px;justify-content:center;">
@@ -1243,6 +1256,7 @@ $flashSuccess = Session::flash('success');
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'none';
     jobPostingContent.style.display = 'none';
+    document.getElementById('jsProfileView').style.display = 'none';
     
     // Update active states
     btnHome.classList.add('active');
@@ -1263,6 +1277,7 @@ $flashSuccess = Session::flash('success');
     profileEditContent.style.display = 'block';
     searchContent.style.display = 'none';
     jobPostingContent.style.display = 'none';
+    document.getElementById('jsProfileView').style.display = 'none';
     
     // Update active states
     btnHome.classList.remove('active');
@@ -1307,6 +1322,7 @@ $flashSuccess = Session::flash('success');
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'none';
     jobPostingContent.style.display = 'block';
+    document.getElementById('jsProfileView').style.display = 'none';
     
     // Update active states
     btnHome.classList.remove('active');
@@ -1653,55 +1669,6 @@ $flashSuccess = Session::flash('success');
     });
   });
 
-  // Handle job posting form submission
-  if (jobPostingForm) {
-    jobPostingForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const submitButton = document.getElementById('submitJobPost');
-      submitButton.disabled = true;
-      submitButton.textContent = 'Posting...';
-      
-      try {
-        const formData = new FormData(jobPostingForm);
-        // Explicitly collect checked skills (handles hidden tab sections)
-        document.querySelectorAll('#jobSkillsContainer input[type="checkbox"]:checked').forEach(cb => {
-          formData.append('skill_ids[]', cb.value);
-        });
-        
-        const response = await fetch('/QuickHire/Public/actions/post_job.php', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.ok) {
-          showToast('Job posted successfully!', 'success');
-          jobPostingForm.reset();
-          
-          // Clear all skill checkboxes
-          document.querySelectorAll('#jobSkillsContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
-          
-          // Reload job posts
-          await loadMyJobPosts();
-        } else {
-          showToast('Error: ' + (result.error || 'Unknown error'), 'error');
-        }
-      } catch (error) {
-        console.error('Job posting error:', error);
-        showToast('Error posting job: ' + error.message, 'error');
-      } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Post Job';
-      }
-    });
-  }
-
   // Load employer's job posts
   async function loadMyJobPosts() {
     const container = document.getElementById('myJobPosts');
@@ -1718,7 +1685,6 @@ $flashSuccess = Session::flash('success');
         container.innerHTML = '<div class="empty-state">Error loading job posts</div>';
       }
     } catch (error) {
-      console.error('Error loading job posts:', error);
       container.innerHTML = '<div class="empty-state">Error loading job posts</div>';
     }
   }
@@ -1753,10 +1719,10 @@ $flashSuccess = Session::flash('success');
           </div>
           <div class="job-post-meta">
             <span>📅 ${new Date(job.created_at).toLocaleDateString()}</span>
-            ${job.role_title ? `<span>💼 ${job.role_title}</span>` : ''}
-            ${job.employment_type ? `<span>⏰ ${job.employment_type.replace('_', ' ')}</span>` : ''}
+            ${job.role_title ? `<span>🎯 ${job.role_title}</span>` : ''}
+            ${job.employment_type ? `<span>💼 ${job.employment_type.replace('_', ' ')}</span>` : ''}
             ${job.country ? `<span>🌍 ${job.country}</span>` : ''}
-            ${rateDisplay ? `<span>💰 ${rateDisplay}</span>` : ''}${hoursDisplay ? `<span>🕐 ${hoursDisplay}</span>` : ''}
+            ${rateDisplay ? `<span>💰 ${rateDisplay}</span>` : ''}${hoursDisplay ? `<span>⏰ ${hoursDisplay}</span>` : ''}
           </div>
           <div class="job-post-description">
             ${job.description.length > 150 ? job.description.substring(0, 150) + '...' : job.description}
@@ -1775,7 +1741,7 @@ $flashSuccess = Session::flash('success');
     container.innerHTML = html;
   }
 
-  // Edit job post — opens modal
+  // Edit job post  opens modal
   function editJob(jobId) {
     openEditJobModal(jobId);
   }
@@ -1805,7 +1771,6 @@ $flashSuccess = Session::flash('success');
         showToast('Error: ' + result.error, 'error');
       }
     } catch (error) {
-      console.error('Error deleting job:', error);
       showToast('Error deleting job post', 'error');
     }
   }
@@ -1845,23 +1810,19 @@ $flashSuccess = Session::flash('success');
       const result = await response.json();
       
       if (result.ok) {
-        showToast(result.message, 'success');
+        showToast(result.message || 'Job posted successfully!', 'success');
         
         // Reset form
         document.getElementById('jobPostingForm').reset();
         submitBtn.textContent = 'Post Job';
         submitBtn.removeAttribute('data-edit-id');
         
-        // Reload job posts
+        // Reload job posts list below the form
         await loadMyJobPosts();
-        
-        // Hide job posting form
-        showHomeContent();
       } else {
         showToast('Error: ' + result.error, 'error');
       }
     } catch (error) {
-      console.error('Job posting error:', error);
       showToast('Error posting job', 'error');
     } finally {
       submitBtn.disabled = false;
@@ -1878,41 +1839,11 @@ $flashSuccess = Session::flash('success');
     document.getElementById('submitJobPost').textContent = 'Post Job';
     document.getElementById('submitJobPost').removeAttribute('data-edit-id');
     
-    // Show home content
-    showHomeContent();
+    // Go back to dashboard
+    showDashboard();
   });
 
-  // Create sample job for testing
-  document.getElementById('createSampleJob').addEventListener('click', async function() {
-    const button = this;
-    button.disabled = true;
-    button.textContent = 'Creating...';
-    
-    try {
-      const formData = new FormData();
-      formData.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
-      
-      const response = await fetch('/QuickHire/Public/actions/create_sample_job.php', {
-        method: 'POST',
-        body: formData
-      });
-      
-      const result = await response.json();
-      
-      if (result.ok) {
-        showToast('Sample job created successfully!', 'success');
-        await loadMyJobPosts();
-      } else {
-        showToast('Error: ' + result.error, 'error');
-      }
-    } catch (error) {
-      console.error('Error creating sample job:', error);
-      showToast('Error creating sample job', 'error');
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Create Sample Job (for testing)';
-    }
-  });
+
 </script>
 
 <script>
@@ -1976,7 +1907,6 @@ async function performSearch() {
       hideSearchResults();
     }
   } catch (error) {
-    console.error('Search error:', error);
     showToast('Search failed. Please try again.', 'error');
     hideSearchResults();
   } finally {
@@ -2005,6 +1935,10 @@ function displaySearchResults(results, query) {
     const avatar = jobseeker.profile_picture_url 
       ? `<img src="/QuickHire/Public/${jobseeker.profile_picture_url}" alt="Avatar">`
       : jobseeker.first_name.charAt(0).toUpperCase();
+
+    const isActive = jobseeker.last_active && (new Date() - new Date(jobseeker.last_active)) < 60000;
+    const minutesAgo = jobseeker.last_active ? Math.floor((new Date() - new Date(jobseeker.last_active)) / 60000) : null;
+    const showBadge = minutesAgo !== null && minutesAgo >= 1 && minutesAgo <= 5;
     
     const skills = jobseeker.skills ? jobseeker.skills.split(', ').slice(0, 5).join(', ') : 'No skills listed';
     const moreSkills = jobseeker.skills && jobseeker.skills.split(', ').length > 5 
@@ -2012,8 +1946,9 @@ function displaySearchResults(results, query) {
 
     html += `
       <div class="search-result-item" onclick="viewJobseekerProfile(this)" style="cursor:pointer;" data-id="${jobseeker.id}">
-        <div class="search-result-avatar">
+        <div class="search-result-avatar" style="position:relative;">
           ${avatar}
+          ${statusDot(jobseeker.last_active)}
         </div>
         <div class="search-result-info">
           <div class="search-result-name">
@@ -2024,7 +1959,7 @@ function displaySearchResults(results, query) {
           </div>
           <div class="search-result-details">
             <div class="search-result-detail">
-              💰 $${jobseeker.rate_per_hour || '0'}/hr
+              💰 ${jobseeker.rate_per_hour || '0'}/hr
             </div>
             <div class="search-result-detail">
               🌍 ${jobseeker.country || 'Not specified'}
@@ -2041,7 +1976,11 @@ function displaySearchResults(results, query) {
           </div>
         </div>
         <div class="search-result-actions" onclick="event.stopPropagation()">
-          <button class="message-button" onclick="startConversationWithJobseeker(${jobseeker.id}, this)">
+          <select id="jobSelect_${jobseeker.id}" style="margin-bottom:6px;width:100%;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:#1e293b;color:#e2e8f0;font-size:12px;font-family:inherit;">
+            <option value="">No specific job</option>
+            ${currentJobPosts.filter(j=>j.is_active).map(j=>`<option value="${j.id}">${j.title.length>22?j.title.substring(0,22)+'…':j.title}</option>`).join('')}
+          </select>
+          <button class="message-button" onclick="startConversationWithJobseeker(${jobseeker.id}, this, document.getElementById('jobSelect_${jobseeker.id}').value || null)">
             💬 Message
           </button>
         </div>
@@ -2066,23 +2005,23 @@ function viewJobseekerProfile(el) {
   // Populate panel
   const avatarEl = document.getElementById('jsProfileAvatar');
   if (js.profile_picture_url) {
-    avatarEl.innerHTML = `<img src="/QuickHire/Public/${js.profile_picture_url}" style="width:100%;height:100%;object-fit:cover;">`;
+    avatarEl.innerHTML = `<img src="/QuickHire/Public/${js.profile_picture_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">${statusDot(js.last_active)}`;
   } else {
-    avatarEl.textContent = (js.first_name || 'J').charAt(0).toUpperCase();
+    avatarEl.innerHTML = `${(js.first_name || '?').charAt(0).toUpperCase()}${statusDot(js.last_active)}`;
   }
 
   document.getElementById('jsProfileName').textContent = `${js.first_name} ${js.last_name}`;
   document.getElementById('jsProfileRole').textContent = js.role_title || 'Job Seeker';
 
   let meta = js.country || '';
-  if (js.portfolio_url) meta += (meta ? ' · ' : '') + `<a href="${js.portfolio_url}" target="_blank" style="color:#6366f1;text-decoration:none;">${js.portfolio_url}</a>`;
+  if (js.portfolio_url) meta += (meta ? '  ' : '') + `<a href="${js.portfolio_url}" target="_blank" style="color:#6366f1;text-decoration:none;">${js.portfolio_url}</a>`;
   document.getElementById('jsProfileMeta').innerHTML = meta;
 
   // Pills
   const pills = [
-    js.rate_per_hour ? `<span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💵 $${js.rate_per_hour}/hr</span>` : '',
-    js.available_time ? `<span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">🕐 ${js.available_time}h/day</span>` : '',
-    js.english_mastery ? `<span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">💬 ${js.english_mastery}</span>` : '',
+    js.rate_per_hour ? `<span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💰 $${js.rate_per_hour}/hr</span>` : '',
+    js.available_time ? `<span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">⏰ ${js.available_time}h/day</span>` : '',
+    js.english_mastery ? `<span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">🗣️ ${js.english_mastery}</span>` : '',
     js.employment_type ? `<span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">💼 ${js.employment_type.replace('_','-')}</span>` : '',
     js.age ? `<span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">🎂 ${js.age} yrs</span>` : '',
   ].filter(Boolean).join('');
@@ -2099,13 +2038,21 @@ function viewJobseekerProfile(el) {
 
   // Details
   let details = '';
-  if (js.bachelors_degree) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">🎓</span><div><div style="font-size:12px;color:#64748b;">Education</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.bachelors_degree}</div></div></div>`;
-  if (js.gender) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">👤</span><div><div style="font-size:12px;color:#64748b;">Gender</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.gender.charAt(0)+js.gender.slice(1).toLowerCase()}</div></div></div>`;
-  if (js.resume_url) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📄</span><div><div style="font-size:12px;color:#64748b;">Resume</div><a href="/QuickHire/Public/${js.resume_url}" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a></div></div>`;
+  if (js.bachelors_degree) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Education</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.bachelors_degree}</div></div></div>`;
+  if (js.gender) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Gender</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.gender.charAt(0)+js.gender.slice(1).toLowerCase()}</div></div></div>`;
+  if (js.resume_url) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Resume</div><a href="/QuickHire/Public/${js.resume_url}" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a></div></div>`;
   document.getElementById('jsProfileDetails').innerHTML = details || '<span style="color:#64748b;font-size:13px;">No details available.</span>';
 
-  // Message button
-  document.getElementById('jsProfileMsgBtn').onclick = () => startConversationWithJobseeker(js.id, document.getElementById('jsProfileMsgBtn'));
+  // Message button + job selector
+  const profileJobSelect = document.getElementById('jsProfileJobSelect');
+  if (profileJobSelect) {
+    profileJobSelect.innerHTML = '<option value="">No specific job</option>' +
+      currentJobPosts.filter(j => j.is_active).map(j =>
+        `<option value="${j.id}">${j.title.length > 22 ? j.title.substring(0,22)+'…' : j.title}</option>`
+      ).join('');
+  }
+  document.getElementById('jsProfileMsgBtn').onclick = () =>
+    startConversationWithJobseeker(js.id, document.getElementById('jsProfileMsgBtn'), profileJobSelect?.value || null);
 
   // Show panel
   showJobseekerProfileView();
@@ -2129,12 +2076,10 @@ function showJobseekerProfileView() {
   document.querySelector('.subtitle').textContent = 'Viewing candidate profile.';
 }
 
-async function startConversationWithJobseeker(jobseekerId, buttonElement) {
-  // Use the passed button element
+async function startConversationWithJobseeker(jobseekerId, buttonElement, jobPostId = null) {
   const button = buttonElement;
   
   if (!button) {
-    console.error('Button element not found');
     showToast('Failed to start conversation: Button not found', 'error');
     return;
   }
@@ -2143,94 +2088,48 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement) {
   button.textContent = 'Starting...';
 
   try {
-    console.log('Starting conversation with jobseeker:', jobseekerId);
-    
     const formData = new FormData();
     formData.append('jobseeker_id', jobseekerId);
+    if (jobPostId) formData.append('job_post_id', jobPostId);
 
-    console.log('Sending request to:', '/QuickHire/Public/actions/start_conversation.php');
-    
     const response = await fetch('/QuickHire/Public/actions/start_conversation.php', {
       method: 'POST',
       body: formData
     });
 
-    console.log('Response received:', response);
-    console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const contentType = response.headers.get('content-type');
-    console.log('Content type:', contentType);
-
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text);
-      throw new Error('Server returned non-JSON response');
-    }
-
+    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
     const data = await response.json();
-    console.log('Response data:', data);
 
     if (data.ok) {
       const actionText = data.is_existing ? 'Opened existing conversation' : 'Started new conversation';
-      console.log(`${actionText} with ${data.jobseeker_name}, ID: ${data.conversation_id}`);
       
       // Open messaging panel first
       messagingPanel.classList.add('open');
       
       // Load conversations to get the latest list
       await loadConversations();
-      
-      // Give a small delay to ensure conversations are loaded
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Find the conversation by ID
       const conversation = conversations.find(c => c.id == data.conversation_id);
-      
       if (conversation) {
-        console.log('Found conversation, opening:', conversation);
         await openConversation(conversation.id);
         showToast(`${actionText} with ${data.jobseeker_name}`, 'success');
       } else {
-        console.log('Conversation not found in list. Available conversations:', conversations);
-        console.log('Looking for conversation ID:', data.conversation_id);
-        
-        // Try one more time with a longer delay
         await new Promise(resolve => setTimeout(resolve, 500));
         await loadConversations();
-        
         const retryConversation = conversations.find(c => c.id == data.conversation_id);
         if (retryConversation) {
           await openConversation(retryConversation.id);
           showToast(`${actionText} with ${data.jobseeker_name}`, 'success');
         } else {
-          // If still not found, just show the messaging panel
-          console.log('Could not find conversation in list, but messaging panel is open');
           showToast(`Conversation with ${data.jobseeker_name} is ready. Please check your messages.`, 'success');
         }
       }
     } else {
-      console.error('Server returned error:', data.error);
       showToast('Failed to start conversation: ' + data.error, 'error');
     }
   } catch (error) {
-    console.error('Start conversation error:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      showToast('Failed to start conversation: Network connection error', 'error');
-    } else if (error.message.includes('HTTP error')) {
-      showToast('Failed to start conversation: Server error (' + error.message + ')', 'error');
-    } else {
-      showToast('Failed to start conversation: ' + error.message, 'error');
+    showToast('Failed to start conversation: ' + error.message, 'error');
     }
   } finally {
     button.disabled = false;
@@ -2289,7 +2188,6 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement) {
         showToast(result.error || 'Failed to update name', 'error');
       }
     } catch (error) {
-      console.error('Error updating name:', error);
       showToast('Connection error. Please try again.', 'error');
     }
   }
@@ -2318,11 +2216,19 @@ btnMessages.addEventListener('click', (e) => {
 
   // Reset chat header to default state when opening fresh
   currentConversationId = null;
+  activeJobFilter = '';
+  jobFilterPage = 0;
+  const convSearch = document.getElementById('convSearchInput');
+  if (convSearch) convSearch.value = '';
   document.getElementById('chatTitle').textContent = 'Select a conversation';
+  const chatStatusReset = document.getElementById('chatStatus');
+  if (chatStatusReset) chatStatusReset.innerHTML = '';
   const menuBtnReset = document.getElementById('chatMenuBtn');
   if (menuBtnReset) menuBtnReset.style.display = 'none';
   const avatarEl = document.getElementById('chatHeaderAvatar');
   if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
+  const jobBannerReset = document.getElementById('jobBanner');
+  if (jobBannerReset) { jobBannerReset.style.display = 'none'; jobBannerReset.innerHTML = ''; }
   document.getElementById('messagesContainer').innerHTML = `
     <div class="empty-state">
       <h3>Select a conversation</h3>
@@ -2331,6 +2237,19 @@ btnMessages.addEventListener('click', (e) => {
   document.getElementById('messageInputArea').style.display = 'none';
 
   loadConversations();
+
+  // Load job posts for filter pills if not already loaded
+  if (!currentJobPosts || currentJobPosts.length === 0) {
+    fetch('/QuickHire/Public/actions/get_job_posts.php')
+      .then(r => r.json())
+      .then(result => {
+        if (result.ok) {
+          currentJobPosts = result.job_posts;
+          buildJobFilter(); // Rebuild pills now that we have job data
+        }
+      })
+      .catch(() => {});
+  }
 
   // Update active states
   btnHome.classList.remove('active');
@@ -2377,44 +2296,110 @@ async function loadConversations() {
       conversationsList.innerHTML = '<div class="empty-state">No conversations yet</div>';
     }
   } catch (error) {
-    console.error('Load conversations error:', error);
     conversationsList.innerHTML = '<div class="empty-state">Error loading conversations: ' + error.message + '</div>';
   }
 }
 
-// Build job filter dropdown
+let jobFilterPage = 0;
+const JOB_PILLS_PER_PAGE = 8; // 8 job pills + All + General = max 10 visible
+
+// Build job filter pills with pagination
 function buildJobFilter() {
   const filterBar = document.getElementById('jobFilterBar');
-  const select = document.getElementById('jobFilterSelect');
+  const pillsContainer = document.getElementById('jobFilterPills');
+
+  // Deduplicate: use a Map keyed by job ID
   const jobMap = {};
   conversations.forEach(c => {
     if (c.job_post_id && c.job_post_title) jobMap[c.job_post_id] = c.job_post_title;
   });
-  const jobs = Object.entries(jobMap);
-  console.log("Job filter debug:", { conversationsCount: conversations.length, jobMap, jobs });
+  (currentJobPosts || []).filter(j => j.is_active).forEach(j => {
+    jobMap[j.id] = j.title;
+  });
+
+  const jobs = Object.entries(jobMap); // unique job entries
+
   if (jobs.length === 0) { filterBar.style.display = 'none'; return; }
   filterBar.style.display = 'block';
-  const current = select.value;
-  select.innerHTML = '<option value="">All conversations</option>';
-  jobs.forEach(([id, title]) => {
-    select.innerHTML += `<option value="${id}" ${current == id ? 'selected' : ''}>${title}</option>`;
+
+  // Clamp page
+  const totalPages = Math.ceil(jobs.length / JOB_PILLS_PER_PAGE);
+  jobFilterPage = Math.max(0, Math.min(jobFilterPage, totalPages - 1));
+  const pageJobs = jobs.slice(jobFilterPage * JOB_PILLS_PER_PAGE, (jobFilterPage + 1) * JOB_PILLS_PER_PAGE);
+
+  pillsContainer.innerHTML = '';
+
+  // Prev button
+  if (jobFilterPage > 0) {
+    const prev = document.createElement('div');
+    prev.textContent = '←';
+    prev.className = 'job-filter-pill job-filter-nav';
+    prev.title = 'Previous';
+    prev.onclick = () => { jobFilterPage--; buildJobFilter(); };
+    pillsContainer.appendChild(prev);
+  }
+
+  // "All" pill
+  const allPill = document.createElement('div');
+  allPill.textContent = 'All';
+  allPill.dataset.jobId = '';
+  allPill.className = 'job-filter-pill' + (activeJobFilter === '' ? ' active' : '');
+  allPill.onclick = () => { activeJobFilter = ''; updatePillActive(); filterConversations(); };
+  pillsContainer.appendChild(allPill);
+
+  // Job pills for current page
+  pageJobs.forEach(([id, title]) => {
+    const pill = document.createElement('div');
+    pill.textContent = title.length > 18 ? title.substring(0, 18) + '…' : title;
+    pill.title = title;
+    pill.dataset.jobId = id;
+    pill.className = 'job-filter-pill' + (activeJobFilter === id ? ' active' : '');
+    pill.onclick = () => { activeJobFilter = id; updatePillActive(); filterConversations(); };
+    pillsContainer.appendChild(pill);
+  });
+
+  // Next button
+  if (jobFilterPage < totalPages - 1) {
+    const next = document.createElement('div');
+    next.textContent = '→';
+    next.className = 'job-filter-pill job-filter-nav';
+    next.title = 'Next';
+    next.onclick = () => { jobFilterPage++; buildJobFilter(); };
+    pillsContainer.appendChild(next);
+  }
+}
+
+function updatePillActive() {
+  document.querySelectorAll('.job-filter-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.jobId === activeJobFilter);
   });
 }
 
-let activeJobFilter = '';
-document.addEventListener('change', function(e) {
-  if (e.target.id === 'jobFilterSelect') {
-    activeJobFilter = e.target.value;
-    displayConversations();
+function filterConversations() {
+  const q = (document.getElementById('convSearchInput')?.value || '').toLowerCase().trim();
+  let jobFiltered;
+  if (activeJobFilter) {
+    jobFiltered = conversations.filter(c => String(c.job_post_id) === String(activeJobFilter));
+  } else {
+    jobFiltered = conversations;
   }
-});
+  const finalFiltered = q
+    ? jobFiltered.filter(c =>
+        `${c.other_first_name} ${c.other_last_name}`.toLowerCase().includes(q) ||
+        (c.job_post_title || '').toLowerCase().includes(q) ||
+        (c.last_message || '').toLowerCase().includes(q)
+      )
+    : jobFiltered;
+  renderConversationList(finalFiltered);
+}
 
-// Display conversations
+// Display conversations  applies current search + job filter
 function displayConversations() {
-  const filtered = activeJobFilter
-    ? conversations.filter(c => String(c.job_post_id) === String(activeJobFilter))
-    : conversations;
+  filterConversations();
+}
 
+// Render a filtered list of conversations
+function renderConversationList(filtered) {
   if (filtered.length === 0) {
     conversationsList.innerHTML = '<div class="empty-state">No conversations found</div>';
     return;
@@ -2422,30 +2407,17 @@ function displayConversations() {
 
   let html = '';
   filtered.forEach(conv => {
-    // Active now = within 60 seconds, show green dot
-    const isActive = conv.other_last_active && (new Date() - new Date(conv.other_last_active)) < 60000;
-    const minutesAgo = conv.other_last_active ? Math.floor((new Date() - new Date(conv.other_last_active)) / 60000) : null;
-    // Show badge only for 1-5 minutes ago
-    const showBadge = minutesAgo !== null && minutesAgo >= 1 && minutesAgo <= 5;
-    const activeIndicator = isActive ? `<span class="active-dot"></span>` : "";
-    const minuteBadge = showBadge ? `<span class="minute-badge">${minutesAgo}</span>` : "";
-    console.log("Active status:", conv.other_first_name, { last_active: conv.other_last_active, isActive, minutesAgo, showBadge });
-    const jobTag = conv.job_post_title
-      ? `<div class="conv-job-tag">&#128203; ${conv.job_post_title}</div>`
-      : '';
     const avatarHtml = conv.other_avatar
       ? `<img src="/QuickHire/Public/${conv.other_avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
       : conv.other_first_name.charAt(0).toUpperCase();
     html += `
       <div class="conversation-item" data-conversation-id="${conv.id}" onclick="openConversation(${conv.id})">
-        <div class="conversation-avatar">
+        <div class="conversation-avatar" style="position:relative;">
           ${avatarHtml}
-          ${activeIndicator}
-          ${minuteBadge}
+          ${statusDot(conv.other_last_active)}
         </div>
         <div class="conversation-info">
           <div class="conversation-name">${conv.other_first_name} ${conv.other_last_name}</div>
-          ${jobTag}
           <div class="conversation-preview">${conv.other_role || 'Jobseeker'}</div>
           ${conv.last_message ? `<div class="conversation-preview">${conv.last_message.substring(0,50)}${conv.last_message.length > 50 ? '...' : ''}</div>` : ''}
         </div>
@@ -2457,8 +2429,14 @@ function displayConversations() {
   });
 
   conversationsList.innerHTML = html;
+
+  // Restore active highlight on the currently open conversation
+  if (currentConversationId) {
+    const activeItem = conversationsList.querySelector(`[data-conversation-id="${currentConversationId}"]`);
+    if (activeItem) activeItem.classList.add('active');
+  }
 }
-// Toggle chat options menu — positioned fixed relative to button to escape overflow:hidden
+// Toggle chat options menu  positioned fixed relative to button to escape overflow:hidden
 function toggleChatMenu() {
   const menu = document.getElementById('chatMenu');
   const btn  = document.getElementById('chatMenuBtn');
@@ -2503,6 +2481,8 @@ async function deleteConversation(conversationId) {
       // Reset chat area
       currentConversationId = null;
       document.getElementById('chatTitle').textContent = 'Select a conversation';
+      const chatStatusDel = document.getElementById('chatStatus');
+      if (chatStatusDel) chatStatusDel.innerHTML = '';
       const menuBtnDel = document.getElementById('chatMenuBtn');
       if (menuBtnDel) menuBtnDel.style.display = 'none';
       const avatarEl = document.getElementById('chatHeaderAvatar');
@@ -2525,18 +2505,11 @@ async function deleteConversation(conversationId) {
 
 // Open conversation
 async function openConversation(conversationId) {
-  console.log('openConversation called with:', conversationId);
   conversationId = parseInt(conversationId);
   currentConversationId = conversationId;
-  console.log('Parsed conversationId:', conversationId);
-  console.log('Available conversations:', conversations);
   const conversation = conversations.find(c => parseInt(c.id) === conversationId);
-  console.log('Found conversation:', conversation);
   
-  if (!conversation) {
-    console.error('Conversation not found!');
-    return;
-  }
+  if (!conversation) return;
   
   // Update active conversation - find the conversation item by conversation ID
   document.querySelectorAll('.conversation-item').forEach(item => {
@@ -2552,20 +2525,38 @@ async function openConversation(conversationId) {
     }
   });
   
-  // Update chat header
   // Update chat header with active status
   const isActive = conversation.other_last_active && (new Date() - new Date(conversation.other_last_active)) < 60000;
   let statusText = "";
   if (isActive) {
-    statusText = `<span style="color:#10b981; font-size:13px; font-weight:normal;">● Active now</span>`;
+    statusText = `<span style="color:#10b981; font-size:13px; font-weight:normal;">Active now</span>`;
   } else if (conversation.other_last_active) {
     const minutesAgo = Math.floor((new Date() - new Date(conversation.other_last_active)) / 60000);
-    // Only show status for 1-5 minutes ago, nothing after 5 minutes
     if (minutesAgo >= 1 && minutesAgo <= 5) {
       statusText = `<span style="color:#64748b; font-size:13px; font-weight:normal;">Active ${minutesAgo} min ago</span>`;
     }
   }
-  document.getElementById("chatTitle").innerHTML = `${conversation.other_first_name} ${conversation.other_last_name}<br>${statusText}`;
+  document.getElementById("chatTitle").textContent = `${conversation.other_first_name} ${conversation.other_last_name}`;
+  const chatStatusEl = document.getElementById('chatStatus');
+  if (chatStatusEl) chatStatusEl.innerHTML = statusText;
+
+  // Show job post banner below chat header
+  const jobBanner = document.getElementById('jobBanner');
+  if (jobBanner) {
+    if (conversation.job_post_id && conversation.job_post_title) {
+      jobBanner.style.display = 'block';
+      jobBanner.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:#94a3b8;">Applied for:</span>
+          <span style="font-size:13px;font-weight:700;color:#a5b4fc;display:flex;align-items:center;gap:5px;">
+            📋 ${conversation.job_post_title}
+          </span>
+        </div>`;
+    } else {
+      jobBanner.style.display = 'none';
+      jobBanner.innerHTML = '';
+    }
+  }
   // Show the ⋮ menu button now that a conversation is open
   const menuBtn = document.getElementById('chatMenuBtn');
   if (menuBtn) menuBtn.style.display = 'block';
@@ -2574,10 +2565,11 @@ async function openConversation(conversationId) {
   const avatarEl = document.getElementById('chatHeaderAvatar');
   if (avatarEl) {
     avatarEl.style.display = 'flex';
+    avatarEl.style.position = 'relative';
     if (conversation.other_avatar) {
-      avatarEl.innerHTML = `<img src="/QuickHire/Public/${conversation.other_avatar}" style="width:100%;height:100%;object-fit:cover;">`;
+      avatarEl.innerHTML = `<img src="/QuickHire/Public/${conversation.other_avatar}" style="width:100%;height:100%;object-fit:cover;">${statusDot(conversation.other_last_active)}`;
     } else {
-      avatarEl.innerHTML = conversation.other_first_name.charAt(0).toUpperCase();
+      avatarEl.innerHTML = `${conversation.other_first_name.charAt(0).toUpperCase()}${statusDot(conversation.other_last_active)}`;
     }
   }
   
@@ -2602,33 +2594,24 @@ async function openConversation(conversationId) {
   }
   
   // Load messages
-  console.log('About to load messages for conversation:', conversationId);
   await loadMessages(conversationId);
-  console.log('loadMessages completed');
 }
 
 // Load messages
 async function loadMessages(conversationId) {
-  console.log('loadMessages called with:', conversationId);
   try {
     messagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
     
     const url = `/QuickHire/Public/actions/get_messages.php?conversation_id=${conversationId}`;
-    console.log('Fetching messages from:', url);
     const response = await fetch(url);
-    console.log('Response status:', response.status);
     const data = await response.json();
-    console.log('Response data:', data);
     
     if (data.ok) {
-      console.log('Messages loaded successfully:', data.messages.length, 'messages');
       displayMessages(data.messages);
     } else {
-      console.error('Server error:', data.error);
       messagesContainer.innerHTML = '<div class="empty-state">Error: ' + data.error + '</div>';
     }
   } catch (error) {
-    console.error('loadMessages error:', error);
     messagesContainer.innerHTML = '<div class="empty-state">Error loading messages: ' + error.message + '</div>';
   }
 }
@@ -2651,16 +2634,30 @@ function displayMessages(messages) {
     if (msg.message_type === 'file' && msg.file_url) {
       const fileName = msg.file_name || 'File';
       const fileSize = msg.file_size ? `(${(msg.file_size / 1024 / 1024).toFixed(2)}MB)` : '';
-      messageContent = `
-        <div class="file-message">
-          <div class="file-icon">📎</div>
-          <div class="file-info">
-            <a href="${msg.file_url}" target="_blank" class="file-link">${fileName}</a>
-            <div class="file-size">${fileSize}</div>
+      const ext = fileName.split('.').pop().toLowerCase();
+      const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext);
+
+      if (isImage) {
+        messageContent = `
+          <a href="${msg.file_url}" target="_blank" style="display:block;">
+            <img src="${msg.file_url}" alt="${fileName}"
+              style="max-width:260px;max-height:260px;border-radius:10px;display:block;cursor:pointer;object-fit:cover;">
+          </a>
+          ${fileSize ? `<div class="file-size" style="margin-top:4px;">${fileName} · ${fileSize}</div>` : ''}
+          ${msg.content && msg.content !== `Sent a file: ${fileName}` ? `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>` : ''}
+        `;
+      } else {
+        messageContent = `
+          <div class="file-message">
+            <div class="file-icon">📎</div>
+            <div class="file-info">
+              <a href="${msg.file_url}" target="_blank" class="file-link">${fileName}</a>
+              <div class="file-size">${fileSize}</div>
+            </div>
           </div>
-        </div>
-        ${msg.content && msg.content !== `Sent a file: ${fileName}` ? `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>` : ''}
-      `;
+          ${msg.content && msg.content !== `Sent a file: ${fileName}` ? `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>` : ''}
+        `;
+      }
     } else {
       messageContent = `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>`;
     }
@@ -2697,13 +2694,11 @@ const filePreviewRemove = document.getElementById('filePreviewRemove');
 
 if (fileInput) {
   fileInput.addEventListener('change', function() {
-    console.log('File input changed:', this.files);
     if (this.files.length > 0) {
       const file = this.files[0];
       const fileName = file.name;
       const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
       
-      console.log('File selected:', fileName, fileSize + 'MB');
       
       // Check file size (10MB limit)
       if (file.size > 10 * 1024 * 1024) {
@@ -2750,11 +2745,9 @@ messageForm.addEventListener('submit', async (e) => {
   const message = formData.get('message').trim();
   const file = formData.get('file');
   
-  console.log('Form submission:', { message, file: file?.name, fileSize: file?.size });
   
   // Check if we have either a message or a file
   if (!message && (!file || !file.name)) {
-    console.log('No message or file to send');
     return;
   }
   
@@ -2763,15 +2756,12 @@ messageForm.addEventListener('submit', async (e) => {
   sendButton.textContent = 'Sending...';
   
   try {
-    console.log('Sending request to server...');
     const response = await fetch('/QuickHire/Public/actions/send_message.php', {
       method: 'POST',
       body: formData
     });
     
-    console.log('Response status:', response.status);
     const result = await response.json();
-    console.log('Response data:', result);
     
     if (result.ok) {
       messageInput.value = '';
@@ -2784,11 +2774,9 @@ messageForm.addEventListener('submit', async (e) => {
       await loadMessages(currentConversationId);
       await loadConversations(); // Refresh conversations to update last message
     } else {
-      console.error('Server error:', result.error);
       alert('Error: ' + result.error);
     }
   } catch (error) {
-    console.error('Send message error:', error);
     alert('Error sending message');
   } finally {
     sendButton.disabled = false;
@@ -2831,6 +2819,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Activity tracking - update on any click/interaction
 let lastActivityUpdate = Date.now();
+
+// Shared helper: returns green dot (active) or grey dot (offline) HTML
+function statusDot(lastActive) {
+  if (lastActive && (new Date() - new Date(lastActive)) < 60000) {
+    return `<span class="status-dot status-dot--active"></span>`;
+  }
+  return `<span class="status-dot status-dot--offline"></span>`;
+}
 const updateActivity = () => {
   const now = Date.now();
   // Only send update if 5 seconds have passed since last update (throttle)
@@ -2844,6 +2840,7 @@ const updateActivity = () => {
 document.addEventListener('click', updateActivity);
 document.addEventListener('keypress', updateActivity);
 document.addEventListener('scroll', updateActivity);
+window.addEventListener('focus', updateActivity);
 
 // Fallback: update every 30 seconds if user is idle but page is open
 setInterval(() => {
@@ -2861,17 +2858,17 @@ setInterval(() => {
 fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
 </script>
 
-<!-- Floating chat menu — appended to body to escape overflow:hidden containers -->
+<!-- Floating chat menu  appended to body to escape overflow:hidden containers -->
 <div id="chatMenu" style="display:none;position:fixed;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:190px;z-index:99999;overflow:hidden;">
   <button onclick="deleteConversation(currentConversationId)" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;cursor:pointer;color:#fca5a5;font-size:14px;font-weight:600;" onmouseover="this.style.background='rgba(239,68,68,0.12)'" onmouseout="this.style.background='none'">🗑 Delete Conversation</button>
 </div>
 
-<!-- ── Edit Job Modal ── -->
+<!-- -- Edit Job Modal -- -->
 <div id="editJobModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;overflow-y:auto;padding:40px 16px;">
   <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;max-width:760px;width:100%;margin:0 auto;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h2 style="margin:0;font-size:20px;font-weight:900;color:#f8fafc;">Edit Job Post</h2>
-      <button onclick="closeEditJobModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;padding:4px;">✕</button>
+      <button onclick="closeEditJobModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;padding:4px;">?</button>
     </div>
 
     <form id="editJobForm">
@@ -2943,12 +2940,13 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
             <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="editJobSkillsSearch">
             <div class="skills-tabs">
               <div class="skills-tab active" data-category="all">All</div>
-              <?php
-                $editSkillsStmt = $db->pdo()->query("SELECT DISTINCT category FROM skills ORDER BY category ASC");
-                foreach ($editSkillsStmt->fetchAll(PDO::FETCH_COLUMN) as $cat):
-              ?>
-                <div class="skills-tab" data-category="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></div>
-              <?php endforeach; ?>
+              <div class="skills-tab" data-category="Programming">Programming</div>
+              <div class="skills-tab" data-category="Frontend">Frontend</div>
+              <div class="skills-tab" data-category="Backend">Backend</div>
+              <div class="skills-tab" data-category="Database">Database</div>
+              <div class="skills-tab" data-category="Cloud">Cloud</div>
+              <div class="skills-tab" data-category="Design">Design</div>
+              <div class="skills-tab" data-category="Management">Management</div>
             </div>
             <div class="skills-grid" id="editJobSkillsContainer">
               <?php

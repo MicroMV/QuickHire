@@ -52,11 +52,11 @@ try {
         UPDATE calls 
         SET status = 'COMPLETED', 
             updated_at = CURRENT_TIMESTAMP 
-        WHERE room_code = ? AND status IN ('RINGING', 'IN_CALL')
+        WHERE room_code = ?
     ");
     $updateStmt->execute([$room]);
     
-    // Send leave signal to notify the other participant
+    // Send leave signal to notify the other participant (always, regardless of prior status)
     $signalStmt = $pdo->prepare("
         INSERT INTO webrtc_signals (room_code, sender_id, message_type, payload, created_at) 
         VALUES (?, ?, 'leave', ?, CURRENT_TIMESTAMP)

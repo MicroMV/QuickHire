@@ -10,7 +10,10 @@ Auth::requireLogin();
 
 $room = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['room'] ?? '');
 if ($room === '') {
-    die("Missing room code.");
+    $role = Auth::role();
+    $dest = $role === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php';
+    header("Location: /QuickHire/Public/{$dest}");
+    exit;
 }
 
 // Optional: verify user is allowed in this call room
@@ -21,14 +24,22 @@ $pdo = $db->pdo();
 $stmt = $pdo->prepare("SELECT * FROM calls WHERE room_code = ? LIMIT 1");
 $stmt->execute([$room]);
 $call = $stmt->fetch();
-if (!$call) die("Call room not found.");
+if (!$call) {
+    $role = Auth::role();
+    $dest = $role === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php';
+    header("Location: /QuickHire/Public/{$dest}");
+    exit;
+}
 
 $uid = Auth::userId();
 $isEmployer = $uid === (int)$call['employer_user_id'];
 $isJobseeker = $call['jobseeker_user_id'] && $uid === (int)$call['jobseeker_user_id'];
 
 if (!$isEmployer && !$isJobseeker) {
-    die("You are not allowed in this room.");
+    $role = Auth::role();
+    $dest = $role === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php';
+    header("Location: /QuickHire/Public/{$dest}");
+    exit;
 }
 
 // Update status based on current state
@@ -182,7 +193,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         const data = await response.json();
                         
                         if (data.ok && (data.status === 'COMPLETED' || data.status === 'MISSED')) {
-                            console.log('Call ended by partner, redirecting to dashboard');
                             polling = false;
                             stopHeartbeat();
                             stopStatusMonitoring();
@@ -204,7 +214,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                             }
                         }
                     } catch (error) {
-                        console.error('Status check error:', error);
                     }
                 }
             }, 10000); // Check every 10 seconds
@@ -230,10 +239,8 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         // Handle page visibility change (tab switching, minimizing)
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                console.log('Tab hidden - but keeping call active');
                 // Don't cleanup on tab switch - only on actual page unload
             } else {
-                console.log('Tab visible again');
             }
         });
         
@@ -242,7 +249,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             if (isLeavingPage) return; // Prevent multiple calls
             isLeavingPage = true;
             
-            console.log("Cleaning up call...");
             polling = false;
             stopHeartbeat();
             stopStatusMonitoring();
@@ -291,7 +297,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         }
                     }
                 } catch (e) {
-                    console.error("Chat poll error:", e);
                 }
                 await new Promise(r => setTimeout(r, 500));
             }
@@ -339,14 +344,11 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ room: ROOM, type, payload })
                 });
-                console.log("Signal sent:", type);
             } catch (error) {
-                console.error("Error sending signal:", type, error);
             }
         }
 
         async function pollSignals() {
-            console.log("Starting signal polling...");
             let pollCount = 0;
             while (polling) {
                 try {
@@ -355,32 +357,25 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                     
                     pollCount++;
                     if (pollCount % 10 === 0) {
-                        console.log(`📊 Poll #${pollCount} - afterSignalId: ${afterSignalId}`);
                     }
                     
                     if (data.ok) {
                         afterSignalId = data.after;
                         if (data.messages && data.messages.length > 0) {
-                            console.log(`📬 Received ${data.messages.length} signal(s)`);
                             for (const m of data.messages) {
-                                console.log("📨 Processing signal:", m.type);
                                 await handleSignal(m.type, m.payload);
                             }
                         }
                     } else {
-                        console.error("❌ Signal poll failed:", data);
                     }
                 } catch (e) {
-                    console.error("❌ Signal poll error:", e);
                 }
                 await new Promise(r => setTimeout(r, 700));
             }
-            console.log("Signal polling stopped");
         }
 
         async function initMedia() {
             try {
-                console.log("Requesting user media...");
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         width: { ideal: 640 },
@@ -393,48 +388,37 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                     }
                 });
                 
-                console.log("User media obtained, tracks:", localStream.getTracks().length);
                 localStream.getTracks().forEach(track => {
-                    console.log("Local track:", track.kind, track.enabled, track.readyState);
                 });
                 
                 const localVideo = document.getElementById('localVideo');
                 if (localVideo) {
                     localVideo.srcObject = localStream;
-                    console.log("Local video stream assigned");
                     
                     // Force local video to play
                     localVideo.play().then(() => {
-                        console.log("Local video playing successfully");
                     }).catch(e => {
-                        console.log("Local video play error:", e);
                     });
                 } else {
-                    console.error("Local video element not found!");
                 }
             } catch (error) {
-                console.error("Error getting user media:", error);
                 alert("Could not access camera/microphone. Please check permissions and try again.");
             }
         }
 
         function initPeer() {
-            console.log("🔧 Initializing peer connection...");
             pc = new RTCPeerConnection(iceConfig);
             
             // Add local tracks
             localStream.getTracks().forEach(track => {
-                console.log("➕ Adding track:", track.kind);
                 pc.addTrack(track, localStream);
             });
 
             // Handle incoming tracks
             pc.ontrack = (event) => {
-                console.log("🎉 Remote track received:", event.track.kind);
                 const remoteVideo = document.getElementById('remoteVideo');
                 if (remoteVideo && event.streams[0]) {
                     remoteVideo.srcObject = event.streams[0];
-                    console.log("✅ Remote video connected!");
                     
                     const statusElement = document.getElementById('connectionStatus');
                     if (statusElement) {
@@ -446,16 +430,13 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             // Handle ICE candidates
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
-                    console.log("📤 Sending ICE candidate:", event.candidate.type || 'unknown');
                     sendSignal("candidate", event.candidate);
                 } else {
-                    console.log("✅ ICE gathering complete");
                 }
             };
 
             // Monitor connection state
             pc.onconnectionstatechange = () => {
-                console.log("🔄 Connection state:", pc.connectionState);
                 const statusElement = document.getElementById('connectionStatus');
                 const chatInput = document.getElementById('chatInput');
                 const btnSend = document.getElementById('btnSend');
@@ -469,7 +450,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         btnSend.disabled = false;
                         btnSend.style.opacity = '1';
                         btnSend.style.cursor = 'pointer';
-                        console.log("🎉 WebRTC connection established!");
                     } else if (pc.connectionState === 'connecting') {
                         statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Connecting...</strong>';
                     } else if (pc.connectionState === 'failed') {
@@ -480,10 +460,8 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         btnSend.disabled = true;
                         btnSend.style.opacity = '0.4';
                         btnSend.style.cursor = 'not-allowed';
-                        console.log("❌ Connection failed, attempting to restart...");
                         setTimeout(() => {
                             if (pc.connectionState === 'failed') {
-                                console.log("🔄 Restarting ICE...");
                                 pc.restartIce();
                             }
                         }, 1000);
@@ -500,103 +478,75 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             };
             
             pc.oniceconnectionstatechange = () => {
-                console.log("🧊 ICE state:", pc.iceConnectionState);
                 if (pc.iceConnectionState === 'failed') {
-                    console.log("❌ ICE connection failed");
                 } else if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-                    console.log("✅ ICE connection successful!");
                 }
             };
             
             pc.onicegatheringstatechange = () => {
-                console.log("📊 ICE gathering state:", pc.iceGatheringState);
             };
             
-            console.log("✅ Peer connection initialized");
         }
 
         async function makeOffer() {
             if (!pc || !localStream) {
-                console.error("❌ Cannot make offer - missing:", {
-                    pc: !!pc,
-                    localStream: !!localStream
-                });
                 return;
             }
             
             try {
-                console.log("📤 Creating offer...");
                 const offer = await pc.createOffer();
-                console.log("✅ Offer created");
                 await pc.setLocalDescription(offer);
-                console.log("✅ Local description set");
                 await sendSignal("offer", offer);
-                console.log("✅ Offer sent to partner");
             } catch (error) {
-                console.error("❌ Error making offer:", error);
             }
         }
 
         async function handleSignal(type, payload) {
             if (!pc) {
-                console.log("❌ No peer connection for signal:", type);
                 return;
             }
 
             try {
                 if (type === "offer") {
-                    console.log("📥 Received offer from partner");
                     await pc.setRemoteDescription(new RTCSessionDescription(payload));
-                    console.log("✅ Remote description set");
                     const answer = await pc.createAnswer();
-                    console.log("✅ Answer created");
                     await pc.setLocalDescription(answer);
-                    console.log("✅ Local description set");
                     await sendSignal("answer", answer);
-                    console.log("✅ Answer sent to partner");
                 }
 
                 if (type === "answer") {
-                    console.log("📥 Received answer from partner");
                     await pc.setRemoteDescription(new RTCSessionDescription(payload));
-                    console.log("✅ Answer processed");
                 }
 
                 if (type === "candidate") {
-                    console.log("📥 Received ICE candidate");
                     if (payload && payload.candidate) {
                         await pc.addIceCandidate(new RTCIceCandidate(payload));
-                        console.log("✅ ICE candidate added");
                     } else {
-                        console.log("⚠️ Empty candidate (end of candidates)");
                     }
                 }
 
                 if (type === "leave") {
-                    console.log("👋 Partner left");
                     endCall();
                 }
             } catch (error) {
-                console.error("❌ Error handling signal:", type, error);
             }
         }
 
         function endCall() {
-            console.log("endCall() triggered - finding next match...");
-            
-            if (isLeavingPage) return; // Already cleaning up
-            
+            if (isLeavingPage) return;
             polling = false;
-            
-            // Use cleanup endpoint instead of just sending signal
             cleanupCall();
-            
-            // Auto-find next match instead of asking user
-            findNextMatchAuto();
+
+            if (MY_ROLE === 'EMPLOYER') {
+                // Employer auto-finds next match
+                findNextMatchAuto();
+            } else {
+                // Jobseeker returns to dashboard when partner leaves
+                window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+            }
         }
 
         async function findNextMatchAuto() {
-            console.log("Auto-finding next match...");
             
             // Show "Finding next match..." in the interface
             showFindingNextMatch();
@@ -610,21 +560,17 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 const data = await response.json();
                 
                 if (data.ok && data.room) {
-                    console.log("Next match found:", data.room);
                     // Update room code and restart call
                     ROOM = data.room;
                     restartCall();
                 } else if (data.redirect === 'dashboard') {
-                    console.log("Jobseeker redirecting to dashboard");
                     // Jobseeker should return to dashboard
                     window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
                 } else {
-                    console.log("No more matches, trying to find new match...");
                     // Try to find a completely new match (employers only)
                     await findNewMatch();
                 }
             } catch (error) {
-                console.error("Error finding next match:", error);
                 // Fallback: try to find new match
                 await findNewMatch();
             }
@@ -684,12 +630,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                     
                 } else {
                     // Jobseekers can't create new matches - redirect to dashboard
-                    console.log("Jobseeker can't create new matches, redirecting to dashboard");
                     window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
                 }
                 
             } catch (error) {
-                console.error("Error finding new match:", error);
                 if (MY_ROLE === 'JOBSEEKER') {
                     // Redirect jobseekers to dashboard on error
                     window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
@@ -700,7 +644,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         function restartCall() {
-            console.log("Restarting call with room:", ROOM);
             
             // Reset try again counter on successful match
             resetTryAgainCounter();
@@ -726,7 +669,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             sendSignal("join", { joined: true });
             
             // Don't create offer immediately - let join signal trigger it for employers
-            console.log("Join signal sent, waiting for connection...");
             
             // Restart polling
             pollSignals();
@@ -735,7 +677,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             // Reload participant names for new call
             setTimeout(() => loadParticipantNames(), 1000);
             
-            console.log("Call restarted successfully");
         }
 
         function showFindingNextMatch() {
@@ -821,17 +762,14 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             
             if (!confirm(message)) return;
             
-            console.log("User clicked Next - processing...");
             cleanupCall();
             
             if (MY_ROLE === 'EMPLOYER') {
                 // Employers can find next match
-                console.log("Employer finding next match...");
                 // Don't stop camera - keep it running for next match
                 findNextMatchAuto();
             } else {
                 // Jobseekers return to dashboard
-                console.log("Jobseeker returning to dashboard...");
                 window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
             }
         }
@@ -844,12 +782,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 choice = confirm(message);
                 if (choice) {
                     // Employer can find another match
-                    console.log("Employer chose to find another match");
                     cleanupCall();
                     findNextMatchAuto();
                 } else {
                     // Return to dashboard
-                    console.log("Employer chose to return to dashboard");
                     cleanupCall();
                     window.location.href = "/QuickHire/Public/employer-dashboard.php";
                 }
@@ -858,7 +794,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 message = "End call and return to dashboard?";
                 choice = confirm(message);
                 if (choice) {
-                    console.log("Jobseeker chose to return to dashboard");
                     cleanupCall();
                     window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
                 }
@@ -904,17 +839,14 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                     const partnerName = `${callData.partner.first_name} ${callData.partner.last_name}`;
                     const partnerRole = callData.partner.role === 'EMPLOYER' ? 'Employer' : 'Jobseeker';
                     document.getElementById('remoteVideoName').textContent = `${partnerName} (${partnerRole})`;
-                    console.log("👥 Partner found:", partnerName, "-", partnerRole);
                     return true; // Partner exists
                 } else {
                     // Show "Waiting..." when no partner is connected
                     document.getElementById('remoteVideoName').textContent = 'Waiting...';
-                    console.log("⏳ No partner yet");
                     return false; // No partner
                 }
                 
             } catch (error) {
-                console.error('Error loading participant names:', error);
                 document.getElementById('localVideoName').textContent = 'You';
                 document.getElementById('remoteVideoName').textContent = 'Waiting...';
                 return false;
@@ -923,10 +855,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
 
         (async () => {
             try {
-                console.log("=== INITIALIZING CALL ===");
-                console.log("Room:", ROOM, "| Role:", MY_ROLE, "| User ID:", MY_ID);
-                console.log("⚠️ IMPORTANT: Make sure you're testing with TWO DIFFERENT user accounts!");
-                console.log("⚠️ Employer account in one browser, Jobseeker account in another!");
                 
                 // Setup buttons
                 if (MY_ROLE === 'EMPLOYER') {
@@ -962,38 +890,29 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         const callData = await callResponse.json();
                         
                         if (callData.ok && callData.partner) {
-                            console.log("✅ Partner detected:", callData.partner.first_name);
                             
                             // Now create offer if employer
                             if (MY_ROLE === 'EMPLOYER') {
-                                console.log("📤 Employer creating offer...");
                                 makeOffer();
                             } else {
-                                console.log("⏳ Jobseeker waiting for offer...");
                             }
                         } else {
-                            console.log("⚠️ No partner in room yet, waiting...");
                             // Check again in 2 seconds
                             setTimeout(() => {
                                 if (MY_ROLE === 'EMPLOYER') {
-                                    console.log("📤 Employer creating offer (delayed)...");
                                     makeOffer();
                                 }
                             }, 2000);
                         }
                     } catch (error) {
-                        console.error("Error checking for partner:", error);
                         // Fallback: try creating offer anyway
                         if (MY_ROLE === 'EMPLOYER') {
-                            console.log("📤 Employer creating offer (fallback)...");
                             makeOffer();
                         }
                     }
                 }, 3000);
                 
-                console.log("=== INITIALIZATION COMPLETE ===");
             } catch (error) {
-                console.error("Initialization error:", error);
                 alert("Failed to initialize: " + error.message);
             }
         })();

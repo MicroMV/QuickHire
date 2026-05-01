@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require __DIR__ . '/../vendor/autoload.php';
 
 use Rongie\QuickHire\Core\Session;
@@ -283,7 +283,7 @@ $flashSuccess = Session::flash('success');
             <div style="font-weight:700;color:#e2e8f0;font-size:15px;margin-bottom:6px;">Drag & drop your resume here</div>
             <div style="color:#64748b;font-size:13px;margin-bottom:14px;">or click to browse</div>
             <div style="display:inline-block;padding:8px 20px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:8px;color:#a5b4fc;font-size:13px;font-weight:600;">Choose PDF File</div>
-            <div style="margin-top:10px;font-size:12px;color:#475569;">PDF only · Max 5MB</div>
+            <div style="margin-top:10px;font-size:12px;color:#475569;">PDF only  Max 5MB</div>
           </div>
 
           <?php if (!empty($profile['resume_url'])): ?>
@@ -302,7 +302,7 @@ $flashSuccess = Session::flash('success');
               <div style="font-weight:600;" id="ovJsResumeFileName">New Resume Selected</div>
               <div class="cp-file-ready">Ready to upload</div>
             </div>
-            <button type="button" onclick="clearResume()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">✕</button>
+            <button type="button" onclick="clearResume()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">?</button>
           </div>
         </div>
 
@@ -858,8 +858,8 @@ $flashSuccess = Session::flash('success');
           <div style="grid-column:1/-1;">
             <label style="display:block; font-weight:700; margin-bottom:6px;">Skills</label>
             <div class="skills-container">
-              <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="skillsSearch" style="width:100%; padding:8px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px;">
-              <div class="skills-tabs" style="margin-bottom:10px;">
+              <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="skillsSearch">
+              <div class="skills-tabs">
                 <div class="skills-tab active" data-category="all">All</div>
                 <div class="skills-tab" data-category="Programming">Programming</div>
                 <div class="skills-tab" data-category="Frontend">Frontend</div>
@@ -908,7 +908,7 @@ $flashSuccess = Session::flash('success');
               <div style="font-weight:700;color:#e2e8f0;font-size:14px;margin-bottom:4px;">Drag & drop your resume here</div>
               <div style="color:#64748b;font-size:12px;margin-bottom:12px;">or click to browse</div>
               <div style="display:inline-block;padding:7px 18px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:8px;color:#a5b4fc;font-size:12px;font-weight:600;">Choose PDF File</div>
-              <div style="margin-top:8px;font-size:11px;color:#475569;">PDF only · Max 5MB</div>
+              <div style="margin-top:8px;font-size:11px;color:#475569;">PDF only  Max 5MB</div>
             </div>
 
             <?php if (!empty($profile['resume_url'])): ?>
@@ -927,7 +927,7 @@ $flashSuccess = Session::flash('success');
                 <div style="font-weight:600;font-size:13px;" id="editJsResumeFileName">New Resume Selected</div>
                 <div style="font-size:12px;color:#34d399;">Ready to upload</div>
               </div>
-              <button type="button" onclick="clearEditResume()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">✕</button>
+              <button type="button" onclick="clearEditResume()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">?</button>
             </div>
           </div>
         </div>
@@ -939,7 +939,7 @@ $flashSuccess = Session::flash('success');
       </form>
     </div>
 
-    <!-- ── MY PROFILE VIEW ── -->
+    <!-- -- MY PROFILE VIEW -- -->
     <div class="card" id="myProfileContent" style="display:none; max-width:none; width:100%; padding:0; overflow:hidden;">
 
       <!-- Cover banner -->
@@ -961,22 +961,22 @@ $flashSuccess = Session::flash('success');
       <!-- Profile info -->
       <div style="padding:64px 32px 32px;">
         <h2 style="margin:0 0 4px;font-size:26px;font-weight:900;color:#f8fafc;"><?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?></h2>
-        <p style="margin:0 0 6px;color:#6366f1;font-weight:600;font-size:16px;"><?= htmlspecialchars($profile['role_title'] ?? '—') ?></p>
+        <p style="margin:0 0 6px;color:#6366f1;font-weight:600;font-size:16px;"><?= htmlspecialchars($profile['role_title'] ?? '') ?></p>
         <p style="margin:0 0 20px;color:#64748b;font-size:14px;">
           <?= htmlspecialchars($profile['country'] ?? '') ?>
           <?php if (!empty($profile['portfolio_url'])): ?>
-            · <a href="<?= htmlspecialchars($profile['portfolio_url']) ?>" target="_blank" style="color:#6366f1;text-decoration:none;"><?= htmlspecialchars($profile['portfolio_url']) ?></a>
+             <a href="<?= htmlspecialchars($profile['portfolio_url']) ?>" target="_blank" style="color:#6366f1;text-decoration:none;"><?= htmlspecialchars($profile['portfolio_url']) ?></a>
           <?php endif; ?>
         </p>
 
         <!-- Stats pills -->
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;">
-          <span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💵 $<?= htmlspecialchars($profile['rate_per_hour'] ?? '0') ?>/hr</span>
-          <span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">🕐 <?= htmlspecialchars($profile['available_time'] ?? '—') ?>h/day</span>
-          <span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">💬 <?= htmlspecialchars($profile['english_mastery'] ?? '—') ?></span>
-          <span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">💼 <?= htmlspecialchars(str_replace('_', '-', $profile['employment_type'] ?? '—')) ?></span>
+          <span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💰 $<?= htmlspecialchars($profile['rate_per_hour'] ?? '0') ?>/hr</span>
+          <span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars($profile['available_time'] ?? '') ?>h/day</span>
+          <span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars($profile['english_mastery'] ?? '') ?></span>
+          <span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars(str_replace('_', '-', $profile['employment_type'] ?? '')) ?></span>
           <?php if (!empty($profile['age'])): ?>
-            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">🎂 <?= htmlspecialchars($profile['age']) ?> yrs</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars($profile['age']) ?> yrs</span>
           <?php endif; ?>
         </div>
 
@@ -1059,13 +1059,18 @@ $flashSuccess = Session::flash('success');
       <div class="chat-area" id="chatArea">
         <div class="chat-header" id="chatHeader">
           <button class="back-btn" id="backToConversations">← Back</button>
-          <div id="chatHeaderAvatar" style="display:none;width:38px;height:38px;border-radius:50%;background:#64748b;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:15px;flex-shrink:0;overflow:hidden;"></div>
-          <div class="chat-title" id="chatTitle">Select a conversation</div>
+          <div id="chatHeaderAvatar" style="display:none;width:38px;height:38px;border-radius:50%;background:#64748b;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:15px;flex-shrink:0;overflow:visible;position:relative;"></div>
+          <div style="display:flex;flex-direction:column;gap:1px;">
+            <div class="chat-title" id="chatTitle">Select a conversation</div>
+            <div id="chatStatus" style="min-height:16px;"></div>
+          </div>
           <div style="margin-left:auto;position:relative;">
             <button id="chatMenuBtn" onclick="toggleChatMenu()" style="display:none;background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:4px 8px;border-radius:6px;line-height:1;" title="Options">⋮</button>
           </div>
         </div>
         
+        <div id="jobBanner" style="display:none;padding:10px 16px;background:rgba(99,102,241,0.1);border-bottom:1px solid rgba(99,102,241,0.25);"></div>
+
         <div class="messages-container" id="messagesContainer">
           <div class="empty-state">
             <h3>Select a conversation</h3>
@@ -1076,12 +1081,12 @@ $flashSuccess = Session::flash('success');
         <div class="message-input-area" id="messageInputArea" style="display: none;">
           <div class="file-preview" id="filePreview" style="display: none;">
             <div class="file-preview-content">
-              <div class="file-preview-icon">??</div>
+              <div class="file-preview-icon">📎</div>
               <div class="file-preview-info">
                 <div class="file-preview-name" id="filePreviewName"></div>
                 <div class="file-preview-size" id="filePreviewSize"></div>
               </div>
-              <button type="button" class="file-preview-remove" id="filePreviewRemove">?</button>
+              <button type="button" class="file-preview-remove" id="filePreviewRemove">✕</button>
             </div>
           </div>
           <form class="message-form" id="messageForm" enctype="multipart/form-data">
@@ -1158,7 +1163,6 @@ $flashSuccess = Session::flash('success');
         showToast(data.error || 'Unable to find employers.', 'error');
       }
     } catch (error) {
-      console.error('Find employer error:', error);
       resetButtons();
       showToast('Connection error. Please try again.', 'error');
     }
@@ -1173,7 +1177,7 @@ $flashSuccess = Session::flash('success');
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = `
       <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:36px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
-        <div style="font-size:52px;margin-bottom:16px;">📹</div>
+        <div style="font-size:52px;margin-bottom:16px;">🤝</div>
         <h2 style="margin:0 0 10px;font-size:22px;font-weight:900;color:#f8fafc;">Ready to Connect!</h2>
         <p style="margin:0 0 28px;color:#94a3b8;font-size:15px;line-height:1.6;">An employer is ready to connect with you. Make sure your camera and microphone are ready before joining.</p>
         <div style="display:flex;gap:12px;justify-content:center;">
@@ -1189,7 +1193,6 @@ $flashSuccess = Session::flash('success');
   async function cleanupEmptyConversation() {
     // NEVER clean up conversations - keep all conversations permanently
     if (window.pendingConversation) {
-      console.log('Keeping all conversations - no cleanup performed:', window.pendingConversation);
       window.pendingConversation = null;
     }
   }
@@ -1578,12 +1581,10 @@ $flashSuccess = Session::flash('success');
 
   // Generate HTML for job listings
   function generateJobListingsHTML(jobs) {
-    console.log('generateJobListingsHTML called with jobs:', jobs);
     currentJobs = jobs; // Store jobs for detail view
     let html = '';
     
     jobs.forEach((job, index) => {
-      console.log(`Processing job ${index}:`, job.title);
       
       const skillsHtml = job.skills.length > 0 
         ? job.skills.slice(0, 3).map(skill => `<span class="skill-tag">${skill.name}</span>`).join('')
@@ -1604,13 +1605,12 @@ $flashSuccess = Session::flash('success');
         ? job.description.substring(0, 150) + '...' 
         : job.description;
       
-      console.log(`Job ${index} description length:`, job.description.length, 'Show READ MORE:', job.description.length > 150);
       
       html += `
         <div class="job-card" data-job-index="${index}" onclick="showJobDetail(${index})" style="cursor: pointer;">
           <div class="job-card-header">
             <div class="job-card-company">
-              <div class="company-avatar">${employerAvatarHtml}</div>
+              <div class="company-avatar" style="position:relative;">${employerAvatarHtml}${statusDot(job.employer_last_active)}</div>
               <div class="company-info">
                 <div class="company-name">${job.company_name || (job.employer_first_name + ' ' + job.employer_last_name)}</div>
                 <div class="company-location">${job.country || job.employer_country || 'Location not specified'}</div>
@@ -1624,8 +1624,8 @@ $flashSuccess = Session::flash('success');
           <div class="job-card-meta">
             ${job.role_title ? `<span class="meta-tag">🎯 ${job.role_title}</span>` : ''}
             ${job.employment_type ? `<span class="meta-tag">💼 ${job.employment_type.replace('_', ' ')}</span>` : ''}
-            ${rateDisplay ? `<span class="meta-tag">💵 ${rateDisplay}</span>` : ''}
-            ${hoursDisplay ? `<span class="meta-tag">🕐 ${hoursDisplay}</span>` : ''}
+            ${rateDisplay ? `<span class="meta-tag">💰 ${rateDisplay}</span>` : ''}
+            ${hoursDisplay ? `<span class="meta-tag">⏰ ${hoursDisplay}</span>` : ''}
           </div>
           
           <div class="job-card-description">
@@ -1640,7 +1640,6 @@ $flashSuccess = Session::flash('success');
       `;
     });
     
-    console.log('Generated HTML length:', html.length);
     return html;
   }
 
@@ -1679,7 +1678,7 @@ $flashSuccess = Session::flash('success');
         </div>
         
         <div class="job-detail-company">
-          <div class="company-avatar large">${employerAvatarHtml}</div>
+          <div class="company-avatar large" style="position:relative;">${employerAvatarHtml}${statusDot(job.employer_last_active)}</div>
           <div class="company-info">
             <div class="company-name">${job.company_name || (job.employer_first_name + ' ' + job.employer_last_name)}</div>
             <div class="company-location">${job.country || job.employer_country || 'Location not specified'}</div>
@@ -1691,8 +1690,8 @@ $flashSuccess = Session::flash('success');
         <div class="job-detail-meta">
           ${job.role_title ? `<span class="meta-tag">🎯 ${job.role_title}</span>` : ''}
           ${job.employment_type ? `<span class="meta-tag">💼 ${job.employment_type.replace('_', ' ')}</span>` : ''}
-          ${rateDisplay ? `<span class="meta-tag">💵 ${rateDisplay}</span>` : ''}
-          ${hoursDisplay ? `<span class="meta-tag">🕐 ${hoursDisplay}</span>` : ''}
+          ${rateDisplay ? `<span class="meta-tag">💰 ${rateDisplay}</span>` : ''}
+          ${hoursDisplay ? `<span class="meta-tag">⏰ ${hoursDisplay}</span>` : ''}
         </div>
         
         <div class="job-detail-section">
@@ -1730,12 +1729,28 @@ $flashSuccess = Session::flash('success');
   window.showJobsList = showJobsList;
   window.messageEmployerAboutJob = messageEmployerAboutJob;
 
+  // Show job detail by job post ID (used from message banner)
+  window.showJobDetailById = function(jobPostId) {
+    const idx = currentJobs.findIndex(j => j.id == jobPostId);
+    if (idx !== -1) {
+      // Job is already loaded — show it directly
+      showJobBrowsing();
+      setTimeout(() => showJobDetail(idx), 100);
+    } else {
+      // Job not in current list — load browse jobs and search for it
+      showJobBrowsing();
+      loadJobListings(true).then(() => {
+        const idx2 = currentJobs.findIndex(j => j.id == jobPostId);
+        if (idx2 !== -1) showJobDetail(idx2);
+      });
+    }
+  };
+
   // Message employer about a job - direct to message input
   async function messageEmployerAboutJob(employerId, jobPostId, jobTitle, buttonElement) {
     const button = buttonElement;
     
     if (!button) {
-      console.error('Button element not found');
       showToast('Failed to start conversation: Button not found', 'error');
       return;
     }
@@ -1744,7 +1759,6 @@ $flashSuccess = Session::flash('success');
     button.textContent = 'Starting...';
 
     try {
-      console.log('Starting conversation with employer:', employerId);
       
       const formData = new FormData();
       formData.append('employer_id', employerId);
@@ -1760,7 +1774,6 @@ $flashSuccess = Session::flash('success');
       }
 
       const data = await response.json();
-      console.log('Conversation response:', data);
 
       if (data.ok) {
         // Only store as pending if it's truly a NEW conversation with no messages
@@ -1771,31 +1784,25 @@ $flashSuccess = Session::flash('success');
             jobTitle: jobTitle,
             isNew: true
           };
-          console.log('Stored NEW pending conversation:', window.pendingConversation);
         } else {
           // Clear any pending conversation since this is an existing one
           window.pendingConversation = null;
-          console.log('Existing conversation - no pending cleanup needed');
         }
         
         // Open messaging panel
         messagingPanel.classList.add('open');
         
         // Load conversations first
-        console.log('Loading conversations...');
         await loadConversations();
         
         // Wait a bit for conversations to load
         await new Promise(resolve => setTimeout(resolve, 200));
         
-        console.log('Current conversations after load:', currentConversations);
         
         // Find the conversation
         const conversation = currentConversations.find(conv => conv.id == data.conversation_id);
-        console.log('Found conversation:', conversation);
         
         if (conversation) {
-          console.log('Opening conversation directly...');
           await openConversation(conversation.id, `${conversation.other_first_name} ${conversation.other_last_name}`, conversation.other_profile_picture_url || '');
           
           // Focus on message input and add placeholder text
@@ -1804,20 +1811,16 @@ $flashSuccess = Session::flash('success');
             if (messageInput) {
               messageInput.placeholder = `Write your message about "${jobTitle}"...`;
               messageInput.focus();
-              console.log('Message input focused');
             }
           }, 300);
           
           showToast(`Ready to message ${data.employer_name} about "${jobTitle}"`, 'success');
         } else {
-          console.log('Conversation not found immediately, trying with longer delay...');
           // Fallback - try to find conversation after longer delay
           setTimeout(async () => {
             await loadConversations();
-            console.log('Retry - Current conversations:', currentConversations);
             
             const retryConversation = currentConversations.find(conv => conv.id == data.conversation_id);
-            console.log('Retry - Found conversation:', retryConversation);
             
             if (retryConversation) {
               await openConversation(retryConversation.id, `${retryConversation.other_first_name} ${retryConversation.other_last_name}`, retryConversation.other_profile_picture_url || '');
@@ -1829,7 +1832,6 @@ $flashSuccess = Session::flash('success');
                 }
               }, 300);
             } else {
-              console.error('Could not find conversation even after retry');
               showToast('Conversation created but could not open. Please check your messages.', 'info');
             }
           }, 1000);
@@ -1841,7 +1843,6 @@ $flashSuccess = Session::flash('success');
         showToast('Failed to start conversation: ' + data.error, 'error');
       }
     } catch (error) {
-      console.error('Start conversation error:', error);
       showToast('Failed to start conversation: ' + error.message, 'error');
     } finally {
       button.disabled = false;
@@ -1899,12 +1900,23 @@ $flashSuccess = Session::flash('success');
     
     // Reset chat header to default state when opening fresh
     currentConversationId = null;
+
+    // Stop any active message polling from a previous conversation
+    if (messagePollingInterval) {
+      clearInterval(messagePollingInterval);
+      messagePollingInterval = null;
+    }
+
     const chatTitle = document.getElementById('chatTitle');
     if (chatTitle) chatTitle.textContent = 'Select a conversation';
+    const chatStatus = document.getElementById('chatStatus');
+    if (chatStatus) chatStatus.innerHTML = '';
     const menuBtnReset = document.getElementById('chatMenuBtn');
     if (menuBtnReset) menuBtnReset.style.display = 'none';
     const avatarEl = document.getElementById('chatHeaderAvatar');
     if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
+    const jobBannerReset = document.getElementById('jobBanner');
+    if (jobBannerReset) { jobBannerReset.style.display = 'none'; jobBannerReset.innerHTML = ''; }
     const msgContainer = document.getElementById('messagesContainer');
     if (msgContainer) msgContainer.innerHTML = `
       <div class="empty-state">
@@ -1955,18 +1967,14 @@ $flashSuccess = Session::flash('success');
   // Load conversations
   async function loadConversations() {
     try {
-      console.log('Loading conversations...');
       const response = await fetch('/QuickHire/Public/actions/get_conversations.php');
       const data = await response.json();
       
-      console.log('Conversations response:', data);
       
       if (data.ok) {
         currentConversations = data.conversations;
         displayConversations(data.conversations);
-        console.log('Loaded', data.conversations.length, 'conversations');
       } else {
-        console.error('Failed to load conversations:', data.error);
         document.getElementById('conversationsList').innerHTML = `
           <div class="empty-state">
             <h3>Error loading conversations</h3>
@@ -1975,7 +1983,6 @@ $flashSuccess = Session::flash('success');
         `;
       }
     } catch (error) {
-      console.error('Error loading conversations:', error);
       document.getElementById('conversationsList').innerHTML = `
         <div class="empty-state">
           <h3>Error loading conversations</h3>
@@ -2004,19 +2011,14 @@ $flashSuccess = Session::flash('success');
       const isActive = currentConversationId === conv.id;
       const unreadBadge = conv.unread_count > 0 ? `<span class="unread-badge">${conv.unread_count}</span>` : '';
       
-      // Calculate active status
-      let activeIndicator = '';
+      // Calculate active status for chat header (not list)
       let activeText = '';
       if (conv.other_last_active) {
-        const lastActive = new Date(conv.other_last_active + 'Z'); // Add Z for UTC
-        const now = new Date();
-        const diffMinutes = Math.floor((now - lastActive) / (1000 * 60));
-        
+        const lastActive = new Date(conv.other_last_active);
+        const diffMinutes = Math.floor((new Date() - lastActive) / (1000 * 60));
         if (diffMinutes <= 1) {
-          activeIndicator = '<div class="active-dot"></div>';
-          activeText = '<div style="font-size: 11px; color: #10b981; margin-top: 2px;">? Active now</div>';
+          activeText = '<div style="font-size: 11px; color: #10b981; margin-top: 2px;">Active now</div>';
         } else if (diffMinutes <= 5) {
-          activeIndicator = `<div class="minute-badge">${diffMinutes}</div>`;
           activeText = `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">Active ${diffMinutes} min ago</div>`;
         }
       }
@@ -2036,11 +2038,10 @@ $flashSuccess = Session::flash('success');
         <div class="conversation-item ${isActive ? 'active' : ''}" onclick="openConversation(${conv.id}, '${conv.other_first_name} ${conv.other_last_name}', '${conv.other_profile_picture_url || ''}')">
           <div class="conversation-avatar" style="position: relative;">
             ${avatarHtml}
-            ${activeIndicator}
+            ${statusDot(conv.other_last_active)}
           </div>
           <div class="conversation-info">
             <div class="conversation-name">${conv.other_first_name} ${conv.other_last_name}</div>
-            ${activeText}
             <div class="conversation-preview">${previewText}</div>
           </div>
           ${unreadBadge}
@@ -2063,13 +2064,51 @@ $flashSuccess = Session::flash('success');
     document.getElementById('chatArea').style.display = 'flex';
     document.getElementById('chatTitle').textContent = participantName;
 
+    // Show active status below name in chat header
+    const conv = (currentConversations || []).find(c => c.id == conversationId);
+    const chatStatusEl = document.getElementById('chatStatus');
+    if (chatStatusEl) {
+      let statusHtml = '';
+      if (conv && conv.other_last_active) {
+        const diffMs = new Date() - new Date(conv.other_last_active);
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin <= 1) {
+          statusHtml = `<span style="color:#10b981;font-size:12px;font-weight:600;">Active now</span>`;
+        } else if (diffMin <= 5) {
+          statusHtml = `<span style="color:#64748b;font-size:12px;">Active ${diffMin} min ago</span>`;
+        }
+      }
+      chatStatusEl.innerHTML = statusHtml;
+    }
+
+    // Show job post banner
+    const jobBanner = document.getElementById('jobBanner');
+    if (jobBanner) {
+      if (conv && conv.job_post_id && conv.job_post_title) {
+        jobBanner.style.display = 'block';
+        jobBanner.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:13px;color:#94a3b8;">Applied for:</span>
+            <a href="#" onclick="event.preventDefault(); window.showJobDetailById(${conv.job_post_id});"
+               style="font-size:13px;font-weight:700;color:#a5b4fc;text-decoration:none;display:flex;align-items:center;gap:5px;cursor:pointer;">
+              📋 ${conv.job_post_title}
+              <span style="font-size:11px;opacity:0.7;">↗</span>
+            </a>
+          </div>`;
+      } else {
+        jobBanner.style.display = 'none';
+        jobBanner.innerHTML = '';
+      }
+    }
+
     // Set avatar in header
     const avatarEl = document.getElementById('chatHeaderAvatar');
     if (avatarEl) {
+      avatarEl.style.position = 'relative';
       if (avatarUrl) {
-        avatarEl.innerHTML = `<img src="/QuickHire/Public/${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        avatarEl.innerHTML = `<img src="/QuickHire/Public/${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">${statusDot(conv ? conv.other_last_active : null)}`;
       } else {
-        avatarEl.innerHTML = participantName.charAt(0).toUpperCase();
+        avatarEl.innerHTML = `${participantName.charAt(0).toUpperCase()}${statusDot(conv ? conv.other_last_active : null)}`;
       }
       avatarEl.style.display = 'flex';
     }
@@ -2115,10 +2154,8 @@ $flashSuccess = Session::flash('success');
       if (data.ok) {
         displayMessages(data.messages);
       } else {
-        console.error('Failed to load messages:', data.error);
       }
     } catch (error) {
-      console.error('Error loading messages:', error);
     }
   }
 
@@ -2147,17 +2184,29 @@ $flashSuccess = Session::flash('success');
         // File message
         const fileName = msg.file_name || msg.file_url.split('/').pop();
         const fileSize = msg.file_size ? formatFileSize(msg.file_size) : '';
-        const fileIcon = getFileIcon(fileName);
-        
-        messageContent = `
-          <div class="file-message">
-            <div class="file-icon">${fileIcon}</div>
-            <div class="file-info">
-              <a href="${msg.file_url}" target="_blank" class="file-link">${fileName}</a>
-              ${fileSize ? `<div class="file-size">${fileSize}</div>` : ''}
+        const ext = fileName.split('.').pop().toLowerCase();
+        const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext);
+
+        if (isImage) {
+          messageContent = `
+            <a href="${msg.file_url}" target="_blank" style="display:block;">
+              <img src="${msg.file_url}" alt="${fileName}"
+                style="max-width:260px;max-height:260px;border-radius:10px;display:block;cursor:pointer;object-fit:cover;">
+            </a>
+            ${fileSize ? `<div class="file-size" style="margin-top:4px;">${fileName} · ${fileSize}</div>` : ''}
+          `;
+        } else {
+          const fileIcon = getFileIcon(fileName);
+          messageContent = `
+            <div class="file-message">
+              <div class="file-icon">${fileIcon}</div>
+              <div class="file-info">
+                <a href="${msg.file_url}" target="_blank" class="file-link">${fileName}</a>
+                ${fileSize ? `<div class="file-size">${fileSize}</div>` : ''}
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        }
       }
       
       if (msg.content) {
@@ -2165,7 +2214,7 @@ $flashSuccess = Session::flash('success');
       }
       
       // Add call indicator if this is a call message
-      const callIndicator = msg.room_code ? '<div class="call-indicator">?? Video Call Message</div>' : '';
+      const callIndicator = msg.room_code ? '<div class="call-indicator">📞 Video Call Message</div>' : '';
       
       html += `
         <div class="message ${isOwn ? 'own' : ''}">
@@ -2227,7 +2276,6 @@ $flashSuccess = Session::flash('success');
         showToast('Failed to send message: ' + data.error, 'error');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       showToast('Failed to send message', 'error');
     }
   });
@@ -2266,11 +2314,11 @@ $flashSuccess = Session::flash('success');
 
   function getFileIcon(fileName) {
     const ext = fileName.split('.').pop().toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '???';
-    if (['pdf'].includes(ext)) return '??';
-    if (['doc', 'docx'].includes(ext)) return '??';
-    if (['zip', 'rar', '7z'].includes(ext)) return '??';
-    return '??';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return '🖼️';
+    if (['pdf'].includes(ext)) return '📄';
+    if (['doc', 'docx'].includes(ext)) return '📝';
+    if (['zip', 'rar', '7z'].includes(ext)) return '📦';
+    return '📎';
   }
 
   // Show conversations list (mobile back button)
@@ -2352,7 +2400,6 @@ $flashSuccess = Session::flash('success');
         showToast('Failed to delete conversation: ' + data.error, 'error');
       }
     } catch (error) {
-      console.error('Error deleting conversation:', error);
       showToast('Failed to delete conversation', 'error');
     }
   }
@@ -2363,7 +2410,6 @@ $flashSuccess = Session::flash('success');
   // Add event listener for messages button
   document.getElementById('btnMessages').addEventListener('click', function(e) {
     e.preventDefault();
-    console.log('Messages button clicked');
     showMessaging();
   });
 
@@ -2371,11 +2417,6 @@ $flashSuccess = Session::flash('success');
 
   // Debug function to check messaging state
   window.debugMessaging = function() {
-    console.log('Current conversation ID:', currentConversationId);
-    console.log('Current conversations:', currentConversations);
-    console.log('Messaging panel display:', document.getElementById('messagingPanel').style.display);
-    console.log('Chat area display:', document.getElementById('chatArea').style.display);
-    console.log('Conversations list display:', document.getElementById('conversationsList').style.display);
   };
 
   // Auto-resize message input
@@ -2388,14 +2429,20 @@ $flashSuccess = Session::flash('success');
 <script>
 // Activity tracking - update on any click/interaction
 let lastActivityUpdate = Date.now();
+
+// Shared helper: returns green dot (active) or grey dot (offline) HTML
+function statusDot(lastActive) {
+  if (lastActive && (new Date() - new Date(lastActive)) < 60000) {
+    return `<span class="status-dot status-dot--active"></span>`;
+  }
+  return `<span class="status-dot status-dot--offline"></span>`;
+}
 const updateActivity = () => {
   const now = Date.now();
   // Only send update if 5 seconds have passed since last update (throttle)
   if (now - lastActivityUpdate > 5000) {
     fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' })
-      .then(r => r.json())
-      .then(data => console.log('Activity updated:', data))
-      .catch(err => console.error('Activity update failed:', err));
+      .catch(() => {});
     lastActivityUpdate = now;
   }
 };
@@ -2408,10 +2455,12 @@ document.addEventListener('scroll', updateActivity);
 // Fallback: update every 30 seconds if user is idle but page is open
 setInterval(() => {
   fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' })
-    .then(r => r.json())
-    .then(data => console.log('Fallback activity updated:', data))
-    .catch(err => console.error('Fallback activity update failed:', err));
+    .catch(() => {});
 }, 30000);
+
+// Update on page load and when tab regains focus
+fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
+window.addEventListener('focus', updateActivity);
 </script>
 
 </html>

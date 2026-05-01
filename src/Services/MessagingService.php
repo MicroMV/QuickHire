@@ -107,7 +107,7 @@ class MessagingService
                 SELECT c.*, 
                        u.first_name as other_first_name, 
                        u.last_name as other_last_name,
-                       DATE_FORMAT(CONVERT_TZ(u.last_active, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as other_last_active,
+                       DATE_FORMAT(u.last_active, '%Y-%m-%dT%H:%i:%sZ') as other_last_active,
                        jp.profile_picture_url as other_avatar,
                        jp.profile_picture_url as other_profile_picture_url,
                        jp.role_title as other_role,
@@ -129,16 +129,19 @@ class MessagingService
                 SELECT c.*, 
                        u.first_name as other_first_name, 
                        u.last_name as other_last_name,
-                       DATE_FORMAT(CONVERT_TZ(u.last_active, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as other_last_active,
+                       DATE_FORMAT(u.last_active, '%Y-%m-%dT%H:%i:%sZ') as other_last_active,
                        ep.profile_picture_url as other_avatar,
                        ep.profile_picture_url as other_profile_picture_url,
                        ep.company_name as other_role,
+                       jpost.title as job_post_title,
+                       jpost.id as job_post_id,
                        (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND sender_id != ? AND is_read = 0) as unread_count,
                        (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
                        (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_time
                 FROM conversations c
                 JOIN users u ON u.id = c.employer_id
                 LEFT JOIN employer_profiles ep ON ep.user_id = u.id
+                LEFT JOIN job_posts jpost ON jpost.id = c.job_id
                 WHERE c.jobseeker_id = ?
                 ORDER BY c.updated_at DESC
             ");

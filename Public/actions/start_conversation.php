@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $jobseekerId = (int)($_POST['jobseeker_id'] ?? 0);
+$jobPostId   = !empty($_POST['job_post_id']) ? (int)$_POST['job_post_id'] : null;
 
 if (!$jobseekerId) {
     echo json_encode(['ok' => false, 'error' => 'Job seeker ID required']);
@@ -53,7 +54,7 @@ try {
     $isExisting = (bool)$existingConversation;
 
     // Get or create conversation
-    $conversationId = $messagingService->getOrCreateConversation($employerId, $jobseekerId);
+    $conversationId = $messagingService->getOrCreateConversation($employerId, $jobseekerId, $jobPostId);
 
     echo json_encode([
         'ok' => true,

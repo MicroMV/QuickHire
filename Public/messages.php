@@ -9,6 +9,10 @@ use Rongie\QuickHire\Services\MessagingService;
 Session::start();
 Auth::requireLogin();
 
+// Prevent browser from caching this page (fixes bfcache stale state issue)
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 $config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 $messagingService = new MessagingService($db->pdo());
@@ -549,6 +553,14 @@ if ($selectedConversationId > 0) {
                 }
             });
         }
+
+        // Force reload when page is restored from bfcache (back/forward navigation)
+        // This prevents stale conversation state from showing after navigating away
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
     </script>
 </body>
 </html>

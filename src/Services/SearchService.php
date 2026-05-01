@@ -24,6 +24,7 @@ class SearchService
                 u.id,
                 u.first_name,
                 u.last_name,
+                DATE_FORMAT(u.last_active, '%Y-%m-%dT%H:%i:%sZ') as last_active,
                 jp.role_title,
                 jp.rate_per_hour,
                 jp.country,
@@ -50,7 +51,7 @@ class SearchService
                 jp.role_title LIKE ? OR
                 s.name LIKE ?
             )
-            GROUP BY u.id, u.first_name, u.last_name, jp.role_title, jp.rate_per_hour, 
+            GROUP BY u.id, u.first_name, u.last_name, u.last_active, jp.role_title, jp.rate_per_hour, 
                      jp.country, jp.employment_type, jp.english_mastery, jp.profile_picture_url,
                      jp.profile_description, jp.available_time, jp.bachelors_degree, jp.gender,
                      jp.age, jp.portfolio_url, jp.resume_url
