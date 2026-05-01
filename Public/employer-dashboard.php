@@ -474,7 +474,8 @@ $flashSuccess = Session::flash('success');
         <input type="hidden" name="profile_type" value="EMPLOYER">
 
         <div class="grid">
-          <div style="grid-column:1/-1;">
+          <div style="grid-column:1/-1; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:16px; padding: 40px 20px 24px; position:relative; overflow:hidden;">
+            <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.15) 0%, transparent 70%);pointer-events:none;"></div>
             <div class="avatar-upload" onclick="document.getElementById('profile_picture_emp').click()">
               <div class="avatar-preview">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
@@ -967,7 +968,9 @@ $flashSuccess = Session::flash('success');
               <input type="hidden" name="conversation_id" id="conversationId">
               <textarea class="message-input" name="message" placeholder="Type your message..." rows="1" id="messageInput"></textarea>
               <input type="file" id="fileInput" name="file" style="display: none;" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.zip">
-              <button type="button" class="file-button" onclick="document.getElementById('fileInput').click()">📎</button>
+              <button type="button" class="file-button" onclick="document.getElementById('fileInput').click()" title="Attach file">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
               <button type="submit" class="send-button" id="sendButton">Send</button>
             </form>
           </div>
@@ -1235,6 +1238,7 @@ $flashSuccess = Session::flash('success');
   }
 
   function showDashboard() {
+    localStorage.setItem('emp_active_page', 'home');
     dashboardContent.style.display = 'grid';
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'none';
@@ -1254,6 +1258,7 @@ $flashSuccess = Session::flash('success');
   }
 
   function showProfileEdit() {
+    localStorage.setItem('emp_active_page', 'edit');
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'block';
     searchContent.style.display = 'none';
@@ -1273,6 +1278,7 @@ $flashSuccess = Session::flash('success');
   }
 
   function showSearch() {
+    localStorage.setItem('emp_active_page', 'search');
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'block';
@@ -1296,6 +1302,7 @@ $flashSuccess = Session::flash('success');
   }
 
   function showJobPosting() {
+    localStorage.setItem('emp_active_page', 'jobs');
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'none';
@@ -1322,6 +1329,13 @@ $flashSuccess = Session::flash('success');
 
   // Initialize with Home active
   btnHome.classList.add('active');
+
+  // Restore last active page on reload
+  const savedEmpPage = localStorage.getItem('emp_active_page');
+  if (savedEmpPage === 'edit') showProfileEdit();
+  else if (savedEmpPage === 'search') showSearch();
+  else if (savedEmpPage === 'jobs') showJobPosting();
+  else showDashboard(); // messages always resets to home on reload
 
   btnFindMatch.addEventListener('click', function() {
     // Close messaging panel if open
@@ -1544,18 +1558,19 @@ $flashSuccess = Session::flash('success');
 
   // Toast notification function
   function showToast(message, type = 'success') {
+    // Remove any existing toasts first
+    document.querySelectorAll('.toast').forEach(t => t.parentNode && t.parentNode.removeChild(t));
+
     const toast = document.createElement('div');
     toast.className = `toast ${type === 'error' ? 'error' : ''}`;
     toast.textContent = message;
     
     document.body.appendChild(toast);
     
-    // Show toast with slide down animation from center-top
     setTimeout(() => {
       toast.classList.add('show');
     }, 100);
     
-    // Hide and remove toast after 4 seconds
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => {
@@ -2298,6 +2313,7 @@ let conversations = [];
 btnMessages.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  localStorage.setItem('emp_active_page', 'home'); // don't restore messages on reload
   messagingPanel.classList.add('open');
 
   // Reset chat header to default state when opening fresh

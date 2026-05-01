@@ -531,8 +531,8 @@ body {
   left: 280px;
   right: 0;
   bottom: 0;
-  background: white;
-  z-index: 1000;
+  background: #0f172a;
+  z-index: 50;
   display: none;
   flex-direction: column;
   border-left: 1px solid var(--line);

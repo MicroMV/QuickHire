@@ -203,20 +203,26 @@ if (Auth::isLoggedIn()) {
   <div class="ln-footer-bottom">© 2025 QuickHire. All rights reserved.</div>
 </footer>
 
-<!-- AUTH MODAL -->
-<div class="ln-modal-overlay" id="authModal">
-  <div class="ln-modal">
-    <button class="ln-modal-close" id="closeModal">✕</button>
-    <div class="ln-modal-tabs">
-      <button class="ln-tab active" id="tabLogin">Log In</button>
-      <button class="ln-tab" id="tabRegister">Register</button>
+<!-- AUTH SIDEBAR -->
+<div class="ln-sidebar-overlay" id="authModal">
+  <div class="ln-sidebar">
+    <div class="ln-sidebar-header">
+      <div>
+        <h2 class="ln-sidebar-title">Welcome to QuickHire</h2>
+        <p class="ln-sidebar-sub">Sign in or create an account to continue.</p>
+      </div>
+      <button class="ln-sidebar-close" id="closeModal">✕</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="ln-sidebar-tabs">
+      <button class="ln-sidebar-tab active" id="tabLogin">Sign In</button>
+      <button class="ln-sidebar-tab" id="tabRegister">Sign Up</button>
     </div>
 
     <!-- LOGIN FORM -->
     <form id="loginForm" class="ln-auth-form" method="POST" action="/QuickHire/Public/actions/login.php">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
-      <h3>Welcome back</h3>
-      <p class="ln-form-sub">Sign in to your QuickHire account</p>
       <?php $loginError = \Rongie\QuickHire\Core\Session::flash('error'); ?>
       <?php $loginSuccess = \Rongie\QuickHire\Core\Session::flash('success'); ?>
       <?php if ($loginError && ($_GET['open'] ?? '') === 'login'): ?>
@@ -233,14 +239,12 @@ if (Auth::isLoggedIn()) {
         <label>Password</label>
         <input type="password" name="password" placeholder="••••••••" required>
       </div>
-      <button type="submit" class="ln-btn-primary ln-btn-full">Log In</button>
+      <button type="submit" class="ln-btn-primary ln-btn-full">Sign In</button>
     </form>
 
     <!-- REGISTER FORM -->
     <form id="registerForm" class="ln-auth-form" style="display:none;" method="POST" action="/QuickHire/Public/actions/register.php">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
-      <h3>Create your account</h3>
-      <p class="ln-form-sub">Join QuickHire for free</p>
       <?php if (($registerError = \Rongie\QuickHire\Core\Session::flash('error')) && ($_GET['open'] ?? '') === 'register'): ?>
         <div class="ln-alert-error"><?= htmlspecialchars($registerError) ?></div>
       <?php endif; ?>
@@ -305,7 +309,6 @@ if (Auth::isLoggedIn()) {
   tabLogin.addEventListener('click', () => switchTab('login'));
   tabRegister.addEventListener('click', () => switchTab('register'));
 
-  // Auto-open modal based on ?open= query param (after redirect from login/register actions)
   const urlParams = new URLSearchParams(window.location.search);
   const openTab = urlParams.get('open');
   if (openTab === 'login' || openTab === 'register') {

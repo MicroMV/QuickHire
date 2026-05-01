@@ -40,12 +40,15 @@ try {
         // Get all active job posts for job seekers
         $limit = (int)($_GET['limit'] ?? 20);
         $offset = (int)($_GET['offset'] ?? 0);
+        $search = trim($_GET['search'] ?? '');
+        $role   = trim($_GET['role'] ?? '');
+        $type   = trim($_GET['type'] ?? '');
+        $country = trim($_GET['country'] ?? '');
         
-        // Validate limits
         $limit = max(1, min(50, $limit));
         $offset = max(0, $offset);
         
-        $result = $jobService->getActiveJobPosts($limit, $offset);
+        $result = $jobService->getActiveJobPosts($limit, $offset, $search, $role, $type, $country);
     } else {
         http_response_code(403);
         echo json_encode(['ok' => false, 'error' => 'Access denied - Invalid user role: ' . $userRole]);

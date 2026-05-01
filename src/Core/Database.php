@@ -18,7 +18,15 @@ class Database
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
         } catch (PDOException $e) {
-            die("DB Connection failed: " . $e->getMessage());
+            error_log("Database connection failed: " . $e->getMessage());
+            // Redirect to maintenance page without exposing technical details
+            if (!headers_sent()) {
+                header("Location: /QuickHire/Public/maintenance.php");
+                exit;
+            }
+            // If headers already sent (e.g. AJAX), return JSON error
+            echo json_encode(['ok' => false, 'error' => 'Service temporarily unavailable']);
+            exit;
         }
     }
 

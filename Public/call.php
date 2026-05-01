@@ -83,7 +83,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             <div class="controls">
                 <button id="btnCam">📹 Camera: ON</button>
                 <button id="btnMic">🎤 Mic: ON</button>
-                <button id="btnNext" class="success">⏭️ Next</button>
+                <button id="btnNext" class="success">Next</button>
                 <button id="btnHang" class="danger">📞 End Call</button>
             </div>
         </div>
@@ -930,7 +930,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 
                 // Setup buttons
                 if (MY_ROLE === 'EMPLOYER') {
-                    document.getElementById('btnNext').innerHTML = '⏭️ Next Jobseeker';
+                    document.getElementById('btnNext').innerHTML = 'Next Jobseeker';
                 } else {
                     document.getElementById('btnNext').style.display = 'none';
                     document.getElementById('btnHang').innerHTML = '🚪 Leave Call';

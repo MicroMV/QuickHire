@@ -126,9 +126,35 @@ class JobService
     /**
      * Get all active job posts for job seekers
      */
-    public function getActiveJobPosts(int $limit = 50, int $offset = 0): array
+    public function getActiveJobPosts(int $limit = 50, int $offset = 0, string $search = '', string $role = '', string $type = '', string $country = ''): array
     {
         try {
+            $where = ['jp.is_active = 1'];
+            $params = [];
+
+            if ($search !== '') {
+                $where[] = '(jp.title LIKE ? OR jp.description LIKE ? OR ep.company_name LIKE ?)';
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+            }
+            if ($role !== '') {
+                $where[] = 'jp.role_title = ?';
+                $params[] = $role;
+            }
+            if ($type !== '') {
+                $where[] = 'jp.employment_type = ?';
+                $params[] = $type;
+            }
+            if ($country !== '') {
+                $where[] = 'ep.country = ?';
+                $params[] = $country;
+            }
+
+            $whereSQL = implode(' AND ', $where);
+            $params[] = $limit;
+            $params[] = $offset;
+
             $stmt = $this->pdo->prepare("
                 SELECT 
                     jp.*,
@@ -142,16 +168,15 @@ class JobService
                 JOIN users u ON jp.employer_id = u.id
                 LEFT JOIN employer_profiles ep ON u.id = ep.user_id
                 LEFT JOIN job_post_skills jps ON jp.id = jps.job_post_id
-                WHERE jp.is_active = 1
+                WHERE $whereSQL
                 GROUP BY jp.id
                 ORDER BY jp.created_at DESC
                 LIMIT ? OFFSET ?
             ");
             
-            $stmt->execute([$limit, $offset]);
+            $stmt->execute($params);
             $jobPosts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Get skills for each job post
             foreach ($jobPosts as &$jobPost) {
                 $jobPost['skills'] = $this->getJobPostSkills($jobPost['id']);
             }
@@ -159,11 +184,6 @@ class JobService
             return [
                 'ok' => true,
                 'job_posts' => $jobPosts,
-                'debug' => [
-                    'limit' => $limit,
-                    'offset' => $offset,
-                    'count' => count($jobPosts)
-                ]
             ];
 
         } catch (Exception $e) {

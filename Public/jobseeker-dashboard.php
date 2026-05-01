@@ -1,4 +1,4 @@
-﻿﻿<?php
+﻿<?php
 require __DIR__ . '/../vendor/autoload.php';
 
 use Rongie\QuickHire\Core\Session;
@@ -612,14 +612,14 @@ $flashSuccess = Session::flash('success');
           <span class="pill">Skills: <?= count($currentSkills) ?> selected</span>
         </div>
 
-        <div style="margin-top:14px; color:var(--muted); line-height:1.5;">
-          <strong style="color:#111;">Overview:</strong><br>
-          <?= htmlspecialchars($profile['profile_description'] ?? 'No overview yet. Update your profile to attract employers.') ?>
+        <div style="margin-top:14px;">
+          <strong style="color:#f8fafc; font-size:14px; font-weight:1000; display:block; margin-bottom:4px;">Overview:</strong>
+          <span style="color:#94a3b8; line-height:1.5; font-size:13px;"><?= htmlspecialchars($profile['profile_description'] ?? 'No overview yet. Update your profile to attract employers.') ?></span>
         </div>
 
         <?php if (!empty($currentSkills)): ?>
           <div style="margin-top:14px;">
-            <strong style="color:#111;">Skills:</strong><br>
+            <strong style="color:#f8fafc; font-size:14px; font-weight:800;">Skills:</strong><br>
             <div class="pillRow" style="margin-top:6px;">
               <?php 
                 foreach ($allSkills as $skill): 
@@ -639,13 +639,81 @@ $flashSuccess = Session::flash('success');
     <!-- Job Browsing Content (Hidden by default) -->
     <div class="card" id="jobBrowsingContent" style="display:none; max-width: none; width: 100%;">
 
+      <!-- Search & Filter Bar -->
+      <div id="jobFilterBar" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; align-items:center;">
+        <div style="flex:1; min-width:200px; position:relative;">
+          <input type="text" id="jobSearch" placeholder="🔍 Search by title, company..." style="width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:10px; font-size:14px; box-sizing:border-box;">
+        </div>
+        <select id="jobFilterRole" style="padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; min-width:160px;">
+          <option value="">All Roles</option>
+          <option value="Software Engineer">Software Engineer</option>
+          <option value="Software Developer">Software Developer</option>
+          <option value="Web Developer">Web Developer</option>
+          <option value="Mobile Developer">Mobile Developer</option>
+          <option value="Full Stack Developer">Full Stack Developer</option>
+          <option value="Frontend Developer">Frontend Developer</option>
+          <option value="Backend Developer">Backend Developer</option>
+          <option value="DevOps Engineer">DevOps Engineer</option>
+          <option value="Cloud Engineer">Cloud Engineer</option>
+          <option value="Data Scientist">Data Scientist</option>
+          <option value="Data Engineer">Data Engineer</option>
+          <option value="Data Analyst">Data Analyst</option>
+          <option value="Machine Learning Engineer">Machine Learning Engineer</option>
+          <option value="AI Engineer">AI Engineer</option>
+          <option value="Database Administrator">Database Administrator</option>
+          <option value="System Administrator">System Administrator</option>
+          <option value="Network Engineer">Network Engineer</option>
+          <option value="Security Engineer">Security Engineer</option>
+          <option value="QA Engineer">QA Engineer</option>
+          <option value="QA Automation Engineer">QA Automation Engineer</option>
+          <option value="UI/UX Designer">UI/UX Designer</option>
+          <option value="Product Designer">Product Designer</option>
+          <option value="Technical Product Manager">Technical Product Manager</option>
+          <option value="IT Project Manager">IT Project Manager</option>
+          <option value="Scrum Master">Scrum Master</option>
+          <option value="Business Intelligence Analyst">Business Intelligence Analyst</option>
+          <option value="IT Support Specialist">IT Support Specialist</option>
+          <option value="Technical Writer">Technical Writer</option>
+        </select>
+        <select id="jobFilterType" style="padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; min-width:140px;">
+          <option value="">All Types</option>
+          <option value="FULL_TIME">Full-time</option>
+          <option value="PART_TIME">Part-time</option>
+          <option value="CONTRACT">Contract</option>
+          <option value="FREELANCE">Freelance</option>
+        </select>
+        <select id="jobFilterCountry" style="padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; min-width:140px;">
+          <option value="">All Countries</option>
+          <option value="Philippines">Philippines</option>
+          <option value="United States">United States</option>
+          <option value="United Kingdom">United Kingdom</option>
+          <option value="Canada">Canada</option>
+          <option value="Australia">Australia</option>
+          <option value="India">India</option>
+          <option value="Singapore">Singapore</option>
+          <option value="Malaysia">Malaysia</option>
+          <option value="Germany">Germany</option>
+          <option value="France">France</option>
+          <option value="Japan">Japan</option>
+          <option value="Indonesia">Indonesia</option>
+          <option value="Vietnam">Vietnam</option>
+          <option value="Pakistan">Pakistan</option>
+          <option value="Bangladesh">Bangladesh</option>
+          <option value="United Arab Emirates">United Arab Emirates</option>
+          <option value="Saudi Arabia">Saudi Arabia</option>
+          <option value="South Korea">South Korea</option>
+          <option value="Brazil">Brazil</option>
+          <option value="Mexico">Mexico</option>
+        </select>
+        <button class="btn outline" id="btnClearFilters" style="padding:10px 16px; white-space:nowrap;">Clear</button>
+      </div>
 
       <div id="jobListings" class="job-listings">
         <div class="loading">Loading job opportunities...</div>
       </div>
 
       <div id="loadMoreContainer" style="text-align: center; margin-top: 20px; display: none;">
-        <button class="btn outline" id="loadMoreJobs">Load More Jobs</button>
+        <div id="paginationControls" style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;"></div>
       </div>
     </div>
 
@@ -658,7 +726,8 @@ $flashSuccess = Session::flash('success');
 
         <div class="grid">
           <!-- Avatar + Name -->
-          <div style="grid-column:1/-1; display:flex; flex-direction:column; align-items:center; margin-bottom:8px;">
+          <div style="grid-column:1/-1; display:flex; flex-direction:column; align-items:center; margin-bottom:8px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:16px; padding: 40px 20px 24px; position:relative; overflow:hidden;">
+            <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.15) 0%, transparent 70%);pointer-events:none;"></div>
             <div class="avatar-upload" onclick="document.getElementById('profile_picture_js').click()" style="cursor:pointer;">
               <div class="avatar-preview" style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;color:white;font-size:40px;font-weight:bold;">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
@@ -1019,7 +1088,9 @@ $flashSuccess = Session::flash('success');
             <input type="hidden" name="conversation_id" id="conversationId">
             <textarea class="message-input" name="message" placeholder="Type your message..." rows="1" id="messageInput"></textarea>
             <input type="file" id="fileInput" name="file" style="display: none;" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt,.zip">
-            <button type="button" class="file-button" onclick="document.getElementById('fileInput').click()">??</button>
+            <button type="button" class="file-button" onclick="document.getElementById('fileInput').click()" title="Attach file">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
             <button type="submit" class="send-button" id="sendButton">Send</button>
           </form>
         </div>
@@ -1043,6 +1114,7 @@ $flashSuccess = Session::flash('success');
   const btnEditProfile = document.getElementById('btnEditProfile');
   const btnEditProfile2 = document.getElementById('btnEditProfile2');
   const btnBrowseJobs = document.getElementById('btnBrowseJobs');
+  const messagingPanel = document.getElementById('messagingPanel');
   
   const dashboardContent = document.getElementById('dashboardContent');
   const jobBrowsingContent = document.getElementById('jobBrowsingContent');
@@ -1054,6 +1126,8 @@ $flashSuccess = Session::flash('success');
   let currentJobOffset = 0;
   const jobsPerPage = 10;
   let allJobsLoaded = false;
+  let totalJobsCount = 0;
+  let currentPage = 1;
   let currentJobs = []; // Store current jobs for detail view
 
   async function findEmployer() {
@@ -1121,6 +1195,7 @@ $flashSuccess = Session::flash('success');
   }
 
   function showDashboard() {
+    localStorage.setItem('js_active_page', 'home');
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
       currentConversationId = null;
@@ -1145,6 +1220,7 @@ $flashSuccess = Session::flash('success');
   }
 
   function showJobBrowsing() {
+    localStorage.setItem('js_active_page', 'browse');
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
       currentConversationId = null;
@@ -1191,6 +1267,7 @@ $flashSuccess = Session::flash('success');
   };
 
   function showProfileEdit() {
+    localStorage.setItem('js_active_page', 'edit');
     // Close messaging if open
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
@@ -1218,6 +1295,12 @@ $flashSuccess = Session::flash('success');
 
   // Initialize with Home active
   btnHome.classList.add('active');
+
+  // Restore last active page on reload
+  const savedPage = localStorage.getItem('js_active_page');
+  if (savedPage === 'browse') showJobBrowsing();
+  else if (savedPage === 'edit') showProfileEdit();
+  else showDashboard(); // messages always resets to home on reload
 
   // Event listeners
   btnFindEmployer.addEventListener('click', findEmployer);
@@ -1339,22 +1422,55 @@ $flashSuccess = Session::flash('success');
         cb.disabled = count >= LIMIT;
       });
     });
+
+    // Tab filter for edit profile skills
+    const tabs = container.closest('.skills-container').querySelectorAll('.skills-tab');
+    const sects = container.querySelectorAll('.category-section');
+    const searchInput = document.getElementById('skillsSearch');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        tabs.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        const cat = this.getAttribute('data-category');
+        sects.forEach(s => {
+          s.style.display = (cat === 'all' || s.getAttribute('data-category') === cat) ? 'block' : 'none';
+        });
+        if (searchInput) searchInput.value = '';
+        container.querySelectorAll('.skill-checkbox').forEach(c => c.style.display = 'flex');
+      });
+    });
+
+    // Search filter for edit profile skills
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        const term = this.value.toLowerCase();
+        container.querySelectorAll('.skill-checkbox').forEach(c => {
+          c.style.display = c.getAttribute('data-skill-name').includes(term) ? 'flex' : 'none';
+        });
+        sects.forEach(s => {
+          const visible = s.querySelectorAll('.skill-checkbox[style*="flex"], .skill-checkbox:not([style])');
+          s.style.display = visible.length > 0 ? 'block' : 'none';
+        });
+      });
+    }
   })();
 
   // Toast notification function
   function showToast(message, type = 'success') {
+    // Remove any existing toasts first
+    document.querySelectorAll('.toast').forEach(t => t.parentNode && t.parentNode.removeChild(t));
+
     const toast = document.createElement('div');
     toast.className = `toast ${type === 'error' ? 'error' : ''}`;
     toast.textContent = message;
     
     document.body.appendChild(toast);
     
-    // Show toast with slide down animation from center-top
     setTimeout(() => {
       toast.classList.add('show');
     }, 100);
     
-    // Hide and remove toast after 4 seconds
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => {
@@ -1371,52 +1487,70 @@ $flashSuccess = Session::flash('success');
     const loadMoreContainer = document.getElementById('loadMoreContainer');
     
     if (reset) {
+      currentPage = 1;
       currentJobOffset = 0;
       allJobsLoaded = false;
       container.innerHTML = '<div class="loading">Loading job opportunities...</div>';
       loadMoreContainer.style.display = 'none';
     }
+
+    const search  = document.getElementById('jobSearch')?.value.trim() || '';
+    const role    = document.getElementById('jobFilterRole')?.value || '';
+    const type    = document.getElementById('jobFilterType')?.value || '';
+    const country = document.getElementById('jobFilterCountry')?.value || '';
     
     try {
-      const response = await fetch(`/QuickHire/Public/actions/get_job_posts.php?limit=${jobsPerPage}&offset=${currentJobOffset}`);
+      const params = new URLSearchParams({
+        limit: jobsPerPage,
+        offset: currentJobOffset,
+        search, role, type, country
+      });
+      const response = await fetch(`/QuickHire/Public/actions/get_job_posts.php?${params}`);
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const result = await response.json();
       
       if (result.ok) {
-        if (reset) {
-          displayJobListings(result.job_posts);
-        } else {
-          appendJobListings(result.job_posts);
-        }
-        
-        currentJobOffset += result.job_posts.length;
-        
-        // Show/hide load more button
-        if (result.job_posts.length < jobsPerPage) {
-          allJobsLoaded = true;
-          loadMoreContainer.style.display = 'none';
-        } else {
-          loadMoreContainer.style.display = 'block';
-        }
+        displayJobListings(result.job_posts);
+        totalJobsCount = result.total_count ?? (result.job_posts.length < jobsPerPage ? currentJobOffset + result.job_posts.length : currentJobOffset + jobsPerPage + 1);
+        renderPagination(result.job_posts.length);
       } else {
-        container.innerHTML = `<div class="empty-state">
-          <h3>Error loading job listings</h3>
-          <p>${result.error || 'Unknown error occurred'}</p>
-          <button class="btn outline" onclick="loadJobListings(true)" style="margin-top: 12px;">Try Again</button>
-        </div>`;
+        container.innerHTML = `<div class="empty-state"><h3>Error loading jobs</h3><p>${result.error || 'Unknown error'}</p><button class="btn outline" onclick="loadJobListings(true)" style="margin-top:12px;">Try Again</button></div>`;
       }
     } catch (error) {
-      console.error('Error loading job listings:', error);
-      container.innerHTML = `<div class="empty-state">
-        <h3>Error loading job listings</h3>
-        <p>${error.message}</p>
-        <button class="btn outline" onclick="loadJobListings(true)" style="margin-top: 12px;">Try Again</button>
-      </div>`;
+      container.innerHTML = `<div class="empty-state"><h3>Error loading jobs</h3><p>${error.message}</p><button class="btn outline" onclick="loadJobListings(true)" style="margin-top:12px;">Try Again</button></div>`;
     }
+  }
+
+  function renderPagination(returnedCount) {
+    const loadMoreContainer = document.getElementById('loadMoreContainer');
+    const controls = document.getElementById('paginationControls');
+    const hasMore = returnedCount === jobsPerPage;
+    const hasPrev = currentPage > 1;
+
+    if (!hasMore && !hasPrev) {
+      loadMoreContainer.style.display = 'none';
+      return;
+    }
+
+    loadMoreContainer.style.display = 'block';
+
+    const btnStyle = (active) => `padding:8px 14px; border-radius:8px; border:1px solid ${active ? 'var(--primary)' : 'var(--line)'}; background:${active ? 'var(--primary)' : '#fff'}; color:${active ? '#fff' : '#111'}; font-weight:700; cursor:pointer; font-size:13px;`;
+
+    controls.innerHTML = `
+      <button style="${btnStyle(false)} ${!hasPrev ? 'opacity:0.4;cursor:not-allowed;' : ''}" onclick="goToPage(${currentPage - 1})" ${!hasPrev ? 'disabled' : ''}>← Prev</button>
+      <span style="padding:8px 14px; font-weight:700; font-size:13px; color:#f8fafc;">Page ${currentPage}</span>
+      <button style="${btnStyle(false)} ${!hasMore ? 'opacity:0.4;cursor:not-allowed;' : ''}" onclick="goToPage(${currentPage + 1})" ${!hasMore ? 'disabled' : ''}>Next →</button>
+    `;
+  }
+
+  function goToPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    currentJobOffset = (page - 1) * jobsPerPage;
+    document.getElementById('jobListings').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    loadJobListings(false);
   }
 
   // Display job listings
@@ -1512,16 +1646,17 @@ $flashSuccess = Session::flash('success');
 
   // Show job detail view
   function showJobDetail(jobIndex) {
-    console.log('showJobDetail called with index:', jobIndex);
-    console.log('currentJobs:', currentJobs);
+    localStorage.setItem('js_active_page', 'browse');
+    localStorage.setItem('js_job_detail_index', jobIndex);
+    if (currentJobs[jobIndex]) {
+      localStorage.setItem('js_job_detail_id', currentJobs[jobIndex].id);
+    }
+    // Hide pagination and filter bar when viewing job detail
+    document.getElementById('loadMoreContainer').style.display = 'none';
+    document.getElementById('jobFilterBar').style.display = 'none';
     
     const job = currentJobs[jobIndex];
-    if (!job) {
-      console.error('Job not found at index:', jobIndex);
-      return;
-    }
-    
-    console.log('Showing job detail for:', job.title);
+    if (!job) return;
     
     const container = document.getElementById('jobListings');
     const skillsHtml = job.skills.length > 0 
@@ -1583,8 +1718,11 @@ $flashSuccess = Session::flash('success');
 
   // Show jobs list view
   function showJobsList() {
-    console.log('showJobsList called');
+    localStorage.removeItem('js_job_detail_index');
+    localStorage.removeItem('js_job_detail_id');
+    document.getElementById('jobFilterBar').style.display = 'flex';
     displayJobListings(currentJobs);
+    renderPagination(currentJobs.length);
   }
 
   // Make functions globally available
@@ -1641,7 +1779,6 @@ $flashSuccess = Session::flash('success');
         }
         
         // Open messaging panel
-        const messagingPanel = document.getElementById('messagingPanel');
         messagingPanel.classList.add('open');
         
         // Load conversations first
@@ -1659,7 +1796,7 @@ $flashSuccess = Session::flash('success');
         
         if (conversation) {
           console.log('Opening conversation directly...');
-          await openConversation(conversation.id, `${conversation.other_first_name} ${conversation.other_last_name}`);
+          await openConversation(conversation.id, `${conversation.other_first_name} ${conversation.other_last_name}`, conversation.other_profile_picture_url || '');
           
           // Focus on message input and add placeholder text
           setTimeout(() => {
@@ -1683,7 +1820,7 @@ $flashSuccess = Session::flash('success');
             console.log('Retry - Found conversation:', retryConversation);
             
             if (retryConversation) {
-              await openConversation(retryConversation.id, `${retryConversation.other_first_name} ${retryConversation.other_last_name}`);
+              await openConversation(retryConversation.id, `${retryConversation.other_first_name} ${retryConversation.other_last_name}`, retryConversation.other_profile_picture_url || '');
               setTimeout(() => {
                 const messageInput = document.getElementById('messageInput');
                 if (messageInput) {
@@ -1713,10 +1850,23 @@ $flashSuccess = Session::flash('success');
   }
 
   // Load more jobs button
-  document.getElementById('loadMoreJobs').addEventListener('click', function() {
-    if (!allJobsLoaded) {
-      loadJobListings(false);
-    }
+  window.goToPage = goToPage;
+
+  // Search & filter listeners - debounce search input
+  let searchDebounce;
+  document.getElementById('jobSearch').addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => loadJobListings(true), 400);
+  });
+  document.getElementById('jobFilterRole').addEventListener('change', () => loadJobListings(true));
+  document.getElementById('jobFilterType').addEventListener('change', () => loadJobListings(true));
+  document.getElementById('jobFilterCountry').addEventListener('change', () => loadJobListings(true));
+  document.getElementById('btnClearFilters').addEventListener('click', () => {
+    document.getElementById('jobSearch').value = '';
+    document.getElementById('jobFilterRole').value = '';
+    document.getElementById('jobFilterType').value = '';
+    document.getElementById('jobFilterCountry').value = '';
+    loadJobListings(true);
   });
 
   // Show toast notification if there's a success message
@@ -1734,6 +1884,7 @@ $flashSuccess = Session::flash('success');
 
   // Show messaging panel
   function showMessaging() {
+    localStorage.setItem('js_active_page', 'home'); // don't restore messages on reload
     const panel = document.getElementById('messagingPanel');
     if (!panel) return;
     
@@ -1882,7 +2033,7 @@ $flashSuccess = Session::flash('success');
       }
       
       html += `
-        <div class="conversation-item ${isActive ? 'active' : ''}" onclick="openConversation(${conv.id}, '${conv.other_first_name} ${conv.other_last_name}')">
+        <div class="conversation-item ${isActive ? 'active' : ''}" onclick="openConversation(${conv.id}, '${conv.other_first_name} ${conv.other_last_name}', '${conv.other_profile_picture_url || ''}')">
           <div class="conversation-avatar" style="position: relative;">
             ${avatarHtml}
             ${activeIndicator}
@@ -1901,8 +2052,7 @@ $flashSuccess = Session::flash('success');
   }
 
   // Open conversation
-  async function openConversation(conversationId, participantName) {
-    console.log('Opening conversation:', conversationId, 'with', participantName);
+  async function openConversation(conversationId, participantName, avatarUrl = '') {
     currentConversationId = conversationId;
     
     // Update UI - keep conversations sidebar visible on desktop, only hide on mobile
@@ -1912,6 +2062,17 @@ $flashSuccess = Session::flash('success');
     }
     document.getElementById('chatArea').style.display = 'flex';
     document.getElementById('chatTitle').textContent = participantName;
+
+    // Set avatar in header
+    const avatarEl = document.getElementById('chatHeaderAvatar');
+    if (avatarEl) {
+      if (avatarUrl) {
+        avatarEl.innerHTML = `<img src="/QuickHire/Public/${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      } else {
+        avatarEl.innerHTML = participantName.charAt(0).toUpperCase();
+      }
+      avatarEl.style.display = 'flex';
+    }
     // Show the ⋮ menu button
     const menuBtn = document.getElementById('chatMenuBtn');
     if (menuBtn) menuBtn.style.display = 'block';
@@ -2142,8 +2303,8 @@ $flashSuccess = Session::flash('success');
   // Close chat menu when clicking outside
   document.addEventListener('click', function(e) {
     const menu = document.getElementById('chatMenu');
-    const menuBtn = e.target.closest('.menu-btn');
-    if (!menuBtn && menu) {
+    const menuBtn = document.getElementById('chatMenuBtn');
+    if (menu && !menu.contains(e.target) && e.target !== menuBtn) {
       menu.style.display = 'none';
     }
   });
