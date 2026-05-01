@@ -98,7 +98,7 @@ class ProfileService
                 $desc,
                 $age,
                 $gender,
-                trim($data['portfolio_url'] ?? '') ?: ($existing['portfolio_url'] ?? ''),
+                isset($data['portfolio_url']) ? trim($data['portfolio_url']) : ($existing['portfolio_url'] ?? ''),
                 $country,
                 $english,
                 $employmentType,

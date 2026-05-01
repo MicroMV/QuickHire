@@ -238,7 +238,7 @@ $flashSuccess = Session::flash('success');
 
           <div>
             <label>Portfolio/Website <span style="font-weight:400;color:#64748b;font-size:12px;">(Optional)</span></label>
-            <input name="portfolio_url" type="url" value="<?= htmlspecialchars($profile['portfolio_url'] ?? '') ?>" placeholder="https://yourportfolio.com">
+            <input name="portfolio_url" type="text" value="<?= htmlspecialchars($profile['portfolio_url'] ?? '') ?>" placeholder="https://yourportfolio.com">
           </div>
 
           <div>
@@ -845,7 +845,7 @@ $flashSuccess = Session::flash('success');
           <!-- Portfolio URL -->
           <div style="grid-column:1/-1;">
             <label style="display:block; font-weight:700; margin-bottom:6px;">Portfolio URL</label>
-            <input type="url" name="portfolio_url" value="<?= htmlspecialchars($profile['portfolio_url'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;" placeholder="https://yourportfolio.com">
+            <input type="text" name="portfolio_url" value="<?= htmlspecialchars($profile['portfolio_url'] ?? '') ?>" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;" placeholder="https://yourportfolio.com">
           </div>
 
           <!-- Profile Description -->
