@@ -2639,10 +2639,9 @@ function displayMessages(messages) {
 
       if (isImage) {
         messageContent = `
-          <a href="${msg.file_url}" target="_blank" style="display:block;">
-            <img src="${msg.file_url}" alt="${fileName}"
-              style="max-width:260px;max-height:260px;border-radius:10px;display:block;cursor:pointer;object-fit:cover;">
-          </a>
+          <img src="${msg.file_url}" alt="${fileName}"
+            onclick="openImageModal('${msg.file_url}', '${fileName}')"
+            style="max-width:260px;max-height:260px;border-radius:10px;display:block;cursor:zoom-in;object-fit:cover;">
           ${fileSize ? `<div class="file-size" style="margin-top:4px;">${fileName} · ${fileSize}</div>` : ''}
           ${msg.content && msg.content !== `Sent a file: ${fileName}` ? `<p class="message-text">${msg.content.replace(/\n/g, '<br>')}</p>` : ''}
         `;
@@ -3090,6 +3089,34 @@ document.getElementById('editJobForm').addEventListener('submit', async function
     btn.disabled = false;
   }
 });
+</script>
+
+<!-- Image Lightbox Modal -->
+<div id="imageLightbox" onclick="closeImageModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:999999;align-items:center;justify-content:center;flex-direction:column;gap:12px;cursor:zoom-out;">
+  <img id="lightboxImg" src="" alt="" style="max-width:90vw;max-height:85vh;border-radius:12px;object-fit:contain;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span id="lightboxName" style="color:#94a3b8;font-size:13px;"></span>
+    <a id="lightboxDownload" href="" download target="_blank" onclick="event.stopPropagation()"
+       style="padding:6px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#e2e8f0;font-size:13px;font-weight:600;text-decoration:none;">
+      ↓ Download
+    </a>
+  </div>
+  <button onclick="closeImageModal()" style="position:absolute;top:16px;right:20px;background:none;border:none;color:#94a3b8;font-size:28px;cursor:pointer;line-height:1;">✕</button>
+</div>
+<script>
+function openImageModal(url, name) {
+  const lb = document.getElementById('imageLightbox');
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxName').textContent = name || '';
+  document.getElementById('lightboxDownload').href = url;
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeImageModal() {
+  document.getElementById('imageLightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
 </script>
 
 </body>

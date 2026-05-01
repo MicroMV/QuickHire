@@ -972,11 +972,11 @@ $flashSuccess = Session::flash('success');
         <!-- Stats pills -->
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;">
           <span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💰 $<?= htmlspecialchars($profile['rate_per_hour'] ?? '0') ?>/hr</span>
-          <span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars($profile['available_time'] ?? '') ?>h/day</span>
-          <span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars($profile['english_mastery'] ?? '') ?></span>
-          <span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars(str_replace('_', '-', $profile['employment_type'] ?? '')) ?></span>
+          <span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">⏰ <?= htmlspecialchars($profile['available_time'] ?? '') ?>h/day</span>
+          <span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">🗣️ <?= htmlspecialchars($profile['english_mastery'] ?? '') ?></span>
+          <span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">💼 <?= htmlspecialchars(str_replace('_', '-', $profile['employment_type'] ?? '')) ?></span>
           <?php if (!empty($profile['age'])): ?>
-            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">📌 <?= htmlspecialchars($profile['age']) ?> yrs</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">🎂 <?= htmlspecialchars($profile['age']) ?> yrs</span>
           <?php endif; ?>
         </div>
 
@@ -1051,6 +1051,15 @@ $flashSuccess = Session::flash('success');
     
     <div class="messaging-content">
       <div class="conversations-sidebar">
+        <!-- Search -->
+        <div style="padding:12px 12px 0; background:#0f172a; border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="position:relative; margin-bottom:12px;">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:14px;pointer-events:none;">🔍</span>
+            <input type="text" id="jsConvSearchInput" placeholder="Search conversations..."
+              style="width:100%;padding:8px 10px 8px 32px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:13px;background:rgba(255,255,255,0.05);color:#f1f5f9;box-sizing:border-box;outline:none;font-family:inherit;"
+              oninput="jsFilterConversations()">
+          </div>
+        </div>
         <div class="conversations-list" id="conversationsList">
           <div class="loading">Loading conversations...</div>
         </div>
@@ -1901,6 +1910,10 @@ $flashSuccess = Session::flash('success');
     // Reset chat header to default state when opening fresh
     currentConversationId = null;
 
+    // Clear search input
+    const jsSearch = document.getElementById('jsConvSearchInput');
+    if (jsSearch) jsSearch.value = '';
+
     // Stop any active message polling from a previous conversation
     if (messagePollingInterval) {
       clearInterval(messagePollingInterval);
@@ -2052,6 +2065,21 @@ $flashSuccess = Session::flash('success');
     container.innerHTML = html;
   }
 
+  // Filter conversations by search query
+  function jsFilterConversations() {
+    const q = (document.getElementById('jsConvSearchInput')?.value || '').toLowerCase().trim();
+    if (!q) {
+      displayConversations(currentConversations || []);
+      return;
+    }
+    const filtered = (currentConversations || []).filter(c =>
+      `${c.other_first_name} ${c.other_last_name}`.toLowerCase().includes(q) ||
+      (c.last_message || '').toLowerCase().includes(q) ||
+      (c.job_post_title || '').toLowerCase().includes(q)
+    );
+    displayConversations(filtered);
+  }
+
   // Open conversation
   async function openConversation(conversationId, participantName, avatarUrl = '') {
     currentConversationId = conversationId;
@@ -2189,10 +2217,9 @@ $flashSuccess = Session::flash('success');
 
         if (isImage) {
           messageContent = `
-            <a href="${msg.file_url}" target="_blank" style="display:block;">
-              <img src="${msg.file_url}" alt="${fileName}"
-                style="max-width:260px;max-height:260px;border-radius:10px;display:block;cursor:pointer;object-fit:cover;">
-            </a>
+            <img src="${msg.file_url}" alt="${fileName}"
+              onclick="openImageModal('${msg.file_url}', '${fileName}')"
+              style="max-width:260px;max-height:260px;border-radius:10px;display:block;cursor:zoom-in;object-fit:cover;">
             ${fileSize ? `<div class="file-size" style="margin-top:4px;">${fileName} · ${fileSize}</div>` : ''}
           `;
         } else {
@@ -2461,6 +2488,34 @@ setInterval(() => {
 // Update on page load and when tab regains focus
 fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
 window.addEventListener('focus', updateActivity);
+</script>
+
+<!-- Image Lightbox Modal -->
+<div id="imageLightbox" onclick="closeImageModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:999999;align-items:center;justify-content:center;flex-direction:column;gap:12px;cursor:zoom-out;">
+  <img id="lightboxImg" src="" alt="" style="max-width:90vw;max-height:85vh;border-radius:12px;object-fit:contain;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <span id="lightboxName" style="color:#94a3b8;font-size:13px;"></span>
+    <a id="lightboxDownload" href="" download target="_blank" onclick="event.stopPropagation()"
+       style="padding:6px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#e2e8f0;font-size:13px;font-weight:600;text-decoration:none;">
+      ↓ Download
+    </a>
+  </div>
+  <button onclick="closeImageModal()" style="position:absolute;top:16px;right:20px;background:none;border:none;color:#94a3b8;font-size:28px;cursor:pointer;line-height:1;">✕</button>
+</div>
+<script>
+function openImageModal(url, name) {
+  const lb = document.getElementById('imageLightbox');
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxName').textContent = name || '';
+  document.getElementById('lightboxDownload').href = url;
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeImageModal() {
+  document.getElementById('imageLightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
 </script>
 
 </html>
