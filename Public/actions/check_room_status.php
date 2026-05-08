@@ -8,6 +8,11 @@ use Rongie\QuickHire\Core\Database;
 Session::start();
 Auth::requireLogin();
 
+// Release session lock — this endpoint only reads data
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 header('Content-Type: application/json');
 
 $room = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['room'] ?? '');

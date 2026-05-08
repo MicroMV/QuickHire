@@ -11,5 +11,5 @@ $db = new Database($config['db']);
 $auth = new AuthService($db->pdo());
 
 $auth->logout();
-header('Location: /QuickHire/public/index.php');
+header('Location: /QuickHire/Public/index.php');
 exit;

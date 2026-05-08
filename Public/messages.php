@@ -13,6 +13,11 @@ Auth::requireLogin();
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
+// Release session lock before heavy DB work
+if (session_status() === PHP_SESSION_ACTIVE) {
+  session_write_close();
+}
+
 $config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 $messagingService = new MessagingService($db->pdo());
@@ -135,6 +140,26 @@ if ($selectedConversationId > 0) {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .conversation-job-links {
+            font-size: 12px;
+            line-height: 1.35;
+            margin-bottom: 4px;
+        }
+
+        .conversation-job-links a {
+            color: #2563eb;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .conversation-job-links a:hover {
+            text-decoration: underline;
+        }
+
+        .conversation-item.active .conversation-job-links a {
+            color: white;
         }
 
         .conversation-meta {
@@ -379,7 +404,7 @@ if ($selectedConversationId > 0) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($conversations as $conv): ?>
-                        <a href="?c=<?= $conv['id'] ?>" class="conversation-item <?= $selectedConversationId == $conv['id'] ? 'active' : '' ?>">
+                        <div class="conversation-item <?= $selectedConversationId == $conv['id'] ? 'active' : '' ?>" onclick="window.location.href='?c=<?= urlencode((string)$conv['id']) ?>'">
                             <div class="conversation-meta">
                                 <div class="conversation-avatar">
                                     <?= strtoupper(substr($conv['other_first_name'], 0, 1)) ?>
@@ -388,6 +413,13 @@ if ($selectedConversationId > 0) {
                                     <div class="conversation-name">
                                         <?= htmlspecialchars($conv['other_first_name'] . ' ' . $conv['other_last_name']) ?>
                                     </div>
+                                    <?php if ($userRole === 'JOBSEEKER' && !empty($conv['applied_jobs'])): ?>
+                                        <div class="conversation-job-links">
+                                            <?php foreach ($conv['applied_jobs'] as $index => $job): ?>
+                                                <?= $index > 0 ? ', ' : '' ?><a href="/QuickHire/Public/jobseeker-dashboard.php?job_id=<?= urlencode((string)$job['id']) ?>" onclick="event.stopPropagation();"><?= htmlspecialchars($job['title']) ?></a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div class="conversation-preview">
                                         <?= htmlspecialchars($conv['other_role'] ?? 'User') ?>
                                     </div>
@@ -401,7 +433,7 @@ if ($selectedConversationId > 0) {
                                     <div class="unread-badge"><?= $conv['unread_count'] ?></div>
                                 <?php endif; ?>
                             </div>
-                        </a>
+                        </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>

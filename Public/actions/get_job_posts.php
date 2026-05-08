@@ -25,6 +25,11 @@ try {
         exit;
     }
 
+    // Release session lock — this endpoint only reads data
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
     // Initialize database and service
     $config = require __DIR__ . '/../../Config/config.php';
     $db = new Database($config['db']);
@@ -37,6 +42,14 @@ try {
         // Get employer's job posts
         $result = $jobService->getEmployerJobPosts($userId);
     } else if ($userRole === 'JOBSEEKER') {
+        $jobId = (int)($_GET['job_id'] ?? 0);
+
+        if ($jobId > 0) {
+            $result = $jobService->getJobPost($jobId);
+            echo json_encode($result);
+            exit;
+        }
+
         // Get all active job posts for job seekers
         $limit = (int)($_GET['limit'] ?? 20);
         $offset = (int)($_GET['offset'] ?? 0);

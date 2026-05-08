@@ -24,6 +24,11 @@ if (empty($room)) {
     exit;
 }
 
+// Release session lock — session data is no longer needed
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 try {
     $config = require __DIR__ . '/../../Config/config.php';
     $db = new Database($config['db']);

@@ -15,7 +15,9 @@ try {
         exit;
     }
 
-    $userId = $_SESSION['user_id'];
+    $userId = (int) $_SESSION['user_id'];
+    session_write_close();
+
     $config = require __DIR__ . '/../../Config/config.php';
     $db = new Database($config['db']);
 

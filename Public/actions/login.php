@@ -14,7 +14,7 @@ $auth = new AuthService($db->pdo());
 
 if (!Csrf::verify($_POST['csrf_token'] ?? null)) {
     Session::flash('error', 'Security check failed. Please try again.');
-    header('Location: /QuickHire/public/index.php');
+    header('Location: /QuickHire/Public/index.php');
     exit;
 }
 
@@ -23,11 +23,11 @@ try {
 
     // Always redirect to the appropriate dashboard — the dashboard handles
     // the profile-completion overlay if is_profile_complete = 0
-    header('Location: /QuickHire/public/' . ($user['role'] === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php'));
+    header('Location: /QuickHire/Public/' . ($user['role'] === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php'));
     exit;
 
 } catch (Exception $e) {
     Session::flash('error', $e->getMessage());
-    header('Location: /QuickHire/public/index.php?open=login');
+    header('Location: /QuickHire/Public/index.php?open=login');
     exit;
 }

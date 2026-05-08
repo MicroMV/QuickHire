@@ -18,6 +18,10 @@ $messagingService = new MessagingService($db->pdo());
 $userId = Auth::userId();
 $userRole = Auth::role();
 
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 try {
     $conversations = $messagingService->getUserConversations($userId, $userRole);
 

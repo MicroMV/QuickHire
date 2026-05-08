@@ -18,6 +18,11 @@ if ($conversationId <= 0) {
     exit;
 }
 
+// Release session lock immediately so other requests aren't blocked
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 $config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 $messagingService = new MessagingService($db->pdo());

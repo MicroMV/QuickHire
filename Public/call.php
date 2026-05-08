@@ -111,10 +111,28 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
     </div>
 
     <script>
-        const ROOM = <?= json_encode($room) ?>;
+        let ROOM = <?= json_encode($room) ?>;
         const MY_ID = <?= json_encode(Auth::userId()) ?>;
         const MY_ROLE = <?= json_encode(Auth::role()) ?>;
         const CALL_STATUS = <?= json_encode($call['status']) ?>;
+        const MATCHING_PREFS_KEY = 'matchingPreferences_' + MY_ID;
+
+        function getSavedMatchingPreferences() {
+            const stored = localStorage.getItem(MATCHING_PREFS_KEY);
+            if (!stored) return null;
+
+            try {
+                const preferences = JSON.parse(stored);
+                if (!String(preferences.role_title || '').trim() || !String(preferences.country || '').trim()) {
+                    localStorage.removeItem(MATCHING_PREFS_KEY);
+                    return null;
+                }
+                return preferences;
+            } catch (error) {
+                localStorage.removeItem(MATCHING_PREFS_KEY);
+                return null;
+            }
+        }
 
         // Always show video interface - no waiting screen
         // Regular call functionality
@@ -277,64 +295,109 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         // ===== CHAT FUNCTIONS =====
+        const displayedChatIds = new Set(); // dedup by messages.id
+        let sendingChatMessage = false;
+
+        function displayChatMessage(msg) {
+            if (msg.id && displayedChatIds.has(msg.id)) return;
+            if (msg.id) displayedChatIds.add(msg.id);
+
+            const chatMessages = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'message ' + (msg.sender_id == MY_ID ? 'me' : 'them');
+
+            const sender = document.createElement('div');
+            sender.className = 'message-sender';
+            const senderName = msg.first_name || 'Participant';
+            const senderRole = msg.role ? ` (${msg.role})` : '';
+            sender.textContent = msg.sender_id == MY_ID ? 'You' : `${senderName}${senderRole}`;
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = msg.message;
+
+            div.appendChild(sender);
+            div.appendChild(content);
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
         async function sendChatMessage(message) {
-            await fetch("/QuickHire/Public/actions/chat_send.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ room: ROOM, message })
-            });
+            try {
+                const res = await fetch("/QuickHire/Public/actions/chat_send.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ room: ROOM, message })
+                });
+
+                const text = await res.text();
+                let data;
+                try { data = JSON.parse(text); }
+                catch (e) { throw new Error('Unexpected chat server response'); }
+
+                if (!res.ok || !data.ok) {
+                    throw new Error(data.error || 'Chat send failed');
+                }
+
+                if (data.message) {
+                    displayChatMessage(data.message);
+                }
+
+                return true;
+            } catch (e) {
+                console.error('Chat send error:', e);
+                alert(e.message || 'Failed to send message');
+                return false;
+            }
         }
 
         async function pollChatMessages() {
             while (polling) {
                 try {
                     const res = await fetch(`/QuickHire/Public/actions/chat_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterChatId}`);
-                    const data = await res.json();
+                    const text = await res.text();
+                    let data;
+                    try { data = JSON.parse(text); }
+                    catch(e) {
+                        console.error('chat_poll non-JSON:', text.substring(0, 200));
+                        await new Promise(r => setTimeout(r, 2000));
+                        continue;
+                    }
                     if (data.ok) {
                         afterChatId = data.after;
                         for (const msg of data.messages) {
                             displayChatMessage(msg);
                         }
+                    } else {
+                        console.warn('chat_poll error:', data);
                     }
                 } catch (e) {
+                    console.error('chat_poll fetch error:', e);
                 }
                 await new Promise(r => setTimeout(r, 500));
             }
         }
 
-        function displayChatMessage(msg) {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message ' + (msg.sender_id == MY_ID ? 'me' : 'them');
-            
-            const senderDiv = document.createElement('div');
-            senderDiv.className = 'message-sender';
-            senderDiv.textContent = msg.sender_id == MY_ID ? 'You' : `${msg.first_name} (${msg.role})`;
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.textContent = msg.message;
-            
-            messageDiv.appendChild(senderDiv);
-            messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
+        document.getElementById('btnSend').addEventListener('click', async () => {
+            if (sendingChatMessage) return;
 
-        document.getElementById('btnSend').addEventListener('click', () => {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
-            if (message) {
-                sendChatMessage(message);
-                input.value = '';
+            if (!message) return;
+
+            input.value = '';
+            sendingChatMessage = true;
+            const sent = await sendChatMessage(message);
+            sendingChatMessage = false;
+
+            if (!sent) {
+                input.value = message;
+                input.focus();
             }
         });
 
         document.getElementById('chatInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('btnSend').click();
-            }
+            if (e.key === 'Enter') document.getElementById('btnSend').click();
         });
 
         async function sendSignal(type, payload) {
@@ -435,51 +498,49 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 }
             };
 
+            // Helper: enable/disable chat UI
+            function setChatEnabled(enabled) {
+                const chatInput = document.getElementById('chatInput');
+                const btnSend   = document.getElementById('btnSend');
+                chatInput.disabled        = !enabled;
+                chatInput.placeholder     = enabled ? 'Type a message...' : 'Connect to chat...';
+                btnSend.disabled          = !enabled;
+                btnSend.style.opacity     = enabled ? '1' : '0.4';
+                btnSend.style.cursor      = enabled ? 'pointer' : 'not-allowed';
+            }
+
             // Monitor connection state
             pc.onconnectionstatechange = () => {
                 const statusElement = document.getElementById('connectionStatus');
-                const chatInput = document.getElementById('chatInput');
-                const btnSend = document.getElementById('btnSend');
 
-                if (statusElement) {
-                    if (pc.connectionState === 'connected') {
-                        statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
-                        // Enable chat
-                        chatInput.disabled = false;
-                        chatInput.placeholder = 'Type a message...';
-                        btnSend.disabled = false;
-                        btnSend.style.opacity = '1';
-                        btnSend.style.cursor = 'pointer';
-                    } else if (pc.connectionState === 'connecting') {
-                        statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Connecting...</strong>';
-                    } else if (pc.connectionState === 'failed') {
-                        statusElement.innerHTML = 'Connection: <strong style="color: #dc2626;">Failed - Retrying...</strong>';
-                        // Disable chat on failure
-                        chatInput.disabled = true;
-                        chatInput.placeholder = 'Connect to chat...';
-                        btnSend.disabled = true;
-                        btnSend.style.opacity = '0.4';
-                        btnSend.style.cursor = 'not-allowed';
-                        setTimeout(() => {
-                            if (pc.connectionState === 'failed') {
-                                pc.restartIce();
-                            }
-                        }, 1000);
-                    } else if (pc.connectionState === 'disconnected') {
-                        statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Reconnecting...</strong>';
-                        // Disable chat while reconnecting
-                        chatInput.disabled = true;
-                        chatInput.placeholder = 'Reconnecting...';
-                        btnSend.disabled = true;
-                        btnSend.style.opacity = '0.4';
-                        btnSend.style.cursor = 'not-allowed';
-                    }
+                if (pc.connectionState === 'connected') {
+                    if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
+                    setChatEnabled(true);
+                } else if (pc.connectionState === 'connecting') {
+                    if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Connecting...</strong>';
+                } else if (pc.connectionState === 'failed') {
+                    if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #dc2626;">Failed - Retrying...</strong>';
+                    setChatEnabled(false);
+                    setTimeout(() => {
+                        if (pc && pc.connectionState === 'failed') pc.restartIce();
+                    }, 1000);
+                } else if (pc.connectionState === 'disconnected') {
+                    if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Reconnecting...</strong>';
+                    setChatEnabled(false);
                 }
             };
-            
+
+            // ICE connection state is a reliable fallback — some browsers fire this
+            // before connectionState reaches 'connected'
             pc.oniceconnectionstatechange = () => {
-                if (pc.iceConnectionState === 'failed') {
-                } else if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    const statusElement = document.getElementById('connectionStatus');
+                    if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
+                    setChatEnabled(true);
+                } else if (pc.iceConnectionState === 'failed') {
+                    setChatEnabled(false);
+                } else if (pc.iceConnectionState === 'disconnected') {
+                    setChatEnabled(false);
                 }
             };
             
@@ -579,40 +640,29 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         async function findNewMatch() {
             try {
                 if (MY_ROLE === 'EMPLOYER') {
-                    // For employer, try to use saved preferences first
-                    const savedPrefs = localStorage.getItem('matchingPreferences');
-                    let response;
-                    
-                    if (savedPrefs) {
-                        const preferences = JSON.parse(savedPrefs);
-                        const formData = new FormData();
-                        formData.append('role_title', preferences.role_title);
-                        formData.append('country', preferences.country);
-                        formData.append('employment_type', preferences.employment_type);
-                        
-                        if (preferences.skill_ids && preferences.skill_ids.length > 0) {
-                            preferences.skill_ids.forEach(skillId => {
-                                formData.append('skill_ids[]', skillId);
-                            });
-                        }
-                        
-                        response = await fetch('/QuickHire/Public/actions/find_match.php', {
-                            method: 'POST',
-                            body: formData
-                        });
-                    } else {
-                        // Fallback to default criteria if no preferences saved
-                        const formData = new FormData();
-                        formData.append('role_title', 'Developer');
-                        formData.append('country', 'Philippines');
-                        formData.append('employment_type', 'FULL_TIME');
-                        formData.append('skill_ids[]', []);
-                        
-                        response = await fetch('/QuickHire/Public/actions/find_match.php', {
-                            method: 'POST',
-                            body: formData
+                    const preferences = getSavedMatchingPreferences();
+
+                    if (!preferences) {
+                        alert('Please set your matching preferences before finding another jobseeker.');
+                        window.location.href = '/QuickHire/Public/employer-dashboard.php';
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('role_title', preferences.role_title);
+                    formData.append('country', preferences.country);
+                    formData.append('employment_type', preferences.employment_type || 'FULL_TIME');
+
+                    if (preferences.skill_ids && preferences.skill_ids.length > 0) {
+                        preferences.skill_ids.forEach(skillId => {
+                            formData.append('skill_ids[]', skillId);
                         });
                     }
+
+                    const response = await fetch('/QuickHire/Public/actions/find_match.php', {
+                        method: 'POST',
+                        body: formData
+                    });
                     
                     if (response.redirected) {
                         // Extract room from redirect URL
@@ -653,8 +703,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             afterChatId = 0;
             polling = true;
             
-            // Clear chat messages
+            // Clear chat messages and dedup sets for the new room
             document.getElementById('chatMessages').innerHTML = '';
+            displayedChatIds.clear();
+            sendingChatMessage = false;
             
             // Hide "finding match" message
             hideFindingNextMatch();
@@ -667,8 +719,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             
             // Send join signal for new room
             sendSignal("join", { joined: true });
-            
-            // Don't create offer immediately - let join signal trigger it for employers
             
             // Restart polling
             pollSignals();
@@ -871,8 +921,22 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 // Start monitoring
                 startHeartbeat();
                 startStatusMonitoring();
+
+                // ── Load existing chat history before starting the poll loop ──
+                try {
+                    const histRes = await fetch(`/QuickHire/Public/actions/chat_poll.php?room=${encodeURIComponent(ROOM)}&after=0`);
+                    const histData = await histRes.json();
+                    if (histData.ok && histData.messages.length > 0) {
+                        afterChatId = histData.after;
+                        for (const msg of histData.messages) {
+                            displayChatMessage(msg);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not load chat history:', e);
+                }
                 
-                // Start polling
+                // Start polling (will only fetch NEW messages after the history cursor)
                 pollSignals();
                 pollChatMessages();
                 

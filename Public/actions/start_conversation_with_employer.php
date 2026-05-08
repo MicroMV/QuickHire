@@ -52,13 +52,37 @@ try {
         exit;
     }
 
+    if ($jobPostId !== null) {
+        $stmt = $db->pdo()->prepare("
+            SELECT id
+            FROM job_posts
+            WHERE id = ? AND employer_id = ? AND is_active = 1
+            LIMIT 1
+        ");
+        $stmt->execute([$jobPostId, $employerId]);
+
+        if (!$stmt->fetch()) {
+            echo json_encode(['ok' => false, 'error' => 'Job post not found']);
+            exit;
+        }
+    }
+
     // Create or get existing conversation
     $conversationId = $messagingService->getOrCreateConversation($employerId, $jobseekerId, $jobPostId ?? null);
 
     // Check if this was an existing conversation by looking for messages
-    $stmt = $db->pdo()->prepare("SELECT COUNT(*) as message_count FROM messages WHERE conversation_id = ?");
+    $stmt = $db->pdo()->prepare("
+        SELECT COUNT(*) as message_count
+        FROM messages
+        WHERE conversation_id = ?
+          AND message_type <> 'job_application'
+    ");
     $stmt->execute([$conversationId]);
     $messageCount = $stmt->fetch()['message_count'];
+
+    if ($jobPostId !== null) {
+        $messagingService->recordJobApplication($conversationId, $jobPostId);
+    }
     
     $isExisting = $messageCount > 0;
 

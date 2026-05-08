@@ -10,6 +10,11 @@ header('Content-Type: application/json');
 Session::start();
 Auth::requireLogin();
 
+// Release session lock — this endpoint only reads data
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 if (Auth::role() !== 'JOBSEEKER') {
     echo json_encode(['ok' => false, 'error' => 'Only jobseekers can use this feature']);
     exit;

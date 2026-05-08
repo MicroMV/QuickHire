@@ -16,6 +16,15 @@ if (Auth::role() !== 'JOBSEEKER') {
   exit;
 }
 
+// Read flash messages before closing session
+$flashError   = \Rongie\QuickHire\Core\Session::flash('error');
+$flashSuccess  = \Rongie\QuickHire\Core\Session::flash('success');
+
+// Release session lock before heavy DB work — prevents blocking AJAX requests
+if (session_status() === PHP_SESSION_ACTIVE) {
+  session_write_close();
+}
+
 $config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 $messagingService = new MessagingService($db->pdo());
@@ -57,8 +66,7 @@ foreach ($allSkills as $skill) {
   $overlaySkillsByCategory[$skill['category']][] = $skill;
 }
 
-$flashError = Session::flash('error');
-$flashSuccess = Session::flash('success');
+// $flashError and $flashSuccess already read before session_write_close above
 ?>
 
 <!DOCTYPE html>
@@ -73,6 +81,8 @@ $flashSuccess = Session::flash('success');
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/jobseeker-dashboard.css">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dashboard-mobile.css">
+  <script src="/QuickHire/Public/assets/js/dashboard-mobile.js" defer></script>
 </head>
 <body class="landing-body">
 
@@ -553,7 +563,7 @@ $flashSuccess = Session::flash('success');
 
       <div class="nav-section-label">DISCOVER</div>
       <button id="btnBrowseJobs">📋 Browse Jobs</button>
-      <button id="btnMessages" style="position:relative;">
+      <button id="btnMessages" type="button" style="position:relative;">
         💬 Messages
         <?php if ($unreadCount > 0): ?>
           <span style="margin-left:auto;background:#ef4444;color:white;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;"><?= $unreadCount ?></span>
@@ -1144,6 +1154,61 @@ $flashSuccess = Session::flash('success');
   let currentPage = 1;
   let currentJobs = []; // Store current jobs for detail view
 
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[char]));
+  }
+
+  function escapeJsString(value) {
+    return String(value ?? '')
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/\r/g, '\\r')
+      .replace(/\n/g, '\\n')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function getAppliedJobs(conversation) {
+    if (conversation && Array.isArray(conversation.applied_jobs) && conversation.applied_jobs.length > 0) {
+      return conversation.applied_jobs;
+    }
+
+    if (conversation && conversation.job_post_id && conversation.job_post_title) {
+      return [{ id: conversation.job_post_id, title: conversation.job_post_title }];
+    }
+
+    return [];
+  }
+
+  function conversationJobText(conversation) {
+    return getAppliedJobs(conversation)
+      .map(job => job.title || '')
+      .join(' ')
+      .toLowerCase();
+  }
+
+  function renderAppliedJobLinks(conversation) {
+    const jobs = getAppliedJobs(conversation);
+
+    return jobs.map(job => {
+      const jobId = Number.parseInt(job.id, 10);
+      if (!Number.isFinite(jobId) || jobId <= 0) return '';
+
+      const title = escapeHtml(job.title || `Job #${jobId}`);
+      const href = `/QuickHire/Public/jobseeker-dashboard.php?job_id=${encodeURIComponent(jobId)}`;
+
+      return `<a href="${href}" class="conversation-job-link" onclick="event.preventDefault(); event.stopPropagation(); window.showJobDetailById(${jobId});">${title}</a>`;
+    }).filter(Boolean).join('<span class="conversation-job-separator">, </span>');
+  }
+
   async function findEmployer() {
     btnFindEmployer.disabled = true;
     btnFindEmployer2.disabled = true;
@@ -1210,7 +1275,10 @@ $flashSuccess = Session::flash('success');
     localStorage.setItem('js_active_page', 'home');
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
+      if (window._hideMessagingMobile) window._hideMessagingMobile();
       currentConversationId = null;
+      if (messagePollingInterval) { clearInterval(messagePollingInterval); messagePollingInterval = null; }
+      if (conversationRefreshInterval) { clearInterval(conversationRefreshInterval); conversationRefreshInterval = null; }
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
       }
@@ -1231,11 +1299,14 @@ $flashSuccess = Session::flash('success');
     document.querySelector('.subtitle').textContent = 'Click "Find Employer" to automatically connect with employers who are currently looking for candidates like you.';
   }
 
-  function showJobBrowsing() {
+  function showJobBrowsing(loadJobs = true) {
     localStorage.setItem('js_active_page', 'browse');
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
+      if (window._hideMessagingMobile) window._hideMessagingMobile();
       currentConversationId = null;
+      if (messagePollingInterval) { clearInterval(messagePollingInterval); messagePollingInterval = null; }
+      if (conversationRefreshInterval) { clearInterval(conversationRefreshInterval); conversationRefreshInterval = null; }
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
       }
@@ -1255,12 +1326,18 @@ $flashSuccess = Session::flash('success');
     document.querySelector('.title').textContent = 'Browse Jobs';
     document.querySelector('.subtitle').textContent = 'Discover job opportunities from employers looking for candidates like you.';
     
-    loadJobListings();
+    if (loadJobs !== false) {
+      loadJobListings();
+    }
   }
 
   window.showMyProfile = function() {
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
+      if (window._hideMessagingMobile) window._hideMessagingMobile();
+      currentConversationId = null;
+      if (messagePollingInterval) { clearInterval(messagePollingInterval); messagePollingInterval = null; }
+      if (conversationRefreshInterval) { clearInterval(conversationRefreshInterval); conversationRefreshInterval = null; }
     }
     document.getElementById('btnMessages')?.classList.remove('active');
 
@@ -1283,7 +1360,10 @@ $flashSuccess = Session::flash('success');
     // Close messaging if open
     if (messagingPanel && messagingPanel.classList.contains('open')) {
       messagingPanel.classList.remove('open');
+      if (window._hideMessagingMobile) window._hideMessagingMobile();
       currentConversationId = null;
+      if (messagePollingInterval) { clearInterval(messagePollingInterval); messagePollingInterval = null; }
+      if (conversationRefreshInterval) { clearInterval(conversationRefreshInterval); conversationRefreshInterval = null; }
       if (document.getElementById('messageInputArea')) {
         document.getElementById('messageInputArea').style.display = 'none';
       }
@@ -1716,7 +1796,7 @@ $flashSuccess = Session::flash('success');
         </div>
         
         <div class="job-detail-actions">
-          <button class="btn primary large" onclick="messageEmployerAboutJob(${job.employer_id}, ${job.id}, '${job.title.replace(/'/g, "\\'")}', this)">
+          <button class="btn primary large" onclick="messageEmployerAboutJob(${Number.parseInt(job.employer_id, 10)}, ${Number.parseInt(job.id, 10)}, '${escapeJsString(job.title)}', this)">
             Apply for this Job
           </button>
         </div>
@@ -1739,21 +1819,56 @@ $flashSuccess = Session::flash('success');
   window.messageEmployerAboutJob = messageEmployerAboutJob;
 
   // Show job detail by job post ID (used from message banner)
-  window.showJobDetailById = function(jobPostId) {
+  window.showJobDetailById = async function(jobPostId) {
+    jobPostId = Number.parseInt(jobPostId, 10);
+    if (!Number.isFinite(jobPostId) || jobPostId <= 0) return;
+
     const idx = currentJobs.findIndex(j => j.id == jobPostId);
+    showJobBrowsing(false);
+
     if (idx !== -1) {
-      // Job is already loaded — show it directly
-      showJobBrowsing();
-      setTimeout(() => showJobDetail(idx), 100);
-    } else {
-      // Job not in current list — load browse jobs and search for it
-      showJobBrowsing();
-      loadJobListings(true).then(() => {
-        const idx2 = currentJobs.findIndex(j => j.id == jobPostId);
-        if (idx2 !== -1) showJobDetail(idx2);
-      });
+      showJobDetail(idx);
+      return;
+    }
+
+    const container = document.getElementById('jobListings');
+    const loadMoreContainer = document.getElementById('loadMoreContainer');
+    const filterBar = document.getElementById('jobFilterBar');
+
+    if (container) {
+      container.innerHTML = '<div class="loading">Loading job details...</div>';
+    }
+    if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+    if (filterBar) filterBar.style.display = 'none';
+
+    try {
+      const response = await fetch(`/QuickHire/Public/actions/get_job_posts.php?job_id=${encodeURIComponent(jobPostId)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const result = await response.json();
+      if (!result.ok || !result.job_post) {
+        throw new Error(result.error || 'Job post not found');
+      }
+
+      currentJobs = [result.job_post];
+      showJobDetail(0);
+    } catch (error) {
+      if (container) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Job unavailable</h3>
+            <p>${error.message || 'This job post could not be loaded.'}</p>
+            <button class="btn outline" onclick="showJobsList()" style="margin-top:12px;">Back to Jobs</button>
+          </div>
+        `;
+      }
     }
   };
+
+  const initialJobPostId = new URLSearchParams(window.location.search).get('job_id');
+  if (initialJobPostId) {
+    window.showJobDetailById(initialJobPostId);
+  }
 
   // Message employer about a job - direct to message input
   async function messageEmployerAboutJob(employerId, jobPostId, jobTitle, buttonElement) {
@@ -1892,6 +2007,33 @@ $flashSuccess = Session::flash('success');
   let messagePollingInterval = null;
   let conversationRefreshInterval = null;
 
+  function resetJobseekerMessageSelection() {
+    currentConversationId = null;
+    const chatTitle = document.getElementById('chatTitle');
+    if (chatTitle) chatTitle.textContent = 'Select a conversation';
+    const chatStatus = document.getElementById('chatStatus');
+    if (chatStatus) chatStatus.innerHTML = '';
+    const jobBanner = document.getElementById('jobBanner');
+    if (jobBanner) {
+      jobBanner.style.display = 'none';
+      jobBanner.innerHTML = '';
+    }
+    const menuBtn = document.getElementById('chatMenuBtn');
+    if (menuBtn) menuBtn.style.display = 'none';
+    const avatarEl = document.getElementById('chatHeaderAvatar');
+    if (avatarEl) {
+      avatarEl.style.display = 'none';
+      avatarEl.innerHTML = '';
+    }
+    const msgContainer = document.getElementById('messagesContainer');
+    if (msgContainer) {
+      msgContainer.innerHTML = `<div class="empty-state"><h3>Select a conversation</h3><p>Choose a conversation from the sidebar to start messaging</p></div>`;
+    }
+    const inputArea = document.getElementById('messageInputArea');
+    if (inputArea) inputArea.style.display = 'none';
+    document.querySelectorAll('.conversation-item').forEach(item => item.classList.remove('active'));
+  }
+
   // Show messaging panel
   function showMessaging() {
     localStorage.setItem('js_active_page', 'home'); // don't restore messages on reload
@@ -1986,6 +2128,9 @@ $flashSuccess = Session::flash('success');
       
       if (data.ok) {
         currentConversations = data.conversations;
+        if (currentConversationId && !currentConversations.some(c => parseInt(c.id, 10) === parseInt(currentConversationId, 10))) {
+          resetJobseekerMessageSelection();
+        }
         displayConversations(data.conversations);
       } else {
         document.getElementById('conversationsList').innerHTML = `
@@ -2023,6 +2168,8 @@ $flashSuccess = Session::flash('success');
     conversations.forEach(conv => {
       const isActive = currentConversationId === conv.id;
       const unreadBadge = conv.unread_count > 0 ? `<span class="unread-badge">${conv.unread_count}</span>` : '';
+      const participantName = `${conv.other_first_name || ''} ${conv.other_last_name || ''}`.trim();
+      const appliedJobLinks = renderAppliedJobLinks(conv);
       
       // Calculate active status for chat header (not list)
       let activeText = '';
@@ -2048,14 +2195,15 @@ $flashSuccess = Session::flash('success');
       }
       
       html += `
-        <div class="conversation-item ${isActive ? 'active' : ''}" onclick="openConversation(${conv.id}, '${conv.other_first_name} ${conv.other_last_name}', '${conv.other_profile_picture_url || ''}')">
+        <div class="conversation-item ${isActive ? 'active' : ''}" onclick="openConversation(${Number.parseInt(conv.id, 10)}, '${escapeJsString(participantName)}', '${escapeJsString(conv.other_profile_picture_url || '')}')">
           <div class="conversation-avatar" style="position: relative;">
             ${avatarHtml}
             ${statusDot(conv.other_last_active)}
           </div>
           <div class="conversation-info">
-            <div class="conversation-name">${conv.other_first_name} ${conv.other_last_name}</div>
-            <div class="conversation-preview">${previewText}</div>
+            <div class="conversation-name">${escapeHtml(participantName)}</div>
+            ${appliedJobLinks ? `<div class="conversation-job-links">${appliedJobLinks}</div>` : ''}
+            <div class="conversation-preview">${escapeHtml(previewText)}</div>
           </div>
           ${unreadBadge}
         </div>
@@ -2075,7 +2223,8 @@ $flashSuccess = Session::flash('success');
     const filtered = (currentConversations || []).filter(c =>
       `${c.other_first_name} ${c.other_last_name}`.toLowerCase().includes(q) ||
       (c.last_message || '').toLowerCase().includes(q) ||
-      (c.job_post_title || '').toLowerCase().includes(q)
+      (c.job_post_title || '').toLowerCase().includes(q) ||
+      conversationJobText(c).includes(q)
     );
     displayConversations(filtered);
   }
@@ -2112,16 +2261,14 @@ $flashSuccess = Session::flash('success');
     // Show job post banner
     const jobBanner = document.getElementById('jobBanner');
     if (jobBanner) {
-      if (conv && conv.job_post_id && conv.job_post_title) {
+      const appliedJobLinks = conv ? renderAppliedJobLinks(conv) : '';
+
+      if (appliedJobLinks) {
         jobBanner.style.display = 'block';
         jobBanner.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span style="font-size:13px;color:#94a3b8;">Applied for:</span>
-            <a href="#" onclick="event.preventDefault(); window.showJobDetailById(${conv.job_post_id});"
-               style="font-size:13px;font-weight:700;color:#a5b4fc;text-decoration:none;display:flex;align-items:center;gap:5px;cursor:pointer;">
-              📋 ${conv.job_post_title}
-              <span style="font-size:11px;opacity:0.7;">↗</span>
-            </a>
+            <span class="applied-job-links">${appliedJobLinks}</span>
           </div>`;
       } else {
         jobBanner.style.display = 'none';
@@ -2409,17 +2556,7 @@ $flashSuccess = Session::flash('success');
       
       if (data.ok) {
         // Reset chat header
-        currentConversationId = null;
-        const chatTitle = document.getElementById('chatTitle');
-        if (chatTitle) chatTitle.textContent = 'Select a conversation';
-        const menuBtnDel = document.getElementById('chatMenuBtn');
-        if (menuBtnDel) menuBtnDel.style.display = 'none';
-        const avatarEl = document.getElementById('chatHeaderAvatar');
-        if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
-        const msgContainer = document.getElementById('messagesContainer');
-        if (msgContainer) msgContainer.innerHTML = `<div class="empty-state"><h3>Select a conversation</h3><p>Choose a conversation from the sidebar to start messaging</p></div>`;
-        const inputArea = document.getElementById('messageInputArea');
-        if (inputArea) inputArea.style.display = 'none';
+        resetJobseekerMessageSelection();
 
         showToast('Conversation deleted successfully', 'success');
         loadConversations();
@@ -2437,6 +2574,8 @@ $flashSuccess = Session::flash('success');
   // Add event listener for messages button
   document.getElementById('btnMessages').addEventListener('click', function(e) {
     e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
     showMessaging();
   });
 

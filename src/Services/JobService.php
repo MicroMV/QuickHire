@@ -224,8 +224,10 @@ class JobService
                     jp.*,
                     u.first_name as employer_first_name,
                     u.last_name as employer_last_name,
+                    DATE_FORMAT(u.last_active, '%Y-%m-%dT%H:%i:%sZ') as employer_last_active,
                     ep.company_name,
                     ep.country as employer_country,
+                    ep.profile_picture_url as employer_profile_picture_url,
                     ep.profile_picture_url as employer_avatar
                 FROM job_posts jp
                 JOIN users u ON jp.employer_id = u.id

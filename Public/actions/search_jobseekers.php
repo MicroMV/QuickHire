@@ -28,6 +28,16 @@ if (empty($query)) {
     exit;
 }
 
+// Release session lock — this endpoint only reads data
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
+if (empty($query)) {
+    echo json_encode(['ok' => true, 'results' => []]);
+    exit;
+}
+
 try {
     $config = require __DIR__ . '/../../Config/config.php';
     $db = new Database($config['db']);

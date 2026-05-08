@@ -1,0 +1,606 @@
+.dashboard-mobile-bar,
+.dashboard-sidebar-backdrop,
+.sidebar-mobile-close {
+  display: none;
+}
+
+@media (min-width: 981px) {
+  .messaging-panel.open {
+    display: flex !important;
+  }
+
+  .messaging-panel.open .conversations-sidebar {
+    display: block !important;
+  }
+
+  .messaging-panel.open .chat-area {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 980px) {
+  :root {
+    --dashboard-mobile-bar-height: 64px;
+  }
+
+  html,
+  body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  body.dashboard-sidebar-open {
+    overflow: hidden !important;
+  }
+
+  body.dashboard-messaging-open {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden !important;
+  }
+
+  .dashboard-mobile-bar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    min-height: 64px;
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+    background: rgba(6, 11, 24, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(18px);
+    box-sizing: border-box;
+  }
+
+  body.dashboard-messaging-open .dashboard-mobile-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(6, 11, 24, 0.96);
+    border-bottom-color: rgba(99, 102, 241, 0.24);
+    z-index: 1300;
+  }
+
+  .dashboard-menu-button {
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #f8fafc;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .dashboard-menu-button:focus-visible,
+  .sidebar-mobile-close:focus-visible,
+  .dashboard-sidebar-backdrop:focus-visible {
+    outline: 3px solid rgba(99, 102, 241, 0.45);
+    outline-offset: 2px;
+  }
+
+  .dashboard-menu-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 20px;
+  }
+
+  .dashboard-menu-lines span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .dashboard-mobile-brand {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .dashboard-mobile-brand img {
+    width: 118px;
+    height: 34px;
+    object-fit: contain;
+    flex: 0 0 auto;
+  }
+
+  .dashboard-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    border: 0;
+    background: rgba(2, 6, 23, 0.66);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(3px);
+  }
+
+  body.dashboard-sidebar-open .dashboard-sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .layout {
+    display: block !important;
+    min-height: calc(100dvh - 64px);
+    background: var(--bg-primary, #060b18) !important;
+  }
+
+  .side {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: min(86vw, 320px) !important;
+    height: 100dvh !important;
+    max-width: 320px !important;
+    padding: max(14px, env(safe-area-inset-top)) 14px 18px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-bottom: 0 !important;
+    border-radius: 0 18px 18px 0;
+    transform: translateX(-104%);
+    transition: transform 0.24s ease;
+    z-index: 1200 !important;
+    overflow-y: auto !important;
+    box-shadow: 22px 0 60px rgba(0, 0, 0, 0.42);
+    box-sizing: border-box;
+  }
+
+  body.dashboard-sidebar-open .side {
+    transform: translateX(0);
+    z-index: 1500 !important;
+  }
+
+  body.dashboard-sidebar-open .dashboard-sidebar-backdrop {
+    z-index: 1400;
+  }
+
+  .sidebar-mobile-close {
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+    margin: 0 0 10px auto;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .brandRow {
+    padding-top: 2px !important;
+    justify-content: center !important;
+  }
+
+  .side .brandRow img {
+    width: 120px !important;
+    height: auto !important;
+    max-height: 42px !important;
+    object-fit: contain !important;
+    border-radius: 0 !important;
+  }
+
+  .profileCard {
+    padding: 10px 4px !important;
+  }
+
+  .nav {
+    gap: 4px !important;
+    padding-bottom: 12px;
+  }
+
+  .nav a,
+  .nav button {
+    min-height: 44px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .nav-section-label {
+    margin-top: 18px !important;
+  }
+
+  .main {
+    width: 100% !important;
+    min-height: calc(100dvh - 64px);
+    height: auto !important;
+    margin-left: 0 !important;
+    padding: 18px 14px 28px !important;
+    overflow: visible !important;
+    box-sizing: border-box;
+  }
+
+  .main,
+  .main * {
+    min-width: 0;
+  }
+
+  .topbar {
+    display: block !important;
+    margin: 4px 0 14px !important;
+  }
+
+  .title {
+    font-size: 24px !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .subtitle {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    margin-top: 8px !important;
+    max-width: none !important;
+  }
+
+  .grid,
+  #dashboardContent,
+  #profileEditContent .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  #dashboardContent {
+    width: 100%;
+  }
+
+  .main > .card:not(#myProfileContent):not(#jsProfileView),
+  #dashboardContent > .card {
+    width: 100% !important;
+    padding: 16px !important;
+    border-radius: 14px !important;
+    box-sizing: border-box;
+  }
+
+  .card h3 {
+    font-size: 15px !important;
+    line-height: 1.3 !important;
+  }
+
+  .pillRow {
+    gap: 7px !important;
+  }
+
+  .pill,
+  .meta-tag,
+  .skill-tag {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .btn {
+    min-height: 44px;
+    border-radius: 12px !important;
+    padding: 11px 14px !important;
+  }
+
+  .main form .btn,
+  .main .btn.large,
+  .search-button,
+  .message-button {
+    width: 100%;
+  }
+
+  .main input,
+  .main select,
+  .main textarea,
+  .modal-content input,
+  .modal-content select,
+  .modal-content textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .form-row,
+  .search-input-container,
+  .search-result-item,
+  .job-post-header {
+    grid-template-columns: minmax(0, 1fr) !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .search-result-actions,
+  .job-post-actions,
+  .job-listing-actions {
+    width: 100%;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .search-result-avatar {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .skills-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: 8px !important;
+    scrollbar-width: none;
+  }
+
+  .skills-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .skills-tab {
+    flex: 0 0 auto;
+  }
+
+  .skills-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    max-height: 260px !important;
+    padding: 12px !important;
+  }
+
+  #jobBrowsingContent > #jobFilterBar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+  }
+
+  #jobBrowsingContent > #jobFilterBar > * {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .job-card {
+    padding: 18px !important;
+    border-radius: 14px !important;
+  }
+
+  .job-card-title,
+  .job-post-title {
+    font-size: 18px !important;
+    line-height: 1.35 !important;
+    margin-right: 0 !important;
+  }
+
+  .job-card-company,
+  .job-card-header,
+  .job-post-meta,
+  .job-card-meta {
+    gap: 10px !important;
+  }
+
+  #myProfileContent,
+  #jsProfileView {
+    border-radius: 14px !important;
+  }
+
+  #myProfileContent > div:last-child,
+  #jsProfileView > div:last-child {
+    padding: 64px 16px 20px !important;
+  }
+
+  #myProfileContent div[style*="grid-template-columns:1fr 1fr"],
+  #jsProfileView div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .modal {
+    align-items: flex-start !important;
+    padding: 16px 10px !important;
+    box-sizing: border-box;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-height: calc(100dvh - 32px) !important;
+    padding: 18px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box;
+  }
+
+  .messaging-panel {
+    left: 0 !important;
+    right: 0 !important;
+    top: var(--dashboard-mobile-bar-height) !important;
+    bottom: 0 !important;
+    height: calc(100dvh - var(--dashboard-mobile-bar-height)) !important;
+    z-index: 850 !important;
+    border-left: 0 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: var(--bg-primary, #060b18) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    overflow: hidden !important;
+  }
+
+  body.dashboard-messaging-open .messaging-panel {
+    top: var(--dashboard-mobile-bar-height) !important;
+    height: calc(100dvh - var(--dashboard-mobile-bar-height)) !important;
+    z-index: 1250 !important;
+  }
+
+  .messaging-header,
+  .chat-header {
+    padding: 14px !important;
+  }
+
+  .messaging-header {
+    min-height: 54px;
+    background: rgba(15, 23, 42, 0.92) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-sizing: border-box;
+  }
+
+  .messaging-header h3 {
+    font-size: 17px !important;
+    letter-spacing: 0 !important;
+  }
+
+  .messaging-content {
+    position: relative;
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .conversations-sidebar {
+    width: 100% !important;
+    height: 100%;
+    border-right: 0 !important;
+    background: var(--bg-secondary, #0f172a) !important;
+    overflow-y: auto !important;
+  }
+
+  .conversations-list {
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .conversation-item {
+    min-height: 72px;
+    padding: 14px 16px !important;
+  }
+
+  .chat-area {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    background: var(--bg-primary, #060b18) !important;
+  }
+
+  .messaging-panel:not(.mobile-chat-active) .chat-area {
+    display: none !important;
+  }
+
+  .messaging-panel.mobile-chat-active .conversations-sidebar {
+    display: none !important;
+  }
+
+  .messaging-panel.mobile-chat-active .chat-area {
+    display: flex !important;
+  }
+
+  .chat-header {
+    min-height: 62px;
+    background: rgba(15, 23, 42, 0.96) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-sizing: border-box;
+  }
+
+  .back-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 10px !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #c7d2fe !important;
+    font-weight: 700;
+  }
+
+  .messages-container {
+    padding: 14px 12px !important;
+    background: var(--bg-primary, #060b18) !important;
+  }
+
+  .message {
+    gap: 9px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .message-content {
+    max-width: min(78%, 560px) !important;
+    border-radius: 16px !important;
+  }
+
+  .message-input-area {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom)) !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+  }
+
+  .message-form {
+    gap: 8px !important;
+    align-items: flex-end !important;
+  }
+
+  .message-input {
+    min-height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  .send-button,
+  .file-button {
+    min-height: 42px;
+    padding: 9px 12px !important;
+    border-radius: 14px !important;
+    flex: 0 0 auto;
+  }
+
+  .file-button {
+    width: 42px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body.dashboard-sidebar-open .messaging-panel {
+    z-index: 1000 !important;
+    pointer-events: none;
+  }
+
+  .toast {
+    width: calc(100% - 24px);
+    max-width: none !important;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 420px) {
+  .main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .main > .card:not(#myProfileContent):not(#jsProfileView),
+  #dashboardContent > .card {
+    padding: 14px !important;
+  }
+
+  .message-form {
+    align-items: stretch !important;
+  }
+
+  .messaging-panel .message-form {
+    align-items: flex-end !important;
+  }
+
+  .send-button {
+    min-width: 66px;
+  }
+}
+
+@media (max-width: 360px) {
+  .dashboard-mobile-brand img {
+    width: 108px;
+  }
+}

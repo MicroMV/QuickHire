@@ -16,6 +16,16 @@ if (Auth::role() !== 'EMPLOYER') {
   exit;
 }
 
+// Read flash messages before closing session
+$flashError  = \Rongie\QuickHire\Core\Session::flash('error');
+$flashSuccess = \Rongie\QuickHire\Core\Session::flash('success');
+$csrfToken = \Rongie\QuickHire\Core\Csrf::token();
+
+// Release session lock before heavy DB work — prevents blocking AJAX requests
+if (session_status() === PHP_SESSION_ACTIVE) {
+  session_write_close();
+}
+
 $config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 $messagingService = new MessagingService($db->pdo());
@@ -66,8 +76,7 @@ foreach ($allSkills as $skill) {
   $overlayEmpSkillsByCategory[$skill['category']][] = $skill;
 }
 
-$flashError = Session::flash('error');
-$flashSuccess = Session::flash('success');
+// $flashError and $flashSuccess already read before session_write_close above
 ?>
 
 
@@ -80,9 +89,11 @@ $flashSuccess = Session::flash('success');
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/employer-dashboard.css">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css?v=<?= time() ?>">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/employer-dashboard.css?v=<?= time() ?>">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css?v=<?= time() ?>">
+  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dashboard-mobile.css?v=<?= time() ?>">
+  <script src="/QuickHire/Public/assets/js/dashboard-mobile.js?v=<?= time() ?>" defer></script>
 </head>
 <body class="landing-body">
 
@@ -105,7 +116,7 @@ $flashSuccess = Session::flash('success');
     <?php endif; ?>
 
     <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="empProfileForm">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <input type="hidden" name="profile_type" value="EMPLOYER">
 
       <!-- -- STEP 1: Company Info -- -->
@@ -378,7 +389,7 @@ $flashSuccess = Session::flash('success');
       <div class="nav-section-label">HIRING</div>
       <button id="btnSearchJobseekers">🔍 Search Jobseekers</button>
       <button id="btnPostJob">📢 Post Job</button>
-      <button id="btnMessages" style="position:relative;">
+      <button id="btnMessages" type="button" style="position:relative;">
         💬 Messages
         <?php if ($unreadCount > 0): ?>
           <span style="margin-left:auto;background:#ef4444;color:white;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:700;"><?= $unreadCount ?></span>
@@ -470,7 +481,7 @@ $flashSuccess = Session::flash('success');
     <!-- Profile Edit Form (Hidden by default) -->
     <div class="card" id="profileEditContent" style="display:none;">
       <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="profileForm">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
         <input type="hidden" name="profile_type" value="EMPLOYER">
 
         <div class="grid">
@@ -609,7 +620,7 @@ $flashSuccess = Session::flash('success');
 
       <!-- Job Posting Form -->
       <form id="jobPostingForm" style="margin-bottom: 30px;">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
         
         <div class="form-group">
           <label for="job_title">Job Title *</label>
@@ -999,9 +1010,6 @@ $flashSuccess = Session::flash('success');
           <div id="jsProfileAvatar" style="width:100px;height:100px;border-radius:50%;border:4px solid #0f172a;overflow:visible;background:#1e293b;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#a5b4fc;position:relative;"></div>
         </div>
         <div style="position:absolute;top:16px;right:16px;display:flex;gap:10px;align-items:center;">
-          <select id="jsProfileJobSelect" style="padding:7px 10px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:#1e293b;color:#e2e8f0;font-size:12px;font-family:inherit;max-width:160px;">
-            <option value="">No specific job</option>
-          </select>
           <button id="jsProfileMsgBtn" style="padding:8px 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:10px;color:white;font-weight:700;font-size:13px;cursor:pointer;">💬 Message</button>
           <button onclick="showSearchJobseekers()" style="padding:8px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#e2e8f0;font-weight:700;font-size:13px;cursor:pointer;">← Back</button>
         </div>
@@ -1034,6 +1042,40 @@ $flashSuccess = Session::flash('success');
   </main>
 </div>
 <script>
+  // Initialize currentJobPosts at the top to prevent undefined errors
+  window.currentJobPosts = [];
+  
+  // Debug function to check messaging panel state
+  window.debugMessagingPanel = function() {
+    const panel = document.getElementById('messagingPanel');
+    console.log('Messaging Panel Debug:', {
+      exists: !!panel,
+      isOpen: panel ? panel.classList.contains('open') : false,
+      zIndex: panel ? getComputedStyle(panel).zIndex : 'N/A',
+      display: panel ? getComputedStyle(panel).display : 'N/A',
+      pointerEvents: panel ? getComputedStyle(panel).pointerEvents : 'N/A'
+    });
+  };
+  
+  // Declare messaging panel variables in main scope
+  const messagingPanel = document.getElementById('messagingPanel');
+  const btnMessages = document.getElementById('btnMessages');
+  
+  // Close messaging panel function - declare in main scope
+  function closeMessagingPanel() {
+    if (!messagingPanel || !messagingPanel.classList.contains('open')) return;
+    messagingPanel.classList.remove('open');
+    window.currentConversationId = null;
+    const inputArea = document.getElementById('messageInputArea');
+    if (inputArea) inputArea.style.display = 'none';
+    const menuBtn = document.getElementById('chatMenuBtn');
+    if (menuBtn) menuBtn.style.display = 'none';
+    // Call mobile cleanup if function exists
+    if (typeof window._hideMessagingMobile === 'function') {
+      window._hideMessagingMobile();
+    }
+  }
+  
   const btnFindMatch = document.getElementById('btnFindMatch');
   const btnFindMatch2 = document.getElementById('btnFindMatch2');
   const btnHome = document.getElementById('btnHome');
@@ -1055,11 +1097,34 @@ $flashSuccess = Session::flash('success');
   const preferencesForm = document.getElementById('preferencesForm');
   const btnClosePreferences = document.getElementById('btnClosePreferences');
   const btnCancelPreferences = document.getElementById('btnCancelPreferences');
+  const MATCHING_PREFS_KEY = 'matchingPreferences_' + <?= json_encode($userId) ?>;
 
-  // Check if preferences exist in localStorage
+  function isValidPreferences(preferences) {
+    return !!preferences
+      && String(preferences.role_title || '').trim() !== ''
+      && String(preferences.country || '').trim() !== '';
+  }
+
+  function readStoredPreferences() {
+    const prefs = localStorage.getItem(MATCHING_PREFS_KEY);
+    if (!prefs) return null;
+
+    try {
+      const parsed = JSON.parse(prefs);
+      if (!isValidPreferences(parsed)) {
+        localStorage.removeItem(MATCHING_PREFS_KEY);
+        return null;
+      }
+      return parsed;
+    } catch (error) {
+      localStorage.removeItem(MATCHING_PREFS_KEY);
+      return null;
+    }
+  }
+
+  // Check if this employer has usable saved preferences
   function hasPreferences() {
-    const prefs = localStorage.getItem('matchingPreferences');
-    return prefs !== null;
+    return readStoredPreferences() !== null;
   }
 
   // Load preferences from database (not localStorage)
@@ -1077,12 +1142,11 @@ $flashSuccess = Session::flash('success');
     }
     
     // Load other preferences from localStorage if available
-    const localPrefs = localStorage.getItem('matchingPreferences');
-    if (localPrefs) {
-      const parsed = JSON.parse(localPrefs);
+    const parsed = readStoredPreferences();
+    if (parsed) {
       preferences.role_title = parsed.role_title;
       preferences.country = parsed.country;
-      preferences.employment_type = parsed.employment_type;
+      preferences.employment_type = parsed.employment_type || 'FULL_TIME';
     }
     
     return preferences;
@@ -1091,10 +1155,11 @@ $flashSuccess = Session::flash('success');
   // Save preferences to localStorage and database (only skills to database)
   async function savePreferences(preferences) {
     // Save to localStorage for immediate use (role, country, employment_type)
-    localStorage.setItem('matchingPreferences', JSON.stringify({
-      role_title: preferences.role_title,
-      country: preferences.country,
-      employment_type: preferences.employment_type
+    localStorage.setItem(MATCHING_PREFS_KEY, JSON.stringify({
+      role_title: String(preferences.role_title || '').trim(),
+      country: String(preferences.country || '').trim(),
+      employment_type: preferences.employment_type || 'FULL_TIME',
+      skill_ids: preferences.skill_ids || []
     }));
     
     // Save skills to database only if they were explicitly set
@@ -1151,19 +1216,24 @@ $flashSuccess = Session::flash('success');
   }
 
   async function findJobseeker() {
-    // Check if we have saved preferences
-    if (!hasPreferences()) {
+    const preferences = await loadPreferences();
+
+    // First time, stale browser data, or missing required fields - show preferences modal
+    if (!hasPreferences() || !isValidPreferences(preferences)) {
       // First time - show preferences modal
       await showPreferencesModal();
       return;
     }
 
-    // Use saved preferences
-    const preferences = await loadPreferences();
     await executeJobseekerSearch(preferences);
   }
 
   async function executeJobseekerSearch(preferences) {
+    if (!isValidPreferences(preferences)) {
+      await showPreferencesModal();
+      return;
+    }
+
     btnFindMatch.disabled = true;
     btnFindMatch2.disabled = true;
     btnFindMatch.textContent = '🔍 Searching...';
@@ -1252,6 +1322,16 @@ $flashSuccess = Session::flash('success');
 
   function showDashboard() {
     localStorage.setItem('emp_active_page', 'home');
+    
+    // Ensure messaging panel is properly closed
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
+      // Call mobile cleanup if function exists
+      if (typeof window._hideMessagingMobile === 'function') {
+        window._hideMessagingMobile();
+      }
+    }
+    
     dashboardContent.style.display = 'grid';
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'none';
@@ -1273,6 +1353,15 @@ $flashSuccess = Session::flash('success');
 
   function showProfileEdit() {
     localStorage.setItem('emp_active_page', 'edit');
+    
+    // Ensure messaging panel is properly closed
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
+      if (typeof window._hideMessagingMobile === 'function') {
+        window._hideMessagingMobile();
+      }
+    }
+    
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'block';
     searchContent.style.display = 'none';
@@ -1294,6 +1383,15 @@ $flashSuccess = Session::flash('success');
 
   function showSearch() {
     localStorage.setItem('emp_active_page', 'search');
+    
+    // Ensure messaging panel is properly closed
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
+      if (typeof window._hideMessagingMobile === 'function') {
+        window._hideMessagingMobile();
+      }
+    }
+    
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'block';
@@ -1318,6 +1416,15 @@ $flashSuccess = Session::flash('success');
 
   function showJobPosting() {
     localStorage.setItem('emp_active_page', 'jobs');
+    
+    // Ensure messaging panel is properly closed
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
+      if (typeof window._hideMessagingMobile === 'function') {
+        window._hideMessagingMobile();
+      }
+    }
+    
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'none';
     searchContent.style.display = 'none';
@@ -1354,122 +1461,53 @@ $flashSuccess = Session::flash('success');
   else showDashboard(); // messages always resets to home on reload
 
   btnFindMatch.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     findJobseeker();
   });
   
   btnFindMatch2.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     findJobseeker();
   });
   btnHome.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showDashboard();
   });
   
   btnEditProfile.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showProfileEdit();
   });
   
   btnEditProfile2.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showProfileEdit();
   });
   
   btnEditPreferences.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showPreferencesModal();
   });
   
   btnSearchJobseekers.addEventListener('click', function() {
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showSearch();
   });
 
   window.showSearchJobseekers = showSearch;
 
   btnPostJob.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showJobPosting();
   });
   
   btnCancelEdit.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showDashboard();
   });
 
   btnCancelJobPost.addEventListener('click', function() {
-    // Close messaging panel if open
-    if (messagingPanel && messagingPanel.classList.contains('open')) {
-      messagingPanel.classList.remove('open');
-      currentConversationId = null;
-      if (document.getElementById('messageInputArea')) {
-        document.getElementById('messageInputArea').style.display = 'none';
-      }
-    }
+    closeMessagingPanel();
     showDashboard();
   });
 
@@ -1692,7 +1730,9 @@ $flashSuccess = Session::flash('success');
   // Display employer's job posts
   function displayMyJobPosts(jobPosts) {
     const container = document.getElementById('myJobPosts');
-    currentJobPosts = jobPosts; // Store for editing
+    jobPosts = Array.isArray(jobPosts) ? jobPosts : [];
+    window.currentJobPosts = jobPosts; // Store for editing
+    currentJobPosts = jobPosts;
     
     if (jobPosts.length === 0) {
       container.innerHTML = '<div class="empty-state">No job posts yet. Create your first job posting above!</div>';
@@ -1755,7 +1795,7 @@ $flashSuccess = Session::flash('success');
     try {
       const formData = new FormData();
       formData.append('job_id', jobId);
-      formData.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
+      formData.append('csrf_token', '<?= htmlspecialchars($csrfToken) ?>');
       
       const response = await fetch('/QuickHire/Public/actions/delete_job.php', {
         method: 'POST',
@@ -1774,8 +1814,6 @@ $flashSuccess = Session::flash('success');
       showToast('Error deleting job post', 'error');
     }
   }
-
-  let currentJobPosts = [];
 
   // Job posting form submission
   document.getElementById('jobPostingForm').addEventListener('submit', async function(e) {
@@ -1976,11 +2014,7 @@ function displaySearchResults(results, query) {
           </div>
         </div>
         <div class="search-result-actions" onclick="event.stopPropagation()">
-          <select id="jobSelect_${jobseeker.id}" style="margin-bottom:6px;width:100%;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:#1e293b;color:#e2e8f0;font-size:12px;font-family:inherit;">
-            <option value="">No specific job</option>
-            ${currentJobPosts.filter(j=>j.is_active).map(j=>`<option value="${j.id}">${j.title.length>22?j.title.substring(0,22)+'…':j.title}</option>`).join('')}
-          </select>
-          <button class="message-button" onclick="startConversationWithJobseeker(${jobseeker.id}, this, document.getElementById('jobSelect_${jobseeker.id}').value || null)">
+          <button class="message-button" onclick="startConversationWithJobseeker(${jobseeker.id}, this)">
             💬 Message
           </button>
         </div>
@@ -2043,16 +2077,9 @@ function viewJobseekerProfile(el) {
   if (js.resume_url) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Resume</div><a href="/QuickHire/Public/${js.resume_url}" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a></div></div>`;
   document.getElementById('jsProfileDetails').innerHTML = details || '<span style="color:#64748b;font-size:13px;">No details available.</span>';
 
-  // Message button + job selector
-  const profileJobSelect = document.getElementById('jsProfileJobSelect');
-  if (profileJobSelect) {
-    profileJobSelect.innerHTML = '<option value="">No specific job</option>' +
-      currentJobPosts.filter(j => j.is_active).map(j =>
-        `<option value="${j.id}">${j.title.length > 22 ? j.title.substring(0,22)+'…' : j.title}</option>`
-      ).join('');
-  }
+  // Message button
   document.getElementById('jsProfileMsgBtn').onclick = () =>
-    startConversationWithJobseeker(js.id, document.getElementById('jsProfileMsgBtn'), profileJobSelect?.value || null);
+    startConversationWithJobseeker(js.id, document.getElementById('jsProfileMsgBtn'));
 
   // Show panel
   showJobseekerProfileView();
@@ -2130,7 +2157,6 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement, jobPos
     }
   } catch (error) {
     showToast('Failed to start conversation: ' + error.message, 'error');
-    }
   } finally {
     button.disabled = false;
     button.textContent = '💬 Message';
@@ -2164,7 +2190,7 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement, jobPos
       const formData = new FormData();
       formData.append('first_name', firstName);
       formData.append('last_name', lastName);
-      formData.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
+      formData.append('csrf_token', '<?= htmlspecialchars($csrfToken) ?>');
 
       const response = await fetch('/QuickHire/Public/actions/update_name.php', {
         method: 'POST',
@@ -2195,8 +2221,6 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement, jobPos
 
 <script>
 // Messaging Panel Functionality
-const messagingPanel = document.getElementById('messagingPanel');
-const btnMessages = document.getElementById('btnMessages');
 const conversationsList = document.getElementById('conversationsList');
 const chatArea = document.getElementById('chatArea');
 const backToConversations = document.getElementById('backToConversations');
@@ -2204,70 +2228,105 @@ const messagesContainer = document.getElementById('messagesContainer');
 const messageForm = document.getElementById('messageForm');
 const messageInput = document.getElementById('messageInput');
 
-let currentConversationId = null;
+// Declare these in window scope so they're accessible everywhere
+window.currentConversationId = null;
 let conversations = [];
+let activeJobFilter = '';
+
+function resetMessageSelection() {
+  currentConversationId = null;
+  const chatTitle = document.getElementById('chatTitle');
+  if (chatTitle) chatTitle.textContent = 'Select a conversation';
+  const chatStatus = document.getElementById('chatStatus');
+  if (chatStatus) chatStatus.innerHTML = '';
+  const jobBanner = document.getElementById('jobBanner');
+  if (jobBanner) {
+    jobBanner.style.display = 'none';
+    jobBanner.innerHTML = '';
+  }
+  const menuBtn = document.getElementById('chatMenuBtn');
+  if (menuBtn) menuBtn.style.display = 'none';
+  const avatarEl = document.getElementById('chatHeaderAvatar');
+  if (avatarEl) {
+    avatarEl.style.display = 'none';
+    avatarEl.innerHTML = '';
+  }
+  const messageInputArea = document.getElementById('messageInputArea');
+  if (messageInputArea) messageInputArea.style.display = 'none';
+  if (messagesContainer) {
+    messagesContainer.innerHTML = `
+      <div class="empty-state">
+        <h3>Select a conversation</h3>
+        <p>Choose a conversation from the sidebar to start messaging</p>
+      </div>`;
+  }
+  document.querySelectorAll('.conversation-item').forEach(item => item.classList.remove('active'));
+}
 
 // Open messaging panel
 btnMessages.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
-  localStorage.setItem('emp_active_page', 'home'); // don't restore messages on reload
-  messagingPanel.classList.add('open');
+  
+  try {
+    localStorage.setItem('emp_active_page', 'home'); // don't restore messages on reload
+    messagingPanel.classList.add('open');
 
-  // Reset chat header to default state when opening fresh
-  currentConversationId = null;
-  activeJobFilter = '';
-  jobFilterPage = 0;
-  const convSearch = document.getElementById('convSearchInput');
-  if (convSearch) convSearch.value = '';
-  document.getElementById('chatTitle').textContent = 'Select a conversation';
-  const chatStatusReset = document.getElementById('chatStatus');
-  if (chatStatusReset) chatStatusReset.innerHTML = '';
-  const menuBtnReset = document.getElementById('chatMenuBtn');
-  if (menuBtnReset) menuBtnReset.style.display = 'none';
-  const avatarEl = document.getElementById('chatHeaderAvatar');
-  if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
-  const jobBannerReset = document.getElementById('jobBanner');
-  if (jobBannerReset) { jobBannerReset.style.display = 'none'; jobBannerReset.innerHTML = ''; }
-  document.getElementById('messagesContainer').innerHTML = `
-    <div class="empty-state">
-      <h3>Select a conversation</h3>
-      <p>Choose a conversation from the sidebar to start messaging</p>
-    </div>`;
-  document.getElementById('messageInputArea').style.display = 'none';
+    // Reset chat header to default state when opening fresh
+    window.currentConversationId = null;
+    activeJobFilter = '';
+    jobFilterPage = 0;
+    const convSearch = document.getElementById('convSearchInput');
+    if (convSearch) convSearch.value = '';
+    document.getElementById('chatTitle').textContent = 'Select a conversation';
+    const chatStatusReset = document.getElementById('chatStatus');
+    if (chatStatusReset) chatStatusReset.innerHTML = '';
+    const menuBtnReset = document.getElementById('chatMenuBtn');
+    if (menuBtnReset) menuBtnReset.style.display = 'none';
+    const avatarEl = document.getElementById('chatHeaderAvatar');
+    if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
+    const jobBannerReset = document.getElementById('jobBanner');
+    if (jobBannerReset) { jobBannerReset.style.display = 'none'; jobBannerReset.innerHTML = ''; }
+    document.getElementById('messagesContainer').innerHTML = `
+      <div class="empty-state">
+        <h3>Select a conversation</h3>
+        <p>Choose a conversation from the sidebar to start messaging</p>
+      </div>`;
+    document.getElementById('messageInputArea').style.display = 'none';
 
-  loadConversations();
+    loadConversations();
 
-  // Load job posts for filter pills if not already loaded
-  if (!currentJobPosts || currentJobPosts.length === 0) {
-    fetch('/QuickHire/Public/actions/get_job_posts.php')
-      .then(r => r.json())
-      .then(result => {
-        if (result.ok) {
-          currentJobPosts = result.job_posts;
-          buildJobFilter(); // Rebuild pills now that we have job data
-        }
-      })
-      .catch(() => {});
+    // Load job posts for filter pills if not already loaded
+    if (!window.currentJobPosts || window.currentJobPosts.length === 0) {
+      fetch('/QuickHire/Public/actions/get_job_posts.php')
+        .then(r => r.json())
+        .then(result => {
+          if (result.ok) {
+            window.currentJobPosts = result.job_posts;
+            if (typeof buildJobFilter === 'function') {
+              buildJobFilter(); // Rebuild pills now that we have job data
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('Error loading job posts:', error);
+        });
+    }
+
+    // Update active states
+    btnHome.classList.remove('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    btnSearchJobseekers.classList.remove('active');
+    btnPostJob.classList.remove('active');
+    btnMessages.classList.add('active');
+    
+  } catch (error) {
+    console.error('Error opening messaging panel:', error);
+    // Fallback: close the panel if there's an error
+    messagingPanel.classList.remove('open');
   }
-
-  // Update active states
-  btnHome.classList.remove('active');
-  btnEditProfile.classList.remove('active');
-  btnEditProfile2.classList.remove('active');
-  btnSearchJobseekers.classList.remove('active');
-  btnPostJob.classList.remove('active');
-  btnMessages.classList.add('active');
 });
-
-// Close messaging panel (via sidebar nav buttons)
-function closeMessagingPanel() {
-  messagingPanel.classList.remove('open');
-  currentConversationId = null;
-  document.getElementById('messageInputArea').style.display = 'none';
-  const menuBtn = document.getElementById('chatMenuBtn');
-  if (menuBtn) menuBtn.style.display = 'none';
-}
 
 // Back to conversations
 backToConversations.addEventListener('click', () => {
@@ -2290,6 +2349,9 @@ async function loadConversations() {
 
     if (data.ok) {
       conversations = data.conversations;
+      if (currentConversationId && !conversations.some(c => parseInt(c.id, 10) === parseInt(currentConversationId, 10))) {
+        resetMessageSelection();
+      }
       buildJobFilter();
       displayConversations();
     } else {
@@ -2313,13 +2375,16 @@ function buildJobFilter() {
   conversations.forEach(c => {
     if (c.job_post_id && c.job_post_title) jobMap[c.job_post_id] = c.job_post_title;
   });
-  (currentJobPosts || []).filter(j => j.is_active).forEach(j => {
-    jobMap[j.id] = j.title;
-  });
 
   const jobs = Object.entries(jobMap); // unique job entries
 
-  if (jobs.length === 0) { filterBar.style.display = 'none'; return; }
+  if (jobs.length === 0) {
+    activeJobFilter = '';
+    jobFilterPage = 0;
+    if (pillsContainer) pillsContainer.innerHTML = '';
+    if (filterBar) filterBar.style.display = 'none';
+    return;
+  }
   filterBar.style.display = 'block';
 
   // Clamp page
@@ -2479,20 +2544,13 @@ async function deleteConversation(conversationId) {
     
     if (data.ok) {
       // Reset chat area
-      currentConversationId = null;
-      document.getElementById('chatTitle').textContent = 'Select a conversation';
-      const chatStatusDel = document.getElementById('chatStatus');
-      if (chatStatusDel) chatStatusDel.innerHTML = '';
-      const menuBtnDel = document.getElementById('chatMenuBtn');
-      if (menuBtnDel) menuBtnDel.style.display = 'none';
-      const avatarEl = document.getElementById('chatHeaderAvatar');
-      if (avatarEl) { avatarEl.style.display = 'none'; avatarEl.innerHTML = ''; }
-      document.getElementById('messagesContainer').innerHTML = `
-        <div class="empty-state">
-          <h3>Select a conversation</h3>
-          <p>Choose a conversation from the sidebar to start messaging</p>
-        </div>`;
-      document.getElementById('messageInputArea').style.display = 'none';
+      resetMessageSelection();
+      activeJobFilter = '';
+      jobFilterPage = 0;
+      const filterBar = document.getElementById('jobFilterBar');
+      if (filterBar) filterBar.style.display = 'none';
+      const pillsContainer = document.getElementById('jobFilterPills');
+      if (pillsContainer) pillsContainer.innerHTML = '';
       await loadConversations();
       showToast('Conversation deleted.', 'success');
     } else {
@@ -2804,14 +2862,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   navButtons.forEach(button => {
     button.addEventListener('click', function() {
-      // Close messaging panel if it's open
-      if (messagingPanel && messagingPanel.classList.contains('open')) {
-        messagingPanel.classList.remove('open');
-        currentConversationId = null;
-        if (document.getElementById('messageInputArea')) {
-          document.getElementById('messageInputArea').style.display = 'none';
-        }
-      }
+      closeMessagingPanel();
     });
   });
 });
@@ -2863,33 +2914,33 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
 </div>
 
 <!-- -- Edit Job Modal -- -->
-<div id="editJobModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;overflow-y:auto;padding:40px 16px;">
-  <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;max-width:760px;width:100%;margin:0 auto;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-      <h2 style="margin:0;font-size:20px;font-weight:900;color:#f8fafc;">Edit Job Post</h2>
-      <button onclick="closeEditJobModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;padding:4px;">?</button>
+<div id="editJobModal" class="edit-job-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:99999;overflow-y:auto;padding:40px 16px;">
+  <div class="edit-job-dialog" style="background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:32px;max-width:760px;width:100%;margin:0 auto;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+    <div class="edit-job-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h2 style="margin:0;font-size:20px;font-weight:900;color:#f8fafc;">✏️ Edit Job Post</h2>
+      <button type="button" class="edit-job-close" onclick="closeEditJobModal()" aria-label="Close edit job modal" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;line-height:1;padding:4px;">&times;</button>
     </div>
 
     <form id="editJobForm">
       <input type="hidden" id="edit_job_id">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
 
-      <div style="display:grid;grid-template-columns:1fr;gap:16px;">
+      <div class="edit-job-form-grid" style="display:grid;grid-template-columns:1fr;gap:16px;">
 
-        <div>
+        <div class="edit-job-field">
           <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Job Title *</label>
           <input type="text" id="edit_job_title" required maxlength="255" placeholder="e.g., Senior Frontend Developer"
             style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;box-sizing:border-box;">
         </div>
 
-        <div>
+        <div class="edit-job-field">
           <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Job Description *</label>
           <textarea id="edit_job_description" required maxlength="5000" rows="5" placeholder="Describe the role..."
             style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-          <div>
+        <div class="edit-job-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div class="edit-job-field">
             <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Role Category</label>
             <select id="edit_job_role_title" style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#1e293b;color:#f8fafc;font-family:inherit;font-size:14px;">
               <option value="">Select Role</option>
@@ -2898,7 +2949,7 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
               <?php endforeach; ?>
             </select>
           </div>
-          <div>
+          <div class="edit-job-field">
             <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Employment Type</label>
             <select id="edit_job_employment_type" style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#1e293b;color:#f8fafc;font-family:inherit;font-size:14px;">
               <option value="">Select Type</option>
@@ -2910,8 +2961,8 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
-          <div>
+        <div class="edit-job-three-col" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+          <div class="edit-job-field">
             <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Country</label>
             <select id="edit_job_country" style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#1e293b;color:#f8fafc;font-family:inherit;font-size:14px;">
               <option value="">Select Country</option>
@@ -2920,12 +2971,12 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
               <?php endforeach; ?>
             </select>
           </div>
-          <div>
+          <div class="edit-job-field">
             <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Rate/hr (USD)</label>
             <input type="number" id="edit_job_rate" step="0.01" min="0" placeholder="e.g. 50.00"
               style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;box-sizing:border-box;">
           </div>
-          <div>
+          <div class="edit-job-field">
             <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Hrs/week</label>
             <input type="number" id="edit_job_hours" min="1" max="168" placeholder="e.g. 40"
               style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);color:#f8fafc;font-family:inherit;font-size:14px;box-sizing:border-box;">
@@ -2933,8 +2984,9 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
         </div>
 
         <!-- Required Skills -->
-        <div>
-          <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Required Skills <span style="color:#64748b;font-weight:400;">(optional)</span></label>
+        <div class="edit-job-field">
+          <label style="display:block;font-weight:700;margin-bottom:6px;color:#e2e8f0;font-size:13px;">Required Skills <span style="color:#64748b;font-weight:400;">(Optional)</span></label>
+          <div class="edit-job-help">Select skills required for this job</div>
           <div class="skills-container">
             <input type="text" class="skills-search" placeholder="🔍 Search skills..." id="editJobSkillsSearch">
             <div class="skills-tabs">
@@ -2975,9 +3027,9 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
 
       </div>
 
-      <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
-        <button type="button" onclick="closeEditJobModal()" style="padding:11px 22px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#e2e8f0;font-weight:700;font-size:14px;cursor:pointer;">Cancel</button>
+      <div class="edit-job-actions" style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
         <button type="submit" id="editJobSubmitBtn" style="padding:11px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:white;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 0 20px rgba(99,102,241,0.3);">Save Changes</button>
+        <button type="button" onclick="closeEditJobModal()" style="padding:11px 22px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#e2e8f0;font-weight:700;font-size:14px;cursor:pointer;">Cancel</button>
       </div>
     </form>
   </div>
@@ -2985,10 +3037,11 @@ fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
 
 <script>
 function openEditJobModal(jobId) {
-  const jobData = currentJobPosts.find(j => j.id === jobId);
+  const numericJobId = parseInt(jobId, 10);
+  const jobData = (window.currentJobPosts || []).find(j => parseInt(j.id, 10) === numericJobId);
   if (!jobData) { showToast('Job not found', 'error'); return; }
 
-  document.getElementById('edit_job_id').value = jobId;
+  document.getElementById('edit_job_id').value = numericJobId;
   document.getElementById('edit_job_title').value = jobData.title || '';
   document.getElementById('edit_job_description').value = jobData.description || '';
   document.getElementById('edit_job_role_title').value = jobData.role_title || '';
@@ -3003,7 +3056,10 @@ function openEditJobModal(jobId) {
     cb.checked = currentSkillIds.includes(parseInt(cb.value));
   });
 
-  document.getElementById('editJobModal').style.display = 'block';
+  const editJobModal = document.getElementById('editJobModal');
+  editJobModal.style.display = 'flex';
+  const editJobForm = document.getElementById('editJobForm');
+  if (editJobForm) editJobForm.scrollTop = 0;
   document.body.style.overflow = 'hidden';
 }
 
@@ -3058,7 +3114,7 @@ document.getElementById('editJobForm').addEventListener('submit', async function
   try {
     const fd = new FormData();
     fd.append('job_id', document.getElementById('edit_job_id').value);
-    fd.append('csrf_token', '<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>');
+    fd.append('csrf_token', '<?= htmlspecialchars($csrfToken) ?>');
     fd.append('title', document.getElementById('edit_job_title').value);
     fd.append('description', document.getElementById('edit_job_description').value);
     fd.append('role_title', document.getElementById('edit_job_role_title').value);

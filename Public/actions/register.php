@@ -14,7 +14,7 @@ $auth = new AuthService($db->pdo());
 
 if (!Csrf::verify($_POST['csrf_token'] ?? null)) {
     Session::flash('error', 'Security check failed. Please try again.');
-    header('Location: /QuickHire/public/index.php');
+    header('Location: /QuickHire/Public/index.php');
     exit;
 }
 
@@ -29,11 +29,11 @@ try {
     );
 
     Session::flash('success', 'Registration successful! You can now log in.');
-    header('Location: /QuickHire/public/index.php?open=login');
+    header('Location: /QuickHire/Public/index.php?open=login');
     exit;
 
 } catch (Exception $e) {
     Session::flash('error', $e->getMessage());
-    header('Location: /QuickHire/public/index.php?open=register');
+    header('Location: /QuickHire/Public/index.php?open=register');
     exit;
 }

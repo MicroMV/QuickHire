@@ -19,9 +19,10 @@ class Database
             ]);
         } catch (PDOException $e) {
             error_log("Database connection failed: " . $e->getMessage());
-            // Redirect to maintenance page without exposing technical details
+            // Show a plain error without exposing technical details
             if (!headers_sent()) {
-                header("Location: /QuickHire/Public/maintenance.php");
+                http_response_code(503);
+                echo '<!DOCTYPE html><html><head><title>Service Unavailable</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;"><h2>Service Temporarily Unavailable</h2><p>Please try again later.</p></body></html>';
                 exit;
             }
             // If headers already sent (e.g. AJAX), return JSON error

@@ -81,7 +81,7 @@ $csrf = Csrf::token();
       <?php if ($error): ?><div class="alert err"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
       <?php if ($role === 'JOBSEEKER'): ?>
-        <form method="POST" action="actions/save_profile.php" enctype="multipart/form-data">
+        <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
           <input type="hidden" name="profile_type" value="JOBSEEKER">
 
@@ -370,7 +370,7 @@ $csrf = Csrf::token();
             $skillsByCategory[$skill['category']][] = $skill;
           }
         ?>
-        <form method="POST" action="actions/save_profile.php" enctype="multipart/form-data">
+        <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
           <input type="hidden" name="profile_type" value="EMPLOYER">
 

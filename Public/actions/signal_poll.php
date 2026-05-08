@@ -8,6 +8,11 @@ use Rongie\QuickHire\Core\Database;
 Session::start();
 Auth::requireLogin();
 
+// Release session lock — this endpoint only reads data
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 $config = require __DIR__ . '/../../Config/config.php';
 $db = new Database($config['db']);
 $pdo = $db->pdo();
