@@ -813,6 +813,31 @@ body {
   color: #f1f5f9;
 }
 
+.chat-title-link {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #f1f5f9;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+}
+
+.chat-title-link:hover,
+.chat-title-link:focus-visible {
+  color: #a5b4fc;
+  text-decoration: underline;
+}
+
+#chatHeaderAvatar img,
+.conversation-avatar img,
+.message-avatar img {
+  border-radius: 50%;
+  display: block;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;

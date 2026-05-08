@@ -641,6 +641,13 @@ body {
   flex-shrink: 0;
 }
 
+#chatHeaderAvatar img,
+.conversation-avatar img,
+.message-avatar img {
+  border-radius: 50%;
+  display: block;
+}
+
 .conversation-info {
   flex: 1;
   min-width: 0;

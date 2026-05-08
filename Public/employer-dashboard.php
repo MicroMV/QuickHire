@@ -2141,6 +2141,12 @@ function viewJobseekerProfile(el) {
   const js = window._searchResults && window._searchResults[id];
   if (!js) return;
 
+  renderJobseekerProfile(js);
+  showJobseekerProfileView();
+}
+
+function renderJobseekerProfile(js) {
+
   // Populate panel
   const avatarEl = document.getElementById('jsProfileAvatar');
   if (js.profile_picture_url) {
@@ -2185,12 +2191,12 @@ function viewJobseekerProfile(el) {
   // Message button
   document.getElementById('jsProfileMsgBtn').onclick = () =>
     startConversationWithJobseeker(js.id, document.getElementById('jsProfileMsgBtn'));
-
-  // Show panel
-  showJobseekerProfileView();
 }
 
 function showJobseekerProfileView() {
+  closeMessagingPanel();
+  localStorage.setItem('emp_active_page', 'home');
+
   document.getElementById('dashboardContent').style.display = 'none';
   document.getElementById('searchContent').style.display = 'none';
   document.getElementById('jobPostingContent').style.display = 'none';
@@ -2208,6 +2214,26 @@ function showJobseekerProfileView() {
 
   document.querySelector('.title').textContent = 'Jobseeker Profile';
   document.querySelector('.subtitle').textContent = 'Viewing candidate profile.';
+}
+
+async function openJobseekerProfileFromConversation(jobseekerId) {
+  jobseekerId = parseInt(jobseekerId, 10);
+  if (!jobseekerId) return;
+
+  try {
+    const response = await fetch(`/QuickHire/Public/actions/get_jobseeker_profile.php?jobseeker_id=${jobseekerId}`);
+    const data = await response.json();
+
+    if (!data.ok || !data.profile) {
+      showToast(data.error || 'Failed to load jobseeker profile', 'error');
+      return;
+    }
+
+    renderJobseekerProfile(data.profile);
+    showJobseekerProfileView();
+  } catch (error) {
+    showToast('Failed to load jobseeker profile: ' + error.message, 'error');
+  }
 }
 
 async function startConversationWithJobseeker(jobseekerId, buttonElement, jobPostId = null) {
@@ -2340,6 +2366,12 @@ const messageInput = document.getElementById('messageInput');
 window.currentConversationId = null;
 let conversations = [];
 let activeJobFilter = '';
+
+function escapeHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = value ?? '';
+  return div.innerHTML;
+}
 
 function resetMessageSelection() {
   currentConversationId = null;
@@ -2694,7 +2726,12 @@ async function openConversation(conversationId) {
       statusText = `<span style="color:#64748b; font-size:13px; font-weight:normal;">Active ${minutesAgo} min ago</span>`;
     }
   }
-  document.getElementById("chatTitle").textContent = `${conversation.other_first_name} ${conversation.other_last_name}`;
+  const chatTitleEl = document.getElementById("chatTitle");
+  const chatName = `${conversation.other_first_name} ${conversation.other_last_name}`;
+  const jobseekerId = parseInt(conversation.jobseeker_id, 10);
+  chatTitleEl.innerHTML = jobseekerId
+    ? `<button type="button" class="chat-title-link" onclick="openJobseekerProfileFromConversation(${jobseekerId})">${escapeHtml(chatName)}</button>`
+    : escapeHtml(chatName);
   const chatStatusEl = document.getElementById('chatStatus');
   if (chatStatusEl) chatStatusEl.innerHTML = statusText;
 
@@ -2725,7 +2762,7 @@ async function openConversation(conversationId) {
     avatarEl.style.display = 'flex';
     avatarEl.style.position = 'relative';
     if (conversation.other_avatar) {
-      avatarEl.innerHTML = `<img src="/QuickHire/Public/${conversation.other_avatar}" style="width:100%;height:100%;object-fit:cover;">${statusDot(conversation.other_last_active)}`;
+      avatarEl.innerHTML = `<img src="/QuickHire/Public/${conversation.other_avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">${statusDot(conversation.other_last_active)}`;
     } else {
       avatarEl.innerHTML = `${conversation.other_first_name.charAt(0).toUpperCase()}${statusDot(conversation.other_last_active)}`;
     }
@@ -3006,6 +3043,11 @@ setInterval(() => {
 
 // Initial activity update
 fetch('/QuickHire/Public/actions/update_activity.php', { method: 'POST' });
+
+const initialJobseekerProfileId = parseInt(new URLSearchParams(window.location.search).get('jobseeker_profile'), 10);
+if (initialJobseekerProfileId) {
+  openJobseekerProfileFromConversation(initialJobseekerProfileId);
+}
 </script>
 
 <!-- Floating chat menu  appended to body to escape overflow:hidden containers -->

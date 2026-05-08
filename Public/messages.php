@@ -195,6 +195,16 @@ if ($selectedConversationId > 0) {
             color: #1e293b;
         }
 
+        .chat-header h3 a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .chat-header h3 a:hover {
+            color: #3b82f6;
+            text-decoration: underline;
+        }
+
         .chat-subtitle {
             font-size: 14px;
             color: #64748b;
@@ -441,11 +451,15 @@ if ($selectedConversationId > 0) {
             <div class="chat-area">
                 <?php if ($selectedConversation): ?>
                     <div class="chat-header">
-                        <h3><?= htmlspecialchars(
-                            $userRole === 'EMPLOYER' 
-                                ? $selectedConversation['jobseeker_first_name'] . ' ' . $selectedConversation['jobseeker_last_name']
-                                : $selectedConversation['employer_first_name'] . ' ' . $selectedConversation['employer_last_name']
-                        ) ?></h3>
+                        <h3>
+                            <?php if ($userRole === 'EMPLOYER'): ?>
+                                <a href="/QuickHire/Public/employer-dashboard.php?jobseeker_profile=<?= urlencode((string)$selectedConversation['jobseeker_id']) ?>">
+                                    <?= htmlspecialchars($selectedConversation['jobseeker_first_name'] . ' ' . $selectedConversation['jobseeker_last_name']) ?>
+                                </a>
+                            <?php else: ?>
+                                <?= htmlspecialchars($selectedConversation['employer_first_name'] . ' ' . $selectedConversation['employer_last_name']) ?>
+                            <?php endif; ?>
+                        </h3>
                         <div class="chat-subtitle">
                             <?= htmlspecialchars(
                                 $userRole === 'EMPLOYER' 
