@@ -137,7 +137,7 @@ function public_url(string $path): string
 
         <div class="cp-grid">
           <div class="cp-full">
-            <div class="avatar-upload" onclick="document.getElementById('ov_emp_pic').click()">
+            <div class="avatar-upload" onclick="openAvatarCamera('ov_emp_avatar_data', 'ovEmpAvatarPreview')">
               <div class="avatar-preview" id="ovEmpAvatarPreview">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
                   <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Profile Picture">
@@ -146,7 +146,7 @@ function public_url(string $path): string
                 <?php endif; ?>
               </div>
               <div class="avatar-overlay"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-              <input type="file" id="ov_emp_pic" name="profile_picture" accept="image/*">
+              <input type="hidden" id="ov_emp_avatar_data" name="captured_avatar">
             </div>
             <div class="cp-avatar-name"><?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?></div>
           </div>
@@ -305,19 +305,6 @@ function public_url(string $path): string
     }
     empGoStep(from + 1);
   };
-
-  // Avatar preview
-  const picInput = document.getElementById('ov_emp_pic');
-  const preview  = document.getElementById('ovEmpAvatarPreview');
-  if (picInput && preview) {
-    picInput.addEventListener('change', () => {
-      const file = picInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => { preview.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">'; };
-      reader.readAsDataURL(file);
-    });
-  }
 
   // Skills search & tab filter
   const search = document.getElementById('ovEmpSkillsSearch');
@@ -500,8 +487,8 @@ function public_url(string $path): string
         <div class="grid">
           <div style="grid-column:1/-1; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-radius:16px; padding: 40px 20px 24px; position:relative; overflow:hidden;">
             <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.15) 0%, transparent 70%);pointer-events:none;"></div>
-            <div class="avatar-upload" onclick="document.getElementById('profile_picture_emp').click()">
-              <div class="avatar-preview">
+            <div class="avatar-upload" onclick="openAvatarCamera('profile_picture_emp_data', 'empEditAvatarPreview')">
+              <div class="avatar-preview" id="empEditAvatarPreview">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
                   <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Profile Picture">
                 <?php else: ?>
@@ -509,7 +496,7 @@ function public_url(string $path): string
                 <?php endif; ?>
               </div>
               <div class="avatar-overlay"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-              <input type="file" id="profile_picture_emp" name="profile_picture" accept="image/*">
+              <input type="hidden" id="profile_picture_emp_data" name="captured_avatar">
             </div>
             <div style="text-align: center; margin-top: 10px; font-weight: 700; color: #f8fafc;">
               <div id="nameDisplay" style="cursor: pointer; padding: 5px; border-radius: 5px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'" onclick="editName()">
@@ -1739,19 +1726,6 @@ function public_url(string $path): string
       }, 300);
     }, 4000);
   }
-
-  // Avatar preview functionality
-  document.getElementById('profile_picture_emp').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const avatarPreview = document.querySelector('.avatar-preview');
-        avatarPreview.innerHTML = `<img src="${e.target.result}" alt="Profile Picture">`;
-      };
-      reader.readAsDataURL(file);
-    }
-  });
 
   // Job Posting Functionality
   const jobPostingForm = document.getElementById('jobPostingForm');
@@ -3315,6 +3289,100 @@ function closeImageModal() {
   document.body.style.overflow = '';
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeImageModal(); });
+</script>
+
+<div id="avatarCameraModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.86);z-index:100000;align-items:center;justify-content:center;padding:18px;">
+  <div style="width:min(520px,100%);background:#0f172a;border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:18px;box-shadow:0 24px 70px rgba(0,0,0,0.55);">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+      <h3 style="margin:0;color:#f8fafc;font-size:18px;">Take Profile Photo</h3>
+      <button type="button" onclick="closeAvatarCamera()" style="background:none;border:0;color:#94a3b8;font-size:24px;line-height:1;cursor:pointer;">&times;</button>
+    </div>
+    <div id="avatarCameraError" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,0.14);color:#fca5a5;font-size:13px;font-weight:700;"></div>
+    <div style="position:relative;width:100%;aspect-ratio:1/1;background:#020617;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+      <video id="avatarCameraVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>
+      <img id="avatarCameraSnapshot" alt="Captured avatar preview" style="display:none;width:100%;height:100%;object-fit:cover;">
+      <canvas id="avatarCameraCanvas" width="640" height="640" style="display:none;"></canvas>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;">
+      <button type="button" id="avatarRetakeBtn" onclick="retakeAvatarPhoto()" style="display:none;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#e2e8f0;font-weight:800;cursor:pointer;">Retake</button>
+      <button type="button" id="avatarCaptureBtn" onclick="captureAvatarPhoto()" style="padding:10px 16px;border-radius:10px;border:0;background:#6366f1;color:white;font-weight:900;cursor:pointer;">Capture</button>
+      <button type="button" id="avatarUseBtn" onclick="useAvatarPhoto()" style="display:none;padding:10px 16px;border-radius:10px;border:0;background:#10b981;color:white;font-weight:900;cursor:pointer;">Use Photo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let avatarCameraStream = null;
+let avatarCameraTargetInput = '';
+let avatarCameraTargetPreview = '';
+let avatarCameraImage = '';
+
+async function openAvatarCamera(inputId, previewId) {
+  avatarCameraTargetInput = inputId;
+  avatarCameraTargetPreview = previewId;
+  avatarCameraImage = '';
+  const modal = document.getElementById('avatarCameraModal');
+  const error = document.getElementById('avatarCameraError');
+  const video = document.getElementById('avatarCameraVideo');
+  const snapshot = document.getElementById('avatarCameraSnapshot');
+  error.style.display = 'none';
+  snapshot.style.display = 'none';
+  video.style.display = 'block';
+  document.getElementById('avatarCaptureBtn').style.display = '';
+  document.getElementById('avatarRetakeBtn').style.display = 'none';
+  document.getElementById('avatarUseBtn').style.display = 'none';
+  modal.style.display = 'flex';
+  try {
+    avatarCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    video.srcObject = avatarCameraStream;
+  } catch (err) {
+    error.textContent = 'Camera access is required for profile photos. Please allow camera permission and try again.';
+    error.style.display = 'block';
+  }
+}
+
+function stopAvatarCamera() {
+  if (avatarCameraStream) {
+    avatarCameraStream.getTracks().forEach(track => track.stop());
+    avatarCameraStream = null;
+  }
+}
+
+function closeAvatarCamera() {
+  stopAvatarCamera();
+  document.getElementById('avatarCameraModal').style.display = 'none';
+}
+
+function captureAvatarPhoto() {
+  const video = document.getElementById('avatarCameraVideo');
+  if (!video.videoWidth || !video.videoHeight) return;
+  const canvas = document.getElementById('avatarCameraCanvas');
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  const sx = (video.videoWidth - size) / 2;
+  const sy = (video.videoHeight - size) / 2;
+  canvas.getContext('2d').drawImage(video, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+  avatarCameraImage = canvas.toDataURL('image/jpeg', 0.9);
+  document.getElementById('avatarCameraSnapshot').src = avatarCameraImage;
+  document.getElementById('avatarCameraSnapshot').style.display = 'block';
+  video.style.display = 'none';
+  stopAvatarCamera();
+  document.getElementById('avatarCaptureBtn').style.display = 'none';
+  document.getElementById('avatarRetakeBtn').style.display = '';
+  document.getElementById('avatarUseBtn').style.display = '';
+}
+
+function retakeAvatarPhoto() {
+  openAvatarCamera(avatarCameraTargetInput, avatarCameraTargetPreview);
+}
+
+function useAvatarPhoto() {
+  if (!avatarCameraImage) return;
+  const input = document.getElementById(avatarCameraTargetInput);
+  const preview = document.getElementById(avatarCameraTargetPreview);
+  if (input) input.value = avatarCameraImage;
+  if (preview) preview.innerHTML = `<img src="${avatarCameraImage}" style="width:100%;height:100%;object-fit:cover;">`;
+  closeAvatarCamera();
+}
 </script>
 
 </body>

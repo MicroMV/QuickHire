@@ -32,6 +32,45 @@ class FileUpload
         return rtrim($targetDirRel, '/\\') . '/' . $name;
     }
 
+    /** Save a camera-captured avatar data URL, return saved relative path. */
+    public function saveCapturedAvatar(?string $dataUrl, string $targetDirAbs, string $targetDirRel): ?string
+    {
+        $dataUrl = trim((string)$dataUrl);
+        if ($dataUrl === '') {
+            return null;
+        }
+
+        if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+\/=]+)$/', $dataUrl, $matches)) {
+            throw new Exception("Avatar must be captured from the camera.");
+        }
+
+        $imageType = strtolower($matches[1]) === 'jpg' ? 'jpeg' : strtolower($matches[1]);
+        $binary = base64_decode($matches[2], true);
+        if ($binary === false || strlen($binary) === 0) {
+            throw new Exception("Captured avatar could not be read.");
+        }
+        if (strlen($binary) > $this->maxBytes) {
+            throw new Exception("Captured avatar is too large (max 5MB).");
+        }
+
+        $info = @getimagesizefromstring($binary);
+        if (!$info || empty($info['mime']) || !in_array($info['mime'], $this->allowedImageTypes, true)) {
+            throw new Exception("Captured avatar must be JPG, PNG, or WEBP.");
+        }
+
+        $ext = $imageType === 'jpeg' ? 'jpg' : $imageType;
+        $name = 'avatar_' . bin2hex(random_bytes(8)) . '.' . $ext;
+
+        $this->ensureDir($targetDirAbs);
+        $destAbs = rtrim($targetDirAbs, '/\\') . DIRECTORY_SEPARATOR . $name;
+
+        if (file_put_contents($destAbs, $binary) === false) {
+            throw new Exception("Failed to save captured avatar.");
+        }
+
+        return rtrim($targetDirRel, '/\\') . '/' . $name;
+    }
+
     /** Upload resume PDF, return saved relative path like "uploads/resumes/xxx.pdf" */
     public function uploadResume(array $file, string $targetDirAbs, string $targetDirRel): ?string
     {

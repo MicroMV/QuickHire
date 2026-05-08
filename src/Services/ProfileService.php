@@ -45,11 +45,15 @@ class ProfileService
         $rateNum = (float)$rate;
         if ($rateNum <= 0) throw new Exception("Rate per hour must be greater than 0.");
 
-        $avatarPath = $this->upload->uploadAvatar($files['profile_picture'] ?? [], $avatarAbs, $avatarRel);
+        $avatarPath = $this->upload->saveCapturedAvatar($data['captured_avatar'] ?? null, $avatarAbs, $avatarRel);
         $resumePath = $this->upload->uploadResume($files['resume'] ?? [], $resumeAbs, $resumeRel);
 
         if (!$avatarPath) $avatarPath = $existing['profile_picture_url'] ?? null;
         if (!$resumePath) $resumePath = $existing['resume_url'] ?? null;
+
+        if (!$avatarPath) {
+            throw new Exception("Please take a profile photo with your camera.");
+        }
 
         $this->pdo->beginTransaction();
         try {
@@ -141,8 +145,12 @@ class ProfileService
             throw new Exception("Please fill out all required employer fields.");
         }
 
-        $avatarPath = $this->upload->uploadAvatar($files['profile_picture'] ?? [], $avatarAbs, $avatarRel);
+        $avatarPath = $this->upload->saveCapturedAvatar($data['captured_avatar'] ?? null, $avatarAbs, $avatarRel);
         if (!$avatarPath) $avatarPath = $existing['profile_picture_url'] ?? null;
+
+        if (!$avatarPath) {
+            throw new Exception("Please take a profile photo with your camera.");
+        }
 
         $this->pdo->beginTransaction();
         try {
