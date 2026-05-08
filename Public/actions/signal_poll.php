@@ -43,10 +43,12 @@ if (!$call || ($userId !== (int)$call['employer_user_id'] && $userId !== (int)($
 }
 
 $stmt = $pdo->prepare("
-  SELECT id, sender_id, message_type, payload
-  FROM webrtc_signals
-  WHERE room_code = ? AND id > ? AND sender_id <> ?
-  ORDER BY id ASC
+  SELECT s.id, s.sender_id, s.message_type, s.payload,
+         u.first_name, u.last_name, u.role
+  FROM webrtc_signals s
+  JOIN users u ON u.id = s.sender_id
+  WHERE s.room_code = ? AND s.id > ? AND s.sender_id <> ?
+  ORDER BY s.id ASC
   LIMIT 50
 ");
 $stmt->execute([$room, $after, $userId]);
@@ -60,7 +62,11 @@ echo json_encode([
   'after' => $lastId,
   'messages' => array_map(fn($r) => [
     'id' => (int)$r['id'],
+    'sender_id' => (int)$r['sender_id'],
     'type' => $r['message_type'],
     'payload' => json_decode($r['payload'], true),
+    'first_name' => $r['first_name'],
+    'last_name' => $r['last_name'],
+    'role' => $r['role'],
   ], $rows)
 ]);

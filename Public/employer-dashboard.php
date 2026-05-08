@@ -76,6 +76,17 @@ foreach ($allSkills as $skill) {
   $overlayEmpSkillsByCategory[$skill['category']][] = $skill;
 }
 
+$publicBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+if ($publicBase === '' || $publicBase === '.') {
+  $publicBase = '';
+}
+
+function public_url(string $path): string
+{
+  global $publicBase;
+  return ($publicBase === '' ? '' : $publicBase) . '/' . ltrim($path, '/');
+}
+
 // $flashError and $flashSuccess already read before session_write_close above
 ?>
 
@@ -89,11 +100,11 @@ foreach ($allSkills as $skill) {
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/employer-dashboard.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dashboard-mobile.css?v=<?= time() ?>">
-  <script src="/QuickHire/Public/assets/js/dashboard-mobile.js?v=<?= time() ?>" defer></script>
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/landingPage.css')) ?>?v=<?= time() ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/employer-dashboard.css')) ?>?v=<?= time() ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/dark-theme.css')) ?>?v=<?= time() ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/dashboard-mobile.css')) ?>?v=<?= time() ?>">
+  <script src="<?= htmlspecialchars(public_url('assets/js/dashboard-mobile.js')) ?>?v=<?= time() ?>" defer></script>
 </head>
 <body class="landing-body">
 
@@ -129,7 +140,7 @@ foreach ($allSkills as $skill) {
             <div class="avatar-upload" onclick="document.getElementById('ov_emp_pic').click()">
               <div class="avatar-preview" id="ovEmpAvatarPreview">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
-                  <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
+                  <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Profile Picture">
                 <?php else: ?>
                   <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
                 <?php endif; ?>
@@ -362,13 +373,13 @@ foreach ($allSkills as $skill) {
   <!-- SIDEBAR -->
   <aside class="side">
     <div class="brandRow">
-      <img src="/QuickHire/Public/images/quickhire-logo.png" alt="QuickHire Logo">
+      <img src="<?= htmlspecialchars(public_url('images/quickhire-logo.png')) ?>" alt="QuickHire Logo">
     </div>
 
     <div class="profileCard">
       <div class="avatar">
         <?php if (!empty($profile['profile_picture_url'])): ?>
-          <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Avatar">
+          <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Avatar">
         <?php else: ?>
           <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
         <?php endif; ?>
@@ -492,7 +503,7 @@ foreach ($allSkills as $skill) {
             <div class="avatar-upload" onclick="document.getElementById('profile_picture_emp').click()">
               <div class="avatar-preview">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
-                  <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
+                  <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Profile Picture">
                 <?php else: ?>
                   <?= strtoupper(substr($userInfo['first_name'] ?? 'E', 0, 1)) ?>
                 <?php endif; ?>
@@ -1101,6 +1112,8 @@ foreach ($allSkills as $skill) {
     }
   }
   
+  const APP_BASE = <?= json_encode($publicBase) ?>;
+  const assetUrl = (path) => `${APP_BASE}/${String(path || '').replace(/^\/+/, '')}`;
   const btnFindMatch = document.getElementById('btnFindMatch');
   const btnFindMatch2 = document.getElementById('btnFindMatch2');
   const btnHome = document.getElementById('btnHome');

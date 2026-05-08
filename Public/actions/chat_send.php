@@ -3,14 +3,17 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 use Rongie\QuickHire\Core\Session;
 use Rongie\QuickHire\Core\Database;
-use Rongie\QuickHire\Services\MessagingService;
 
 Session::start();
+ob_start();
 
 header('Content-Type: application/json');
 
 function json_response(array $payload, int $status = 200): void
 {
+    if (ob_get_length() !== false) {
+        ob_clean();
+    }
     http_response_code($status);
     echo json_encode($payload);
     exit;
@@ -62,34 +65,41 @@ try {
         json_response(['ok' => false, 'error' => 'No call participant yet'], 409);
     }
 
-    $messagingService = new MessagingService($pdo);
-    $conversationId = $messagingService->getOrCreateConversation($empId, $jsId);
-    $messageId = $messagingService->sendMessage(
-        $conversationId,
-        $uid,
-        $message,
-        'text',
-        null,
-        null,
-        null,
-        $room
-    );
-
-    $messageStmt = $pdo->prepare("
-        SELECT m.id,
-               m.sender_id,
-               m.content,
-               m.created_at,
-               u.first_name,
-               u.last_name,
-               u.role
-        FROM messages m
-        JOIN users u ON u.id = m.sender_id
-        WHERE m.id = ?
-        LIMIT 1
+    $signalStmt = $pdo->prepare("
+        INSERT INTO webrtc_signals (room_code, sender_id, message_type, payload, created_at)
+        VALUES (?, ?, 'chat', ?, NOW())
     ");
-    $messageStmt->execute([$messageId]);
-    $savedMessage = $messageStmt->fetch();
+    $signalStmt->execute([$room, $uid, json_encode(['message' => $message])]);
+    $messageId = (int)$pdo->lastInsertId();
+
+    $userStmt = $pdo->prepare("SELECT first_name, last_name, role FROM users WHERE id = ? LIMIT 1");
+    $userStmt->execute([$uid]);
+    $sender = $userStmt->fetch() ?: [];
+
+    $conversationId = null;
+    try {
+        $conversationStmt = $pdo->prepare("SELECT id FROM conversations WHERE employer_id = ? AND jobseeker_id = ? LIMIT 1");
+        $conversationStmt->execute([$empId, $jsId]);
+        $conversationId = $conversationStmt->fetchColumn();
+
+        if (!$conversationId) {
+            $createConversation = $pdo->prepare("
+                INSERT INTO conversations (employer_id, jobseeker_id, created_at, updated_at)
+                VALUES (?, ?, NOW(), NOW())
+            ");
+            $createConversation->execute([$empId, $jsId]);
+            $conversationId = (int)$pdo->lastInsertId();
+        }
+
+        $mirrorStmt = $pdo->prepare("
+            INSERT INTO messages (conversation_id, sender_id, message_type, content, room_code, created_at)
+            VALUES (?, ?, 'text', ?, ?, NOW())
+        ");
+        $mirrorStmt->execute([(int)$conversationId, $uid, $message, $room]);
+        $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?")->execute([(int)$conversationId]);
+    } catch (\Throwable $mirrorError) {
+        error_log("chat_send mirror warning: " . $mirrorError->getMessage());
+    }
 
     json_response([
         'ok' => true,
@@ -98,11 +108,11 @@ try {
         'message' => [
             'id' => $messageId,
             'sender_id' => $uid,
-            'message' => $savedMessage['content'] ?? $message,
-            'first_name' => $savedMessage['first_name'] ?? '',
-            'last_name' => $savedMessage['last_name'] ?? '',
-            'role' => $savedMessage['role'] ?? '',
-            'created_at' => $savedMessage['created_at'] ?? date('Y-m-d H:i:s'),
+            'message' => $message,
+            'first_name' => $sender['first_name'] ?? '',
+            'last_name' => $sender['last_name'] ?? '',
+            'role' => $sender['role'] ?? '',
+            'created_at' => date('Y-m-d H:i:s'),
         ],
     ]);
 } catch (\Throwable $e) {

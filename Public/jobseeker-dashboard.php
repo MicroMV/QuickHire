@@ -67,6 +67,17 @@ foreach ($allSkills as $skill) {
   $overlaySkillsByCategory[$skill['category']][] = $skill;
 }
 
+$publicBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+if ($publicBase === '' || $publicBase === '.') {
+  $publicBase = '';
+}
+
+function public_url(string $path): string
+{
+  global $publicBase;
+  return ($publicBase === '' ? '' : $publicBase) . '/' . ltrim($path, '/');
+}
+
 // $flashError and $flashSuccess already read before session_write_close above
 ?>
 
@@ -79,11 +90,11 @@ foreach ($allSkills as $skill) {
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/jobseeker-dashboard.css">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dark-theme.css">
-  <link rel="stylesheet" href="/QuickHire/Public/assets/css/dashboard-mobile.css">
-  <script src="/QuickHire/Public/assets/js/dashboard-mobile.js" defer></script>
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/landingPage.css')) ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/jobseeker-dashboard.css')) ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/dark-theme.css')) ?>">
+  <link rel="stylesheet" href="<?= htmlspecialchars(public_url('assets/css/dashboard-mobile.css')) ?>">
+  <script src="<?= htmlspecialchars(public_url('assets/js/dashboard-mobile.js')) ?>" defer></script>
 </head>
 <body class="landing-body">
 
@@ -120,7 +131,7 @@ foreach ($allSkills as $skill) {
           <div class="avatar-upload" onclick="document.getElementById('ov_js_pic').click()">
             <div class="avatar-preview" id="ovJsAvatarPreview">
               <?php if (!empty($profile['profile_picture_url'])): ?>
-                <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile Picture">
+                <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Profile Picture">
               <?php else: ?>
                 <?= strtoupper(substr($userInfo['first_name'] ?? 'U', 0, 1)) ?>
               <?php endif; ?>
@@ -597,13 +608,13 @@ foreach ($allSkills as $skill) {
   <!-- SIDEBAR -->
   <aside class="side">
     <div class="brandRow">
-      <img src="/QuickHire/Public/images/quickhire-logo.png" alt="QuickHire Logo">
+      <img src="<?= htmlspecialchars(public_url('images/quickhire-logo.png')) ?>" alt="QuickHire Logo">
     </div>
 
     <div class="profileCard" onclick="showMyProfile()" style="cursor:pointer;" title="View my profile">
       <div class="avatar">
         <?php if (!empty($profile['profile_picture_url'])): ?>
-          <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Avatar">
+          <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Avatar">
         <?php else: ?>
           <?= strtoupper(substr($userInfo['first_name'] ?? 'U', 0, 1)) ?>
         <?php endif; ?>
@@ -786,7 +797,7 @@ foreach ($allSkills as $skill) {
             <div class="avatar-upload" onclick="document.getElementById('profile_picture_js').click()" style="cursor:pointer;">
               <div class="avatar-preview" style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:#64748b;display:flex;align-items:center;justify-content:center;color:white;font-size:40px;font-weight:bold;">
                 <?php if (!empty($profile['profile_picture_url'])): ?>
-                  <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" alt="Profile" style="width:100%;height:100%;object-fit:cover;">
+                  <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Profile" style="width:100%;height:100%;object-fit:cover;">
                 <?php else: ?>
                   <?= strtoupper(substr($userInfo['first_name'] ?? 'J', 0, 1)) ?>
                 <?php endif; ?>
@@ -971,7 +982,7 @@ foreach ($allSkills as $skill) {
                 <span style="font-size:20px;">📄</span>
                 <div style="flex:1;">
                   <div style="font-weight:600;font-size:13px;">Current Resume</div>
-                  <a href="/QuickHire/Public/<?= htmlspecialchars($profile['resume_url']) ?>" target="_blank" style="color:#6366f1;font-size:12px;text-decoration:none;">View Resume</a>
+                  <a href="<?= htmlspecialchars(public_url($profile['resume_url'])) ?>" target="_blank" style="color:#6366f1;font-size:12px;text-decoration:none;">View Resume</a>
                 </div>
               </div>
             <?php endif; ?>
@@ -1025,7 +1036,7 @@ foreach ($allSkills as $skill) {
         <div style="position:absolute;bottom:-50px;left:32px;">
           <div style="width:100px;height:100px;border-radius:50%;border:4px solid #0f172a;overflow:hidden;background:#1e293b;">
             <?php if (!empty($profile['profile_picture_url'])): ?>
-              <img src="/QuickHire/Public/<?= htmlspecialchars($profile['profile_picture_url']) ?>" style="width:100%;height:100%;object-fit:cover;">
+              <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" style="width:100%;height:100%;object-fit:cover;">
             <?php else: ?>
               <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#a5b4fc;"><?= strtoupper(substr($userInfo['first_name'] ?? 'U', 0, 1)) ?></div>
             <?php endif; ?>
@@ -1108,7 +1119,7 @@ foreach ($allSkills as $skill) {
                   <span style="font-size:18px;">📄</span>
                   <div>
                     <div style="font-size:12px;color:#64748b;">Resume</div>
-                    <a href="/QuickHire/Public/<?= htmlspecialchars($profile['resume_url']) ?>" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a>
+                    <a href="<?= htmlspecialchars(public_url($profile['resume_url'])) ?>" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a>
                   </div>
                 </div>
               <?php endif; ?>
@@ -1200,6 +1211,8 @@ foreach ($allSkills as $skill) {
 
 <script>
   // Basic functionality
+  const APP_BASE = <?= json_encode($publicBase) ?>;
+  const assetUrl = (path) => `${APP_BASE}/${String(path || '').replace(/^\/+/, '')}`;
   const btnFindEmployer = document.getElementById('btnFindEmployer');
   const btnFindEmployer2 = document.getElementById('btnFindEmployer2');
   const btnHome = document.getElementById('btnHome');

@@ -34,6 +34,11 @@ if (!$call) {
 $uid = Auth::userId();
 $isEmployer = $uid === (int)$call['employer_user_id'];
 $isJobseeker = $call['jobseeker_user_id'] && $uid === (int)$call['jobseeker_user_id'];
+$publicBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/QuickHire/Public/call.php')), '/');
+if ($publicBase === '' || $publicBase === '.') {
+    $publicBase = '/';
+}
+$actionsBase = rtrim($publicBase, '/') . '/actions';
 
 if (!$isEmployer && !$isJobseeker) {
     $role = Auth::role();
@@ -113,7 +118,12 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         const MY_ID = <?= json_encode(Auth::userId()) ?>;
         const MY_ROLE = <?= json_encode(Auth::role()) ?>;
         const CALL_STATUS = <?= json_encode($call['status']) ?>;
+        const ACTIONS_BASE = <?= json_encode($actionsBase) ?>;
         const MATCHING_PREFS_KEY = 'matchingPreferences_' + MY_ID;
+
+        function actionUrl(path) {
+            return `${ACTIONS_BASE}/${path}`;
+        }
 
         function getSavedMatchingPreferences() {
             const stored = localStorage.getItem(MATCHING_PREFS_KEY);
@@ -138,7 +148,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         let localStream = null;
         let pc = null;
         let afterSignalId = 0;
-        let afterChatId = 0;
         let polling = true;
         let isOfferer = false; // Track who should create offer
 
@@ -178,7 +187,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             // Send heartbeat every 10 seconds - less frequent to reduce interference
             heartbeatInterval = setInterval(() => {
                 if (!isLeavingPage && polling) {
-                    fetch("/QuickHire/Public/actions/heartbeat.php", {
+                    fetch(actionUrl("heartbeat.php"), {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ room: ROOM })
@@ -205,7 +214,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             statusCheckInterval = setInterval(async () => {
                 if (!isLeavingPage && polling) {
                     try {
-                        const response = await fetch('/QuickHire/Public/actions/check_room_status.php?room=' + encodeURIComponent(ROOM));
+                        const response = await fetch(actionUrl('check_room_status.php') + '?room=' + encodeURIComponent(ROOM));
                         const data = await response.json();
                         
                         if (data.ok && (data.status === 'COMPLETED' || data.status === 'MISSED')) {
@@ -270,7 +279,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             stopStatusMonitoring();
             
             // Send cleanup request
-            fetch("/QuickHire/Public/actions/cleanup_call.php", {
+            fetch(actionUrl("cleanup_call.php"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ room: ROOM }),
@@ -322,57 +331,39 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
 
         async function sendChatMessage(message) {
             try {
-                const res = await fetch("/QuickHire/Public/actions/chat_send.php", {
+                const res = await fetch(actionUrl("signal_send.php"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ room: ROOM, message })
+                    body: JSON.stringify({ room: ROOM, type: "chat", payload: { message } })
                 });
 
                 const text = await res.text();
                 let data;
                 try { data = JSON.parse(text); }
-                catch (e) { throw new Error('Unexpected chat server response'); }
+                catch (e) {
+                    console.error('chat signal non-JSON:', text.substring(0, 500));
+                    throw new Error(`Unexpected chat server response (${res.status})`);
+                }
 
                 if (!res.ok || !data.ok) {
                     throw new Error(data.error || 'Chat send failed');
                 }
 
-                if (data.message) {
-                    displayChatMessage(data.message);
-                }
+                displayChatMessage({
+                    id: `local_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+                    sender_id: MY_ID,
+                    message,
+                    first_name: 'You',
+                    last_name: '',
+                    role: MY_ROLE,
+                    created_at: new Date().toISOString()
+                });
 
                 return true;
             } catch (e) {
                 console.error('Chat send error:', e);
                 alert(e.message || 'Failed to send message');
                 return false;
-            }
-        }
-
-        async function pollChatMessages() {
-            while (polling) {
-                try {
-                    const res = await fetch(`/QuickHire/Public/actions/chat_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterChatId}`);
-                    const text = await res.text();
-                    let data;
-                    try { data = JSON.parse(text); }
-                    catch(e) {
-                        console.error('chat_poll non-JSON:', text.substring(0, 200));
-                        await new Promise(r => setTimeout(r, 2000));
-                        continue;
-                    }
-                    if (data.ok) {
-                        afterChatId = data.after;
-                        for (const msg of data.messages) {
-                            displayChatMessage(msg);
-                        }
-                    } else {
-                        console.warn('chat_poll error:', data);
-                    }
-                } catch (e) {
-                    console.error('chat_poll fetch error:', e);
-                }
-                await new Promise(r => setTimeout(r, 500));
             }
         }
 
@@ -400,7 +391,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
 
         async function sendSignal(type, payload) {
             try {
-                await fetch("/QuickHire/Public/actions/signal_send.php", {
+                await fetch(actionUrl("signal_send.php"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ room: ROOM, type, payload })
@@ -413,7 +404,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             let pollCount = 0;
             while (polling) {
                 try {
-                    const res = await fetch(`/QuickHire/Public/actions/signal_poll.php?room=${encodeURIComponent(ROOM)}&after=${afterSignalId}`);
+                    const res = await fetch(`${actionUrl('signal_poll.php')}?room=${encodeURIComponent(ROOM)}&after=${afterSignalId}`);
                     const data = await res.json();
                     
                     pollCount++;
@@ -424,7 +415,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         afterSignalId = data.after;
                         if (data.messages && data.messages.length > 0) {
                             for (const m of data.messages) {
-                                await handleSignal(m.type, m.payload);
+                                const payload = m.type === 'chat'
+                                    ? { ...(m.payload || {}), id: m.id, sender_id: m.sender_id, first_name: m.first_name, last_name: m.last_name, role: m.role }
+                                    : m.payload;
+                                await handleSignal(m.type, payload);
                             }
                         }
                     } else {
@@ -561,6 +555,19 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         async function handleSignal(type, payload) {
+            if (type === "chat") {
+                displayChatMessage({
+                    id: payload?.id || `signal_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+                    sender_id: payload?.sender_id || 0,
+                    message: payload?.message || '',
+                    first_name: payload?.first_name || 'Participant',
+                    last_name: payload?.last_name || '',
+                    role: payload?.role || '',
+                    created_at: payload?.created_at || new Date().toISOString()
+                });
+                return;
+            }
+
             if (!pc) {
                 return;
             }
@@ -615,7 +622,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             showFindingNextMatch();
             
             try {
-                const response = await fetch("/QuickHire/Public/actions/next_match.php", {
+                const response = await fetch(actionUrl("next_match.php"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ room: ROOM })
@@ -661,7 +668,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                         });
                     }
 
-                    const response = await fetch('/QuickHire/Public/actions/find_match.php', {
+                    const response = await fetch(actionUrl('find_match.php'), {
                         method: 'POST',
                         body: formData
                     });
@@ -702,7 +709,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             
             // Reset variables
             afterSignalId = 0;
-            afterChatId = 0;
             polling = true;
             
             // Clear chat messages and dedup sets for the new room
@@ -724,7 +730,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             
             // Restart polling
             pollSignals();
-            pollChatMessages();
             
             // Reload participant names for new call
             setTimeout(() => loadParticipantNames(), 1000);
@@ -851,7 +856,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         async function loadParticipantNames() {
             try {
                 // Get current user's name (for local video)
-                const response = await fetch('/QuickHire/Public/actions/get_user_info.php');
+                const response = await fetch(actionUrl('get_user_info.php'));
                 const userData = await response.json();
                 
                 if (userData.ok) {
@@ -860,7 +865,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 }
                 
                 // Get partner's name from call info
-                const callResponse = await fetch('/QuickHire/Public/actions/get_call_info.php', {
+                const callResponse = await fetch(actionUrl('get_call_info.php'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ room: ROOM })
@@ -906,21 +911,13 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
 
                 // ── Load existing chat history before starting the poll loop ──
                 try {
-                    const histRes = await fetch(`/QuickHire/Public/actions/chat_poll.php?room=${encodeURIComponent(ROOM)}&after=0`);
-                    const histData = await histRes.json();
-                    if (histData.ok && histData.messages.length > 0) {
-                        afterChatId = histData.after;
-                        for (const msg of histData.messages) {
-                            displayChatMessage(msg);
-                        }
-                    }
+                    // Chat history polling is disabled on hosted environments that block chat_poll.php.
                 } catch (e) {
                     console.warn('Could not load chat history:', e);
                 }
                 
                 // Start polling (will only fetch NEW messages after the history cursor)
                 pollSignals();
-                pollChatMessages();
                 
                 // Load names
                 loadParticipantNames();
@@ -928,7 +925,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 // Check if we have a partner before attempting connection
                 setTimeout(async () => {
                     try {
-                        const callResponse = await fetch('/QuickHire/Public/actions/get_call_info.php', {
+                        const callResponse = await fetch(actionUrl('get_call_info.php'), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ room: ROOM })
