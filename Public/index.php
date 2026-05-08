@@ -244,8 +244,12 @@ if (Auth::isLoggedIn()) {
         <label>Password</label>
         <input type="password" name="password" placeholder="••••••••" required>
       </div>
+      <button type="button" onclick="switchTab('forgot')" class="ln-forgot-link">Forgot password?</button>
       <button type="submit" class="ln-btn-primary ln-btn-full">Sign In</button>
-      <button type="button" onclick="switchTab('forgot')" style="margin-top:10px;background:none;border:0;color:#8b5cf6;font-weight:800;cursor:pointer;width:100%;padding:8px;">Forgot password?</button>
+      <p class="ln-auth-agreement">
+        <span class="ln-auth-agreement-check" aria-hidden="true">&#10003;</span>
+        By using QuickHire, you agree to our Privacy Policy and respectful hiring standards.
+      </p>
     </form>
 
     <!-- REGISTER FORM -->

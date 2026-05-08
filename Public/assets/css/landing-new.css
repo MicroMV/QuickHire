@@ -275,6 +275,27 @@
   outline: none; transition: border-color .2s; box-sizing: border-box;
 }
 .ln-form-group input:focus { border-color: rgba(99,102,241,0.5); }
+.ln-forgot-link {
+  display: block; width: 100%;
+  margin: -6px 0 14px; padding: 0;
+  background: none; border: 0; color: #8b5cf6;
+  font: inherit; font-size: 12px; font-weight: 700;
+  text-align: right; cursor: pointer;
+}
+.ln-forgot-link:hover { color: #a78bfa; }
+.ln-auth-agreement {
+  display: flex; align-items: flex-start; gap: 8px;
+  color: #64748b; font-size: 10px; line-height: 1.4;
+  margin: 7px 0 0;
+}
+.ln-auth-agreement-check {
+  width: 13px; height: 13px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(16,185,129,0.14); color: #34d399;
+  border: 1px solid rgba(16,185,129,0.28);
+  font-size: 8px; font-weight: 800; flex-shrink: 0;
+  margin-top: 1px;
+}
 .ln-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ln-role-toggle { display: flex; gap: 10px; margin-bottom: 20px; }
 .ln-role-opt {
