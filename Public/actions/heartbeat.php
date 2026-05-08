@@ -45,7 +45,7 @@ try {
         SET updated_at = CURRENT_TIMESTAMP 
         WHERE room_code = ? 
         AND (employer_user_id = ? OR jobseeker_user_id = ?)
-        AND status IN ('RINGING', 'IN_CALL')
+        AND status IN ('WAITING', 'RINGING', 'IN_CALL')
     ");
     $stmt->execute([$room, $userId, $userId]);
     

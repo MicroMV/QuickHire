@@ -47,6 +47,13 @@ if (!$isEmployer && !$isJobseeker) {
     exit;
 }
 
+if (in_array($call['status'], ['COMPLETED', 'MISSED', 'CANCELLED'], true)) {
+    $role = Auth::role();
+    $dest = $role === 'EMPLOYER' ? 'employer-dashboard.php' : 'jobseeker-dashboard.php';
+    header("Location: /QuickHire/Public/{$dest}");
+    exit;
+}
+
 // Update status based on current state
 if ($call['status'] === 'WAITING' && $isJobseeker) {
     // Jobseeker joining a waiting room - change to RINGING
@@ -150,6 +157,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         let afterSignalId = 0;
         let polling = true;
         let isOfferer = false; // Track who should create offer
+        let jobseekerReconnectTimer = null;
 
         const iceConfig = {
             iceServers: [
@@ -182,20 +190,23 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
 
         // ===== HEARTBEAT MECHANISM =====
         let heartbeatInterval;
+
+        function sendHeartbeat() {
+            if (!isLeavingPage && polling) {
+                fetch(actionUrl("heartbeat.php"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ room: ROOM })
+                }).catch(() => {
+                    // Ignore heartbeat errors
+                });
+            }
+        }
         
         function startHeartbeat() {
+            sendHeartbeat();
             // Send heartbeat every 10 seconds - less frequent to reduce interference
-            heartbeatInterval = setInterval(() => {
-                if (!isLeavingPage && polling) {
-                    fetch(actionUrl("heartbeat.php"), {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ room: ROOM })
-                    }).catch(() => {
-                        // Ignore heartbeat errors
-                    });
-                }
-            }, 10000); // 10 seconds
+            heartbeatInterval = setInterval(sendHeartbeat, 10000); // 10 seconds
         }
         
         function stopHeartbeat() {
@@ -226,7 +237,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                             if (MY_ROLE === 'EMPLOYER') {
                                 window.location.href = '/QuickHire/Public/employer-dashboard.php';
                             } else {
-                                window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+                                returnJobseekerToWaiting();
                             }
                         }
                         
@@ -251,12 +262,59 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             }
         }
 
+        function returnJobseekerToWaiting() {
+            if (MY_ROLE !== 'JOBSEEKER') return;
+
+            polling = false;
+            if (jobseekerReconnectTimer) {
+                clearTimeout(jobseekerReconnectTimer);
+                jobseekerReconnectTimer = null;
+            }
+            stopHeartbeat();
+            stopStatusMonitoring();
+
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+
+            window.location.href = '/QuickHire/Public/jobseeker-dashboard.php?auto_wait=1';
+        }
+
+        function scheduleJobseekerWaitingReturn(delay = 3000) {
+            if (MY_ROLE !== 'JOBSEEKER' || jobseekerReconnectTimer || isLeavingPage) return;
+
+            jobseekerReconnectTimer = setTimeout(async () => {
+                jobseekerReconnectTimer = null;
+                if (MY_ROLE !== 'JOBSEEKER' || isLeavingPage || !polling) return;
+
+                try {
+                    const response = await fetch(actionUrl('check_room_status.php') + '?room=' + encodeURIComponent(ROOM));
+                    const data = await response.json();
+                    if (data.ok && (data.status === 'COMPLETED' || data.status === 'MISSED')) {
+                        returnJobseekerToWaiting();
+                        return;
+                    }
+                } catch (error) {
+                }
+
+                if (pc && ['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+                    returnJobseekerToWaiting();
+                }
+            }, delay);
+        }
+
         // ===== PAGE CLEANUP LOGIC =====
         let isLeavingPage = false;
+        let cleanupStarted = false;
         
         // Handle page unload (browser close, navigation away, etc.)
         window.addEventListener('beforeunload', function(e) {
-            isLeavingPage = true;
             // Send cleanup signal synchronously
             cleanupCall();
         });
@@ -271,7 +329,8 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         
         // Cleanup function
         function cleanupCall() {
-            if (isLeavingPage) return; // Prevent multiple calls
+            if (cleanupStarted) return; // Prevent multiple calls
+            cleanupStarted = true;
             isLeavingPage = true;
             
             polling = false;
@@ -506,6 +565,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 const statusElement = document.getElementById('connectionStatus');
 
                 if (pc.connectionState === 'connected') {
+                    if (jobseekerReconnectTimer) {
+                        clearTimeout(jobseekerReconnectTimer);
+                        jobseekerReconnectTimer = null;
+                    }
                     if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
                     setChatEnabled(true);
                 } else if (pc.connectionState === 'connecting') {
@@ -513,12 +576,14 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 } else if (pc.connectionState === 'failed') {
                     if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #dc2626;">Failed - Retrying...</strong>';
                     setChatEnabled(false);
+                    scheduleJobseekerWaitingReturn(2500);
                     setTimeout(() => {
                         if (pc && pc.connectionState === 'failed') pc.restartIce();
                     }, 1000);
                 } else if (pc.connectionState === 'disconnected') {
                     if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #f59e0b;">Reconnecting...</strong>';
                     setChatEnabled(false);
+                    scheduleJobseekerWaitingReturn(5000);
                 }
             };
 
@@ -526,13 +591,19 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             // before connectionState reaches 'connected'
             pc.oniceconnectionstatechange = () => {
                 if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    if (jobseekerReconnectTimer) {
+                        clearTimeout(jobseekerReconnectTimer);
+                        jobseekerReconnectTimer = null;
+                    }
                     const statusElement = document.getElementById('connectionStatus');
                     if (statusElement) statusElement.innerHTML = 'Connection: <strong style="color: #10b981;">Connected</strong>';
                     setChatEnabled(true);
                 } else if (pc.iceConnectionState === 'failed') {
                     setChatEnabled(false);
+                    scheduleJobseekerWaitingReturn(2500);
                 } else if (pc.iceConnectionState === 'disconnected') {
                     setChatEnabled(false);
+                    scheduleJobseekerWaitingReturn(5000);
                 }
             };
             
@@ -608,7 +679,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 findNextMatchAuto();
             } else {
                 // Jobseeker returns to dashboard when partner leaves
-                window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+                returnJobseekerToWaiting();
             }
         }
 
@@ -703,6 +774,8 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         function restartCall() {
+            isLeavingPage = false;
+            cleanupStarted = false;
             
             // Reset try again counter on successful match
             resetTryAgainCounter();
@@ -730,6 +803,8 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
             
             // Restart polling
             pollSignals();
+            startHeartbeat();
+            startStatusMonitoring();
             
             // Reload participant names for new call
             setTimeout(() => loadParticipantNames(), 1000);

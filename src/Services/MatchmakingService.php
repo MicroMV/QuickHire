@@ -292,7 +292,8 @@ class MatchmakingService
         // Get jobseeker skills
         $jsSkillIds = $this->getJobseekerSkillIds($jobseekerId);
 
-        // Get waiting employer rooms
+        // Get waiting employer rooms only when the employer is actively on the call page.
+        // This prevents jobseekers from being sent into abandoned WAITING rooms.
         $waitingRooms = $this->pdo->query("
             SELECT c.*, mq.wanted_role, mq.wanted_country, mq.employment_type, mq.id as queue_id,
                    u.first_name, u.last_name, ep.company_name
@@ -301,6 +302,15 @@ class MatchmakingService
             JOIN users u ON u.id = c.employer_user_id
             LEFT JOIN employer_profiles ep ON ep.user_id = c.employer_user_id
             WHERE c.status = 'WAITING'
+              AND c.updated_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 15 SECOND)
+              AND EXISTS (
+                  SELECT 1
+                  FROM webrtc_signals s
+                  WHERE s.room_code = c.room_code
+                    AND s.sender_id = c.employer_user_id
+                    AND s.message_type = 'heartbeat'
+                    AND s.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 15 SECOND)
+              )
             ORDER BY c.created_at ASC
         ")->fetchAll();
 
@@ -348,9 +358,22 @@ class MatchmakingService
 
         $this->pdo->beginTransaction();
         try {
-            // Check if room exists and is waiting
+            // Check if room exists, is waiting, and still has an active employer heartbeat.
             $room = $this->pdo->prepare("
-                SELECT * FROM calls WHERE room_code = ? AND status = 'WAITING' AND jobseeker_user_id IS NULL
+                SELECT *
+                FROM calls c
+                WHERE c.room_code = ?
+                  AND c.status = 'WAITING'
+                  AND c.jobseeker_user_id IS NULL
+                  AND c.updated_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 15 SECOND)
+                  AND EXISTS (
+                      SELECT 1
+                      FROM webrtc_signals s
+                      WHERE s.room_code = c.room_code
+                        AND s.sender_id = c.employer_user_id
+                        AND s.message_type = 'heartbeat'
+                        AND s.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 15 SECOND)
+                  )
             ");
             $room->execute([$roomCode]);
             $roomData = $room->fetch();

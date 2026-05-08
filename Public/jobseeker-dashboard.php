@@ -639,7 +639,40 @@ function public_url(string $path): string
         <button class="danger" type="submit">🚪 Logout</button>
       </form>
     </nav>
-  </aside>
+</aside>
+
+  <div class="js-waiting-overlay" id="jobseekerWaitingOverlay" aria-hidden="true">
+    <div class="js-waiting-card" role="dialog" aria-modal="true" aria-labelledby="jsWaitingTitle">
+      <div class="js-waiting-orbit" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <div class="js-waiting-core">QH</div>
+      </div>
+
+      <div class="js-waiting-kicker">Live matching</div>
+      <h2 id="jsWaitingTitle">Waiting for an employer</h2>
+      <p class="js-waiting-copy" id="jsWaitingCopy">
+        Keep this screen open while QuickHire looks for an employer who matches your profile.
+      </p>
+
+      <div class="js-waiting-timer">
+        <span>Time remaining</span>
+        <strong id="jsWaitingTime">03:00</strong>
+      </div>
+
+      <div class="js-waiting-progress" aria-hidden="true">
+        <span id="jsWaitingProgress"></span>
+      </div>
+
+      <div class="js-waiting-steps">
+        <div><span></span>Checking active employers</div>
+        <div><span></span>Comparing skills and role fit</div>
+        <div><span></span>Preparing your call room</div>
+      </div>
+
+      <button type="button" class="js-stop-waiting" id="btnStopWaiting">Stop waiting</button>
+    </div>
+  </div>
 
   <!-- MAIN -->
   <main class="main">
@@ -1394,36 +1427,108 @@ function useAvatarPhoto() {
     }).filter(Boolean).join('<span class="conversation-job-separator">, </span>');
   }
 
-  async function findEmployer() {
-    btnFindEmployer.disabled = true;
-    btnFindEmployer2.disabled = true;
-    btnFindEmployer.textContent = '🔍 Searching...';
-    btnFindEmployer2.textContent = 'Searching...';
+  const waitingOverlay = document.getElementById('jobseekerWaitingOverlay');
+  const waitingTimeEl = document.getElementById('jsWaitingTime');
+  const waitingProgressEl = document.getElementById('jsWaitingProgress');
+  const waitingCopyEl = document.getElementById('jsWaitingCopy');
+  const btnStopWaiting = document.getElementById('btnStopWaiting');
+  const WAITING_LIMIT_SECONDS = 180;
+  let waitingTimer = null;
+  let waitingPoller = null;
+  let waitingEndsAt = 0;
+  let waitingActive = false;
+  let waitingRequestRunning = false;
 
-    const resetButtons = () => {
-      btnFindEmployer.disabled = false;
-      btnFindEmployer2.disabled = false;
-      btnFindEmployer.textContent = '🔍 Find Employer';
-      btnFindEmployer2.textContent = 'Find Employer';
-    };
+  function setFindEmployerButtons(isWaiting) {
+    btnFindEmployer.disabled = isWaiting;
+    btnFindEmployer2.disabled = isWaiting;
+    btnFindEmployer.textContent = isWaiting ? 'Waiting...' : '🔍 Find Employer';
+    btnFindEmployer2.textContent = isWaiting ? 'Waiting...' : 'Find Employer';
+  }
+
+  function formatWaitingTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+  }
+
+  function updateWaitingCountdown() {
+    const remaining = Math.max(0, Math.ceil((waitingEndsAt - Date.now()) / 1000));
+    waitingTimeEl.textContent = formatWaitingTime(remaining);
+    waitingProgressEl.style.width = ((remaining / WAITING_LIMIT_SECONDS) * 100) + '%';
+
+    if (remaining <= 0) {
+      stopWaiting('No employer matched within 3 minutes. You can try again anytime.', 'info');
+    }
+  }
+
+  function showWaitingScreen() {
+    waitingActive = true;
+    waitingEndsAt = Date.now() + WAITING_LIMIT_SECONDS * 1000;
+    waitingCopyEl.textContent = 'Keep this screen open while QuickHire looks for an employer who matches your profile.';
+    waitingOverlay.classList.add('active');
+    waitingOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    setFindEmployerButtons(true);
+    updateWaitingCountdown();
+  }
+
+  function stopWaiting(message = '', type = 'info') {
+    waitingActive = false;
+    waitingRequestRunning = false;
+    clearInterval(waitingTimer);
+    clearInterval(waitingPoller);
+    waitingTimer = null;
+    waitingPoller = null;
+    waitingOverlay.classList.remove('active');
+    waitingOverlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    setFindEmployerButtons(false);
+
+    if (message) {
+      showToast(message, type);
+    }
+  }
+
+  async function checkEmployerMatch() {
+    if (!waitingActive || waitingRequestRunning) return;
+    waitingRequestRunning = true;
 
     try {
-      const response = await fetch('/QuickHire/Public/actions/find_employer.php');
+      const response = await fetch('/QuickHire/Public/actions/find_employer.php', {
+        headers: { 'Accept': 'application/json' }
+      });
       const data = await response.json();
 
+      if (!waitingActive) return;
+
       if (data.ok && data.room) {
-        resetButtons();
-        showCallConfirmation(data.room, 'employer');
-      } else if (data.waiting) {
-        resetButtons();
-        showToast('No employers are currently looking. Please wait.', 'info');
-      } else {
-        resetButtons();
-        showToast(data.error || 'Unable to find employers.', 'error');
+        waitingCopyEl.textContent = 'Employer found. Opening your call room...';
+        clearInterval(waitingTimer);
+        clearInterval(waitingPoller);
+        window.location.href = '/QuickHire/Public/call.php?room=' + encodeURIComponent(data.room);
+        return;
+      }
+
+      if (!data.waiting) {
+        stopWaiting(data.error || 'Unable to find employers right now.', 'error');
       }
     } catch (error) {
-      resetButtons();
-      showToast('Connection error. Please try again.', 'error');
+      if (waitingActive) {
+        stopWaiting('Connection error. Please try again.', 'error');
+      }
+    } finally {
+      waitingRequestRunning = false;
+    }
+  }
+
+  async function findEmployer() {
+    if (waitingActive) return;
+    showWaitingScreen();
+    await checkEmployerMatch();
+    if (waitingActive) {
+      waitingTimer = setInterval(updateWaitingCountdown, 1000);
+      waitingPoller = setInterval(checkEmployerMatch, 3500);
     }
   }
 
@@ -1635,9 +1740,17 @@ function useAvatarPhoto() {
   // Event listeners
   btnFindEmployer.addEventListener('click', findEmployer);
   btnFindEmployer2.addEventListener('click', findEmployer);
+  btnStopWaiting.addEventListener('click', () => stopWaiting('Waiting stopped.', 'info'));
   btnHome.addEventListener('click', showDashboard);
   btnBrowseJobs.addEventListener('click', showJobBrowsing);
   btnSettings.addEventListener('click', showSettings);
+
+  const autoWaitParam = new URLSearchParams(window.location.search).get('auto_wait');
+  if (autoWaitParam === '1') {
+    showDashboard();
+    setTimeout(findEmployer, 250);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
   
   // Edit profile buttons
   btnEditProfile.addEventListener('click', function() {

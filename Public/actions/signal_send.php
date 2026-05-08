@@ -90,7 +90,7 @@ if ($room === '' || !in_array($type, ['join','offer','answer','candidate','leave
 }
 
 $callStmt = $pdo->prepare("
-  SELECT employer_user_id, jobseeker_user_id
+  SELECT employer_user_id, jobseeker_user_id, status
   FROM calls
   WHERE room_code = ?
   LIMIT 1
@@ -102,6 +102,12 @@ $userId = Auth::userId();
 if (!$call || ($userId !== (int)$call['employer_user_id'] && $userId !== (int)($call['jobseeker_user_id'] ?? 0))) {
   http_response_code(403);
   echo json_encode(['ok' => false, 'error' => 'Not authorized for this room']);
+  exit;
+}
+
+if (in_array((string)$call['status'], ['COMPLETED', 'MISSED', 'CANCELLED'], true) && $type !== 'leave') {
+  http_response_code(410);
+  echo json_encode(['ok' => false, 'error' => 'This call room has ended']);
   exit;
 }
 
