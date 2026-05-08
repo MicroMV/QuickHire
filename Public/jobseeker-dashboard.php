@@ -999,18 +999,29 @@ function public_url(string $path): string
         Manage account-level actions for <?= htmlspecialchars($userInfo['email'] ?? 'your account') ?>.
       </p>
 
-      <section style="border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);border-radius:14px;padding:18px;">
-        <h3 style="margin:0 0 8px;color:#fecaca;">Delete Account</h3>
-        <p style="margin:0 0 16px;color:#fca5a5;line-height:1.6;">
+      <section style="border:1px solid rgba(99,102,241,0.28);background:rgba(99,102,241,0.08);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <h3 style="margin:0 0 10px;color:#e0e7ff;font-size:17px;">Change Password</h3>
+        <form method="POST" action="/QuickHire/Public/actions/change_password.php" style="display:grid;gap:10px;max-width:520px;">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+          <input type="password" name="current_password" placeholder="Current password" required autocomplete="current-password" style="padding:10px 12px;border:1px solid rgba(148,163,184,0.28);border-radius:10px;background:rgba(15,23,42,0.65);color:#f8fafc;">
+          <input type="password" name="new_password" placeholder="New password" required minlength="8" autocomplete="new-password" style="padding:10px 12px;border:1px solid rgba(148,163,184,0.28);border-radius:10px;background:rgba(15,23,42,0.65);color:#f8fafc;">
+          <input type="password" name="confirm_password" placeholder="Confirm new password" required minlength="8" autocomplete="new-password" style="padding:10px 12px;border:1px solid rgba(148,163,184,0.28);border-radius:10px;background:rgba(15,23,42,0.65);color:#f8fafc;">
+          <button class="btn" type="submit" style="justify-self:start;">Update Password</button>
+        </form>
+      </section>
+
+      <section style="border:1px solid rgba(239,68,68,0.28);background:rgba(239,68,68,0.06);border-radius:12px;padding:12px;max-width:520px;">
+        <h3 style="margin:0 0 6px;color:#fecaca;font-size:15px;">Delete Account</h3>
+        <p style="margin:0 0 10px;color:#fca5a5;line-height:1.45;font-size:13px;">
           This permanently removes your jobseeker profile, resume, conversations, calls, and login account.
         </p>
-        <form method="POST" action="/QuickHire/Public/actions/delete_account.php" onsubmit="return confirmDeleteAccount(this);" style="display:grid;gap:12px;max-width:520px;">
+        <form method="POST" action="/QuickHire/Public/actions/delete_account.php" onsubmit="return confirmDeleteAccount(this);" style="display:grid;gap:8px;">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-          <label style="display:block;font-weight:800;color:#f8fafc;">
+          <label style="display:block;font-weight:800;color:#f8fafc;font-size:13px;">
             Type DELETE to confirm
-            <input name="confirm_delete" autocomplete="off" placeholder="DELETE" required style="margin-top:6px;width:100%;padding:10px 12px;border:1px solid rgba(239,68,68,0.45);border-radius:10px;background:rgba(15,23,42,0.65);color:#f8fafc;">
+            <input name="confirm_delete" autocomplete="off" placeholder="DELETE" required style="margin-top:5px;width:100%;padding:8px 10px;border:1px solid rgba(239,68,68,0.45);border-radius:9px;background:rgba(15,23,42,0.65);color:#f8fafc;">
           </label>
-          <button class="btn danger" type="submit" style="justify-self:start;background:#dc2626;color:white;border-color:#dc2626;">Delete My Account</button>
+          <button class="btn danger" type="submit" style="justify-self:start;background:#dc2626;color:white;border-color:#dc2626;padding:8px 12px;font-size:13px;">Delete My Account</button>
         </form>
       </section>
     </div>

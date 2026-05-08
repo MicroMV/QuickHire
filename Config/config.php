@@ -7,6 +7,16 @@ return [
     'user' => 'root',
     'pass' => '',
     'charset' => 'utf8mb4'
+  ],
+  'mail' => [
+    'enabled' => true,
+    'host' => 'smtp.gmail.com',
+    'port' => 587,
+    'encryption' => 'tls',
+    'username' => 'quickhireee@gmail.com',
+    'password' => 'ephs gzdy udmh uvpd',
+    'from_email' => 'quickhireee@gmail.com',
+    'from_name' => 'QuickHire'
   ]
 ]; 
 

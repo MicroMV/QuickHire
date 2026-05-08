@@ -214,6 +214,13 @@ if (Auth::isLoggedIn()) {
       <button class="ln-sidebar-close" id="closeModal">✕</button>
     </div>
 
+    <?php
+      $openAuth = $_GET['open'] ?? '';
+      $authError = \Rongie\QuickHire\Core\Session::flash('error');
+      $authSuccess = \Rongie\QuickHire\Core\Session::flash('success');
+      $csrfToken = \Rongie\QuickHire\Core\Csrf::token();
+    ?>
+
     <!-- TABS -->
     <div class="ln-sidebar-tabs">
       <button class="ln-sidebar-tab active" id="tabLogin">Sign In</button>
@@ -222,14 +229,12 @@ if (Auth::isLoggedIn()) {
 
     <!-- LOGIN FORM -->
     <form id="loginForm" class="ln-auth-form" method="POST" action="/QuickHire/Public/actions/login.php">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
-      <?php $loginError = \Rongie\QuickHire\Core\Session::flash('error'); ?>
-      <?php $loginSuccess = \Rongie\QuickHire\Core\Session::flash('success'); ?>
-      <?php if ($loginError && ($_GET['open'] ?? '') === 'login'): ?>
-        <div class="ln-alert-error"><?= htmlspecialchars($loginError) ?></div>
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+      <?php if ($authError && $openAuth === 'login'): ?>
+        <div class="ln-alert-error"><?= htmlspecialchars($authError) ?></div>
       <?php endif; ?>
-      <?php if ($loginSuccess): ?>
-        <div class="ln-alert-success"><?= htmlspecialchars($loginSuccess) ?></div>
+      <?php if ($authSuccess && ($openAuth === 'login' || $openAuth === '')): ?>
+        <div class="ln-alert-success"><?= htmlspecialchars($authSuccess) ?></div>
       <?php endif; ?>
       <div class="ln-form-group">
         <label>Email</label>
@@ -240,13 +245,14 @@ if (Auth::isLoggedIn()) {
         <input type="password" name="password" placeholder="••••••••" required>
       </div>
       <button type="submit" class="ln-btn-primary ln-btn-full">Sign In</button>
+      <button type="button" onclick="switchTab('forgot')" style="margin-top:10px;background:none;border:0;color:#8b5cf6;font-weight:800;cursor:pointer;width:100%;padding:8px;">Forgot password?</button>
     </form>
 
     <!-- REGISTER FORM -->
     <form id="registerForm" class="ln-auth-form" style="display:none;" method="POST" action="/QuickHire/Public/actions/register.php">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
-      <?php if (($registerError = \Rongie\QuickHire\Core\Session::flash('error')) && ($_GET['open'] ?? '') === 'register'): ?>
-        <div class="ln-alert-error"><?= htmlspecialchars($registerError) ?></div>
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+      <?php if ($authError && $openAuth === 'register'): ?>
+        <div class="ln-alert-error"><?= htmlspecialchars($authError) ?></div>
       <?php endif; ?>
       <div class="ln-role-toggle">
         <label class="ln-role-opt">
@@ -267,6 +273,36 @@ if (Auth::isLoggedIn()) {
       <div class="ln-form-group"><label>Confirm Password</label><input type="password" name="password_confirm" placeholder="Repeat password" required></div>
       <button type="submit" class="ln-btn-primary ln-btn-full">Create Account</button>
     </form>
+
+    <!-- FORGOT PASSWORD FORM -->
+    <div id="forgotForm" class="ln-auth-form" style="display:none;">
+      <?php if ($authError && $openAuth === 'forgot'): ?>
+        <div class="ln-alert-error"><?= htmlspecialchars($authError) ?></div>
+      <?php endif; ?>
+      <?php if ($authSuccess && $openAuth === 'forgot'): ?>
+        <div class="ln-alert-success"><?= htmlspecialchars($authSuccess) ?></div>
+      <?php endif; ?>
+
+      <form method="POST" action="/QuickHire/Public/actions/request_password_reset.php" style="display:grid;gap:14px;margin-bottom:16px;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+        <div class="ln-form-group">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="you@example.com" required>
+        </div>
+        <button type="submit" class="ln-btn-primary ln-btn-full">Send Reset Code</button>
+      </form>
+
+      <form method="POST" action="/QuickHire/Public/actions/reset_password_with_code.php" style="display:grid;gap:14px;">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+        <div class="ln-form-group"><label>Email</label><input type="email" name="email" placeholder="same email" required></div>
+        <div class="ln-form-group"><label>Code</label><input name="reset_code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="6-digit code" required></div>
+        <div class="ln-form-group"><label>New Password</label><input type="password" name="new_password" placeholder="Min. 8 characters" required minlength="8"></div>
+        <div class="ln-form-group"><label>Confirm Password</label><input type="password" name="confirm_password" placeholder="Repeat password" required minlength="8"></div>
+        <button type="submit" class="ln-btn-primary ln-btn-full">Reset Password</button>
+      </form>
+
+      <button type="button" onclick="switchTab('login')" style="margin-top:10px;background:none;border:0;color:#8b5cf6;font-weight:800;cursor:pointer;width:100%;padding:8px;">Back to Sign In</button>
+    </div>
   </div>
 </div>
 
@@ -274,6 +310,7 @@ if (Auth::isLoggedIn()) {
   const modal = document.getElementById('authModal');
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
+  const forgotForm = document.getElementById('forgotForm');
   const tabLogin = document.getElementById('tabLogin');
   const tabRegister = document.getElementById('tabRegister');
 
@@ -281,6 +318,7 @@ if (Auth::isLoggedIn()) {
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
     if (tab === 'register') switchTab('register');
+    else if (tab === 'forgot') switchTab('forgot');
     else switchTab('login');
   }
 
@@ -288,13 +326,21 @@ if (Auth::isLoggedIn()) {
     if (tab === 'login') {
       loginForm.style.display = 'block';
       registerForm.style.display = 'none';
+      forgotForm.style.display = 'none';
       tabLogin.classList.add('active');
       tabRegister.classList.remove('active');
-    } else {
+    } else if (tab === 'register') {
       loginForm.style.display = 'none';
       registerForm.style.display = 'block';
+      forgotForm.style.display = 'none';
       tabLogin.classList.remove('active');
       tabRegister.classList.add('active');
+    } else {
+      loginForm.style.display = 'none';
+      registerForm.style.display = 'none';
+      forgotForm.style.display = 'block';
+      tabLogin.classList.remove('active');
+      tabRegister.classList.remove('active');
     }
   }
 
@@ -311,7 +357,7 @@ if (Auth::isLoggedIn()) {
 
   const urlParams = new URLSearchParams(window.location.search);
   const openTab = urlParams.get('open');
-  if (openTab === 'login' || openTab === 'register') {
+  if (openTab === 'login' || openTab === 'register' || openTab === 'forgot') {
     openModal(openTab);
   }
 </script>
