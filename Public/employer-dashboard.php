@@ -399,7 +399,9 @@ foreach ($allSkills as $skill) {
       <div class="nav-section-label">ACCOUNT</div>
       <button id="btnHome">🏠 Home</button>
       <button id="btnEditProfile">✏️ Edit Profile</button>
-      <button id="btnEditPreferences">⚙️ Edit Preferences</button>
+      <button id="btnEditPreferences">🎯 Matching Preferences</button>
+
+      <button id="btnSettings" type="button">⚙️ Settings</button>
 
       <div class="nav-section-label">SESSION</div>
       <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
@@ -581,6 +583,29 @@ foreach ($allSkills as $skill) {
           <button type="button" class="btn outline" id="btnCancelEdit">Cancel</button>
         </div>
       </form>
+    </div>
+
+    <!-- Settings Content (Hidden by default) -->
+    <div class="card" id="settingsContent" style="display:none;">
+      <h2 style="margin-top:0;">Account Settings</h2>
+      <p style="color:var(--muted);line-height:1.6;margin-bottom:22px;">
+        Manage account-level actions for <?= htmlspecialchars($userInfo['email'] ?? 'your account') ?>.
+      </p>
+
+      <section style="border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);border-radius:14px;padding:18px;">
+        <h3 style="margin:0 0 8px;color:#fecaca;">Delete Account</h3>
+        <p style="margin:0 0 16px;color:#fca5a5;line-height:1.6;">
+          This permanently removes your employer profile, jobs, conversations, calls, and login account.
+        </p>
+        <form method="POST" action="/QuickHire/Public/actions/delete_account.php" onsubmit="return confirmDeleteAccount(this);" style="display:grid;gap:12px;max-width:520px;">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+          <label style="display:block;font-weight:800;color:#f8fafc;">
+            Type DELETE to confirm
+            <input name="confirm_delete" autocomplete="off" placeholder="DELETE" required style="margin-top:6px;width:100%;padding:10px 12px;border:1px solid rgba(239,68,68,0.45);border-radius:10px;background:rgba(15,23,42,0.65);color:#f8fafc;">
+          </label>
+          <button class="btn danger" type="submit" style="justify-self:start;background:#dc2626;color:white;border-color:#dc2626;">Delete My Account</button>
+        </form>
+      </section>
     </div>
 
     <!-- Search Content (Hidden by default) -->
@@ -770,7 +795,7 @@ foreach ($allSkills as $skill) {
     <div class="modal" id="preferencesModal">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>⚙️ Matching Preferences</h2>
+          <h2>🎯 Matching Preferences</h2>
           <button class="modal-close" id="btnClosePreferences">&times;</button>
         </div>
 
@@ -1085,6 +1110,7 @@ foreach ($allSkills as $skill) {
   const btnCancelEdit = document.getElementById('btnCancelEdit');
   const btnSearchJobseekers = document.getElementById('btnSearchJobseekers');
   const btnPostJob = document.getElementById('btnPostJob');
+  const btnSettings = document.getElementById('btnSettings');
   const btnCancelJobPost = document.getElementById('btnCancelJobPost');
 
   function setEmployerMessagesNavActive() {
@@ -1094,11 +1120,13 @@ foreach ($allSkills as $skill) {
     btnEditProfile2.classList.remove('active');
     btnSearchJobseekers.classList.remove('active');
     btnPostJob.classList.remove('active');
+    btnSettings.classList.remove('active');
     btnMessages.classList.add('active');
   }
   
   const dashboardContent = document.getElementById('dashboardContent');
   const profileEditContent = document.getElementById('profileEditContent');
+  const settingsContent = document.getElementById('settingsContent');
   const searchContent = document.getElementById('searchContent');
   const jobPostingContent = document.getElementById('jobPostingContent');
   
@@ -1345,6 +1373,7 @@ foreach ($allSkills as $skill) {
     
     dashboardContent.style.display = 'grid';
     profileEditContent.style.display = 'none';
+    settingsContent.style.display = 'none';
     searchContent.style.display = 'none';
     jobPostingContent.style.display = 'none';
     document.getElementById('jsProfileView').style.display = 'none';
@@ -1353,6 +1382,7 @@ foreach ($allSkills as $skill) {
     btnHome.classList.add('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnSettings.classList.remove('active');
     btnSearchJobseekers.classList.remove('active');
     btnPostJob.classList.remove('active');
     btnMessages.classList.remove('active');
@@ -1375,6 +1405,7 @@ foreach ($allSkills as $skill) {
     
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'block';
+    settingsContent.style.display = 'none';
     searchContent.style.display = 'none';
     jobPostingContent.style.display = 'none';
     document.getElementById('jsProfileView').style.display = 'none';
@@ -1383,6 +1414,7 @@ foreach ($allSkills as $skill) {
     btnHome.classList.remove('active');
     btnEditProfile.classList.add('active');
     btnEditProfile2.classList.add('active');
+    btnSettings.classList.remove('active');
     btnSearchJobseekers.classList.remove('active');
     btnPostJob.classList.remove('active');
     btnMessages.classList.remove('active');
@@ -1405,6 +1437,7 @@ foreach ($allSkills as $skill) {
     
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'none';
+    settingsContent.style.display = 'none';
     searchContent.style.display = 'block';
     jobPostingContent.style.display = 'none';
     document.getElementById('jsProfileView').style.display = 'none';
@@ -1413,6 +1446,7 @@ foreach ($allSkills as $skill) {
     btnHome.classList.remove('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnSettings.classList.remove('active');
     btnSearchJobseekers.classList.add('active');
     btnPostJob.classList.remove('active');
     btnMessages.classList.remove('active');
@@ -1438,6 +1472,7 @@ foreach ($allSkills as $skill) {
     
     dashboardContent.style.display = 'none';
     profileEditContent.style.display = 'none';
+    settingsContent.style.display = 'none';
     searchContent.style.display = 'none';
     jobPostingContent.style.display = 'block';
     document.getElementById('jsProfileView').style.display = 'none';
@@ -1447,6 +1482,7 @@ foreach ($allSkills as $skill) {
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
     btnSearchJobseekers.classList.remove('active');
+    btnSettings.classList.remove('active');
     btnPostJob.classList.add('active');
     btnMessages.classList.remove('active');
     
@@ -1461,6 +1497,45 @@ foreach ($allSkills as $skill) {
     document.getElementById('job_title').focus();
   }
 
+  function showSettings() {
+    localStorage.setItem('emp_active_page', 'settings');
+
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
+      if (typeof window._hideMessagingMobile === 'function') {
+        window._hideMessagingMobile();
+      }
+    }
+
+    dashboardContent.style.display = 'none';
+    profileEditContent.style.display = 'none';
+    settingsContent.style.display = 'block';
+    searchContent.style.display = 'none';
+    jobPostingContent.style.display = 'none';
+    document.getElementById('jsProfileView').style.display = 'none';
+
+    btnHome.classList.remove('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    btnSearchJobseekers.classList.remove('active');
+    btnPostJob.classList.remove('active');
+    btnSettings.classList.add('active');
+    btnMessages.classList.remove('active');
+
+    document.querySelector('.title').textContent = 'Settings';
+    document.querySelector('.subtitle').textContent = 'Manage your account and security options.';
+  }
+
+  function confirmDeleteAccount(form) {
+    const typed = form.querySelector('[name="confirm_delete"]').value.trim();
+    if (typed !== 'DELETE') {
+      showToast('Type DELETE to confirm account deletion.', 'error');
+      return false;
+    }
+
+    return window.confirm('Permanently delete your account? This cannot be undone.');
+  }
+
   // Initialize with Home active
   btnHome.classList.add('active');
 
@@ -1469,6 +1544,7 @@ foreach ($allSkills as $skill) {
   if (savedEmpPage === 'edit') showProfileEdit();
   else if (savedEmpPage === 'search') showSearch();
   else if (savedEmpPage === 'jobs') showJobPosting();
+  else if (savedEmpPage === 'settings') showSettings();
   else showDashboard(); // messages always resets to home on reload
 
   btnFindMatch.addEventListener('click', function() {
@@ -1498,6 +1574,11 @@ foreach ($allSkills as $skill) {
   btnEditPreferences.addEventListener('click', function() {
     closeMessagingPanel();
     showPreferencesModal();
+  });
+
+  btnSettings.addEventListener('click', function() {
+    closeMessagingPanel();
+    showSettings();
   });
   
   btnSearchJobseekers.addEventListener('click', function() {
@@ -2101,6 +2182,7 @@ function showJobseekerProfileView() {
   document.getElementById('searchContent').style.display = 'none';
   document.getElementById('jobPostingContent').style.display = 'none';
   document.getElementById('profileEditContent').style.display = 'none';
+  document.getElementById('settingsContent').style.display = 'none';
   document.getElementById('jsProfileView').style.display = 'block';
 
   btnHome.classList.remove('active');
@@ -2108,6 +2190,7 @@ function showJobseekerProfileView() {
   btnPostJob.classList.remove('active');
   btnEditProfile.classList.remove('active');
   btnEditProfile2.classList.remove('active');
+  btnSettings.classList.remove('active');
   btnMessages.classList.remove('active');
 
   document.querySelector('.title').textContent = 'Jobseeker Profile';

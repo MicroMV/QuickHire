@@ -107,7 +107,7 @@ foreach ($allSkills as $skill) {
       <div class="cp-alert cp-err"><?= htmlspecialchars($flashError) ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="jsProfileForm">
+    <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="jsProfileForm" novalidate>
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <input type="hidden" name="profile_type" value="JOBSEEKER">
 
@@ -290,7 +290,7 @@ foreach ($allSkills as $skill) {
                ondragover="event.preventDefault();this.style.borderColor='#6366f1';this.style.background='rgba(99,102,241,0.1)';"
                ondragleave="this.style.borderColor='rgba(99,102,241,0.4)';this.style.background='rgba(99,102,241,0.04)';"
                ondrop="handleResumeDrop(event)">
-            <div style="font-size:36px;margin-bottom:10px;">📄</div>
+            <div style="font-size:36px;margin-bottom:10px;">&#128196;</div>
             <div style="font-weight:700;color:#e2e8f0;font-size:15px;margin-bottom:6px;">Drag & drop your resume here</div>
             <div style="color:#64748b;font-size:13px;margin-bottom:14px;">or click to browse</div>
             <div style="display:inline-block;padding:8px 20px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:8px;color:#a5b4fc;font-size:13px;font-weight:600;">Choose PDF File</div>
@@ -299,7 +299,7 @@ foreach ($allSkills as $skill) {
 
           <?php if (!empty($profile['resume_url'])): ?>
             <div id="ovJsCurrentResume" class="cp-file-box" style="margin-top:12px;">
-              <span class="cp-file-icon">📄</span>
+              <span class="cp-file-icon" aria-hidden="true">&#128196;</span>
               <div>
                 <div style="font-weight:600;">Current Resume</div>
                 <a href="<?= htmlspecialchars($profile['resume_url']) ?>" target="_blank" class="cp-file-link">View Resume</a>
@@ -308,12 +308,12 @@ foreach ($allSkills as $skill) {
           <?php endif; ?>
 
           <div id="ovJsNewResume" class="cp-file-box cp-file-new" style="display:none;margin-top:12px;">
-            <span class="cp-file-icon">📄</span>
+            <span class="cp-file-icon" aria-hidden="true">&#128196;</span>
             <div>
               <div style="font-weight:600;" id="ovJsResumeFileName">New Resume Selected</div>
               <div class="cp-file-ready">Ready to upload</div>
             </div>
-            <button type="button" onclick="clearResume()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">?</button>
+            <button type="button" onclick="clearResume()" aria-label="Remove selected resume" title="Remove selected resume" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:22px;line-height:1;">&times;</button>
           </div>
         </div>
 
@@ -386,23 +386,72 @@ foreach ($allSkills as $skill) {
     jsGoStep(from + 1);
   };
 
-  // Validate resume on form submit (step 4)
+  function showWizardMessage(panel, message) {
+    panel.querySelector('.cp-validation-msg')?.remove();
+    const msg = document.createElement('p');
+    msg.className = 'cp-validation-msg';
+    msg.textContent = message;
+    panel.querySelector('.cp-nav')?.before(msg);
+  }
+
+  function validateSelectedResume(file) {
+    if (!file) return true;
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) return 'Please upload a PDF file.';
+    if (file.size > 5_000_000) return 'Resume must be 5MB or smaller.';
+    return true;
+  }
+
+  // Validate the whole wizard on form submit so the button never fails silently.
   document.getElementById('jsProfileForm').addEventListener('submit', function(e) {
+    for (const step of [1, 3]) {
+      const panel = document.getElementById('js-step-' + step);
+      let valid = true;
+      panel.querySelectorAll('[required]').forEach(el => {
+        if (!String(el.value || '').trim()) {
+          el.classList.add('cp-invalid');
+          valid = false;
+        }
+      });
+      if (!valid) {
+        e.preventDefault();
+        jsGoStep(step);
+        showWizardMessage(panel, 'Please fill in all required fields.');
+        return;
+      }
+    }
+
+    const checkedSkills = document.querySelectorAll('#ovJsSkillsContainer input[type=checkbox]:checked');
+    if (checkedSkills.length === 0) {
+      e.preventDefault();
+      jsGoStep(2);
+      const panel = document.getElementById('js-step-2');
+      document.getElementById('ovJsSkillsContainer').classList.add('cp-invalid-box');
+      showWizardMessage(panel, 'Please select at least one skill.');
+      return;
+    }
+
     const resumeInput = document.getElementById('ovJsResume');
     const newResumeBox = document.getElementById('ovJsNewResume');
     const hasExistingResume = <?= !empty($profile['resume_url']) ? 'true' : 'false' ?>;
     const hasNewFile = resumeInput && resumeInput.files && resumeInput.files.length > 0;
-    // Also check if the new resume box is visible (covers drag-drop case)
-    const newResumeVisible = newResumeBox && newResumeBox.style.display !== 'none';
+    const resumeCheck = validateSelectedResume(hasNewFile ? resumeInput.files[0] : null);
 
-    if (!hasNewFile && !hasExistingResume && !newResumeVisible) {
+    if (resumeCheck !== true) {
       e.preventDefault();
+      jsGoStep(4);
       const panel = document.getElementById('js-step-4');
-      panel.querySelector('.cp-validation-msg')?.remove();
-      const msg = document.createElement('p');
-      msg.className = 'cp-validation-msg';
-      msg.textContent = 'Please upload your resume (PDF).';
-      panel.querySelector('.cp-nav').before(msg);
+      showWizardMessage(panel, resumeCheck);
+      const dropZone = document.getElementById('ovJsDropZone');
+      if (dropZone) dropZone.style.borderColor = '#ef4444';
+      return;
+    }
+
+    if (!hasNewFile && !hasExistingResume) {
+      e.preventDefault();
+      jsGoStep(4);
+      const panel = document.getElementById('js-step-4');
+      showWizardMessage(panel, 'Please upload your resume (PDF).');
       const dropZone = document.getElementById('ovJsDropZone');
       if (dropZone) dropZone.style.borderColor = '#ef4444';
     }
@@ -430,6 +479,14 @@ foreach ($allSkills as $skill) {
 
   function showResumeFile(file) {
     if (!file) return;
+    const resumeCheck = validateSelectedResume(file);
+    if (resumeCheck !== true) {
+      const panel = document.getElementById('js-step-4');
+      showWizardMessage(panel, resumeCheck);
+      if (dropZone) dropZone.style.borderColor = '#ef4444';
+      resumeInput.value = '';
+      return;
+    }
     if (resumeFileName)   resumeFileName.textContent = file.name;
     if (newResumeBox)     newResumeBox.style.display = 'flex';
     if (currentResumeBox) currentResumeBox.style.display = 'none';
@@ -450,8 +507,10 @@ foreach ($allSkills as $skill) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') {
-      showToast('Please upload a PDF file.', 'error');
+    const resumeCheck = validateSelectedResume(file);
+    if (resumeCheck !== true) {
+      showWizardMessage(document.getElementById('js-step-4'), resumeCheck);
+      if (dropZone) dropZone.style.borderColor = '#ef4444';
       return;
     }
     // Assign to the file input via DataTransfer
@@ -574,6 +633,8 @@ foreach ($allSkills as $skill) {
       <div class="nav-section-label">ACCOUNT</div>
       <button id="btnHome">🏠 Home</button>
       <button id="btnEditProfile">✏️ Edit Profile</button>
+
+      <button id="btnSettings" type="button">⚙️ Settings</button>
 
       <div class="nav-section-label">SESSION</div>
       <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
@@ -921,7 +982,7 @@ foreach ($allSkills as $skill) {
                 <div style="font-weight:600;font-size:13px;" id="editJsResumeFileName">New Resume Selected</div>
                 <div style="font-size:12px;color:#34d399;">Ready to upload</div>
               </div>
-              <button type="button" onclick="clearEditResume()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;">?</button>
+              <button type="button" onclick="clearEditResume()" aria-label="Remove selected resume" title="Remove selected resume" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:22px;line-height:1;">&times;</button>
             </div>
           </div>
         </div>
@@ -931,6 +992,29 @@ foreach ($allSkills as $skill) {
           <button type="button" class="btn outline" id="btnCancelEdit">Cancel</button>
         </div>
       </form>
+    </div>
+
+    <!-- Settings Content (Hidden by default) -->
+    <div class="card" id="settingsContent" style="display:none; max-width:none; width:100%;">
+      <h2 style="margin-top:0;">Account Settings</h2>
+      <p style="color:var(--muted);line-height:1.6;margin-bottom:22px;">
+        Manage account-level actions for <?= htmlspecialchars($userInfo['email'] ?? 'your account') ?>.
+      </p>
+
+      <section style="border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);border-radius:14px;padding:18px;">
+        <h3 style="margin:0 0 8px;color:#fecaca;">Delete Account</h3>
+        <p style="margin:0 0 16px;color:#fca5a5;line-height:1.6;">
+          This permanently removes your jobseeker profile, resume, conversations, calls, and login account.
+        </p>
+        <form method="POST" action="/QuickHire/Public/actions/delete_account.php" onsubmit="return confirmDeleteAccount(this);" style="display:grid;gap:12px;max-width:520px;">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+          <label style="display:block;font-weight:800;color:#f8fafc;">
+            Type DELETE to confirm
+            <input name="confirm_delete" autocomplete="off" placeholder="DELETE" required style="margin-top:6px;width:100%;padding:10px 12px;border:1px solid rgba(239,68,68,0.45);border-radius:10px;background:rgba(15,23,42,0.65);color:#f8fafc;">
+          </label>
+          <button class="btn danger" type="submit" style="justify-self:start;background:#dc2626;color:white;border-color:#dc2626;">Delete My Account</button>
+        </form>
+      </section>
     </div>
 
     <!-- -- MY PROFILE VIEW -- -->
@@ -1122,11 +1206,13 @@ foreach ($allSkills as $skill) {
   const btnEditProfile = document.getElementById('btnEditProfile');
   const btnEditProfile2 = document.getElementById('btnEditProfile2');
   const btnBrowseJobs = document.getElementById('btnBrowseJobs');
+  const btnSettings = document.getElementById('btnSettings');
   const messagingPanel = document.getElementById('messagingPanel');
   
   const dashboardContent = document.getElementById('dashboardContent');
   const jobBrowsingContent = document.getElementById('jobBrowsingContent');
   const profileEditContent = document.getElementById('profileEditContent');
+  const settingsContent = document.getElementById('settingsContent');
   const myProfileContent   = document.getElementById('myProfileContent');
   const btnCancelEdit = document.getElementById('btnCancelEdit');
 
@@ -1136,6 +1222,7 @@ foreach ($allSkills as $skill) {
     btnBrowseJobs.classList.remove('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnSettings.classList.remove('active');
     document.getElementById('btnMessages')?.classList.add('active');
   }
 
@@ -1281,12 +1368,14 @@ foreach ($allSkills as $skill) {
     dashboardContent.style.display = 'grid';
     jobBrowsingContent.style.display = 'none';
     if (profileEditContent) profileEditContent.style.display = 'none';
+    if (settingsContent) settingsContent.style.display = 'none';
     if (myProfileContent)   myProfileContent.style.display = 'none';
     
     btnHome.classList.add('active');
     btnBrowseJobs.classList.remove('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnSettings.classList.remove('active');
     
     document.querySelector('.title').textContent = 'Welcome back 👋';
     document.querySelector('.subtitle').textContent = 'Click "Find Employer" to automatically connect with employers who are currently looking for candidates like you.';
@@ -1309,12 +1398,14 @@ foreach ($allSkills as $skill) {
     dashboardContent.style.display = 'none';
     jobBrowsingContent.style.display = 'block';
     if (profileEditContent) profileEditContent.style.display = 'none';
+    if (settingsContent) settingsContent.style.display = 'none';
     if (myProfileContent)   myProfileContent.style.display = 'none';
     
     btnHome.classList.remove('active');
     btnBrowseJobs.classList.add('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnSettings.classList.remove('active');
     
     document.querySelector('.title').textContent = 'Browse Jobs';
     document.querySelector('.subtitle').textContent = 'Discover job opportunities from employers looking for candidates like you.';
@@ -1341,12 +1432,14 @@ foreach ($allSkills as $skill) {
     dashboardContent.style.display = 'none';
     jobBrowsingContent.style.display = 'none';
     if (profileEditContent) profileEditContent.style.display = 'none';
+    if (settingsContent) settingsContent.style.display = 'none';
     if (myProfileContent)   myProfileContent.style.display = 'block';
 
     btnHome.classList.remove('active');
     btnBrowseJobs.classList.remove('active');
     btnEditProfile.classList.remove('active');
     btnEditProfile2.classList.remove('active');
+    btnSettings.classList.remove('active');
 
     document.querySelector('.title').textContent = 'My Profile';
     document.querySelector('.subtitle').textContent = 'Your public profile as seen by employers.';
@@ -1370,6 +1463,7 @@ foreach ($allSkills as $skill) {
     dashboardContent.style.display = 'none';
     jobBrowsingContent.style.display = 'none';
     if (profileEditContent) profileEditContent.style.display = 'block';
+    if (settingsContent) settingsContent.style.display = 'none';
     if (myProfileContent)   myProfileContent.style.display = 'none';
     
     // Update active states
@@ -1377,9 +1471,50 @@ foreach ($allSkills as $skill) {
     btnBrowseJobs.classList.remove('active');
     btnEditProfile.classList.add('active');
     btnEditProfile2.classList.add('active');
+    btnSettings.classList.remove('active');
     
     document.querySelector('.title').textContent = 'Edit Profile';
     document.querySelector('.subtitle').textContent = 'Update your profile information to attract the right employers.';
+  }
+
+  function showSettings() {
+    localStorage.setItem('js_active_page', 'settings');
+    if (messagingPanel && messagingPanel.classList.contains('open')) {
+      messagingPanel.classList.remove('open');
+      if (window._hideMessagingMobile) window._hideMessagingMobile();
+      currentConversationId = null;
+      if (messagePollingInterval) { clearInterval(messagePollingInterval); messagePollingInterval = null; }
+      if (conversationRefreshInterval) { clearInterval(conversationRefreshInterval); conversationRefreshInterval = null; }
+      if (document.getElementById('messageInputArea')) {
+        document.getElementById('messageInputArea').style.display = 'none';
+      }
+    }
+    document.getElementById('btnMessages')?.classList.remove('active');
+
+    dashboardContent.style.display = 'none';
+    jobBrowsingContent.style.display = 'none';
+    if (profileEditContent) profileEditContent.style.display = 'none';
+    if (settingsContent) settingsContent.style.display = 'block';
+    if (myProfileContent) myProfileContent.style.display = 'none';
+
+    btnHome.classList.remove('active');
+    btnBrowseJobs.classList.remove('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    btnSettings.classList.add('active');
+
+    document.querySelector('.title').textContent = 'Settings';
+    document.querySelector('.subtitle').textContent = 'Manage your account and security options.';
+  }
+
+  function confirmDeleteAccount(form) {
+    const typed = form.querySelector('[name="confirm_delete"]').value.trim();
+    if (typed !== 'DELETE') {
+      showToast('Type DELETE to confirm account deletion.', 'error');
+      return false;
+    }
+
+    return window.confirm('Permanently delete your account? This cannot be undone.');
   }
 
   // Initialize with Home active
@@ -1389,6 +1524,7 @@ foreach ($allSkills as $skill) {
   const savedPage = localStorage.getItem('js_active_page');
   if (savedPage === 'browse') showJobBrowsing();
   else if (savedPage === 'edit') showProfileEdit();
+  else if (savedPage === 'settings') showSettings();
   else showDashboard(); // messages always resets to home on reload
 
   // Event listeners
@@ -1396,6 +1532,7 @@ foreach ($allSkills as $skill) {
   btnFindEmployer2.addEventListener('click', findEmployer);
   btnHome.addEventListener('click', showDashboard);
   btnBrowseJobs.addEventListener('click', showJobBrowsing);
+  btnSettings.addEventListener('click', showSettings);
   
   // Edit profile buttons
   btnEditProfile.addEventListener('click', function() {
