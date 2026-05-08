@@ -25,7 +25,7 @@ $stmt->execute([$userId]);
 $jobseeker = $stmt->fetch();
 
 if (!$jobseeker) {
-  header("Location: /QuickHire/Public/complete-profile.php");
+  header("Location: /QuickHire/Public/jobseeker-dashboard.php");
   exit;
 }
 ?>

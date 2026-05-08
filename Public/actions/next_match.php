@@ -42,6 +42,11 @@ if ($uid !== (int)$call['employer_user_id'] && $uid !== (int)$call['jobseeker_us
     exit;
 }
 
+if ($role === 'JOBSEEKER') {
+    echo json_encode(['ok' => false, 'error' => 'Jobseekers cannot initiate new matches. Returning to dashboard.', 'redirect' => 'dashboard']);
+    exit;
+}
+
 // Mark current call as completed AND send leave signal to notify the jobseeker
 $pdo->prepare("UPDATE calls SET status='COMPLETED', updated_at=CURRENT_TIMESTAMP WHERE room_code=?")->execute([$currentRoom]);
 
@@ -50,13 +55,6 @@ $pdo->prepare("
     INSERT INTO webrtc_signals (room_code, sender_id, message_type, payload, created_at)
     VALUES (?, ?, 'leave', ?, CURRENT_TIMESTAMP)
 ")->execute([$currentRoom, $uid, json_encode(['bye' => true, 'reason' => 'employer_next'])]);
-
-// Handle next match based on role
-if ($role === 'JOBSEEKER') {
-    // Jobseekers cannot initiate next matches - they should return to dashboard
-    echo json_encode(['ok' => false, 'error' => 'Jobseekers cannot initiate new matches. Returning to dashboard.', 'redirect' => 'dashboard']);
-    exit;
-}
 
 // Only employers can find next matches
 $partnerId = (int)$call['jobseeker_user_id']; // Skip current jobseeker

@@ -19,6 +19,10 @@ class MatchmakingService
     /** Employer enters matchmaking: creates queue + skills */
     public function enqueueEmployer(int $employerId, array $criteria, array $skillIds): int
     {
+        if (!$this->userHasRole($employerId, 'EMPLOYER')) {
+            throw new Exception("Only employers can start matchmaking.");
+        }
+
         $this->pdo->beginTransaction();
         try {
             // deactivate old queue if any
@@ -61,6 +65,10 @@ class MatchmakingService
     /** Find a jobseeker that matches employer criteria >=80; create call room; return room_code */
     public function matchEmployerNow(int $queueId, int $employerId): ?string
     {
+        if (!$this->userHasRole($employerId, 'EMPLOYER')) {
+            return null;
+        }
+
         // load queue criteria
         $q = $this->getQueue($queueId);
         if (!$q || (int)$q['is_active'] !== 1) return null;
@@ -136,25 +144,7 @@ class MatchmakingService
     /** Jobseeker enters matchmaking queue */
     public function enqueueJobseeker(int $jobseekerId): int
     {
-        $this->pdo->beginTransaction();
-        try {
-            // deactivate old queue if any
-            $this->pdo->prepare("UPDATE matchmaking_queue SET is_active=0 WHERE user_id=?")->execute([$jobseekerId]);
-
-            $stmt = $this->pdo->prepare("
-              INSERT INTO matchmaking_queue (user_id, role)
-              VALUES (?, 'JOBSEEKER')
-            ");
-            $stmt->execute([$jobseekerId]);
-
-            $queueId = (int)$this->pdo->lastInsertId();
-            $this->pdo->commit();
-            return $queueId;
-        } catch (\Throwable $e) {
-            $this->pdo->rollBack();
-            error_log("MatchmakingService::enqueueJobseeker error: " . $e->getMessage());
-            throw new \Exception("Failed to start matchmaking: " . $e->getMessage());
-        }
+        throw new \LogicException("Jobseekers cannot create matchmaking rooms. They can only join employer-created rooms.");
     }
 
     /** Find next match for user (skip current partner) */
@@ -285,14 +275,14 @@ class MatchmakingService
             SELECT jp.*, u.id as user_id
             FROM jobseeker_profiles jp
             JOIN users u ON u.id = jp.user_id
-            WHERE u.id = ? AND u.is_profile_complete = 1
+            WHERE u.id = ? AND u.role = 'JOBSEEKER' AND u.is_profile_complete = 1
         ")->execute([$jobseekerId]);
         
         $jobseeker = $this->pdo->prepare("
             SELECT jp.*, u.id as user_id
             FROM jobseeker_profiles jp
             JOIN users u ON u.id = jp.user_id
-            WHERE u.id = ? AND u.is_profile_complete = 1
+            WHERE u.id = ? AND u.role = 'JOBSEEKER' AND u.is_profile_complete = 1
         ");
         $jobseeker->execute([$jobseekerId]);
         $jsData = $jobseeker->fetch();
@@ -352,11 +342,15 @@ class MatchmakingService
      */
     public function joinEmployerRoom(string $roomCode, int $jobseekerId): bool
     {
+        if (!$this->userHasRole($jobseekerId, 'JOBSEEKER')) {
+            return false;
+        }
+
         $this->pdo->beginTransaction();
         try {
             // Check if room exists and is waiting
             $room = $this->pdo->prepare("
-                SELECT * FROM calls WHERE room_code = ? AND status = 'WAITING'
+                SELECT * FROM calls WHERE room_code = ? AND status = 'WAITING' AND jobseeker_user_id IS NULL
             ");
             $room->execute([$roomCode]);
             $roomData = $room->fetch();
@@ -388,6 +382,10 @@ class MatchmakingService
      */
     public function createEmployerRoom(int $employerId, array $criteria, array $skillIds): ?string
     {
+        if (!$this->userHasRole($employerId, 'EMPLOYER')) {
+            throw new Exception("Only employers can create call rooms.");
+        }
+
         $this->pdo->beginTransaction();
         try {
             // Deactivate old queue if any
@@ -445,5 +443,12 @@ class MatchmakingService
     private function newRoomCode(): string
     {
         return 'QH-' . bin2hex(random_bytes(6));
+    }
+
+    private function userHasRole(int $userId, string $role): bool
+    {
+        $stmt = $this->pdo->prepare("SELECT id FROM users WHERE id = ? AND role = ? LIMIT 1");
+        $stmt->execute([$userId, $role]);
+        return (bool)$stmt->fetch();
     }
 }

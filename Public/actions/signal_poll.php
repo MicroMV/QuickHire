@@ -26,6 +26,22 @@ if ($room === '') {
   exit;
 }
 
+$callStmt = $pdo->prepare("
+  SELECT employer_user_id, jobseeker_user_id
+  FROM calls
+  WHERE room_code = ?
+  LIMIT 1
+");
+$callStmt->execute([$room]);
+$call = $callStmt->fetch();
+$userId = Auth::userId();
+
+if (!$call || ($userId !== (int)$call['employer_user_id'] && $userId !== (int)($call['jobseeker_user_id'] ?? 0))) {
+  http_response_code(403);
+  echo json_encode(['ok' => false, 'error' => 'Not authorized for this room']);
+  exit;
+}
+
 $stmt = $pdo->prepare("
   SELECT id, sender_id, message_type, payload
   FROM webrtc_signals
@@ -33,7 +49,7 @@ $stmt = $pdo->prepare("
   ORDER BY id ASC
   LIMIT 50
 ");
-$stmt->execute([$room, $after, Auth::userId()]);
+$stmt->execute([$room, $after, $userId]);
 $rows = $stmt->fetchAll();
 
 $lastId = $after;

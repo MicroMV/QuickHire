@@ -907,7 +907,7 @@ foreach ($allSkills as $skill) {
                     <div class="skills-row">
                       <?php foreach ($skills as $skill): ?>
                         <label class="skill-checkbox" data-skill-name="<?= strtolower($skill['name']) ?>" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;padding:2px 0;font-weight:600;font-size:13px;line-height:1.4;">
-                          <input type="checkbox" name="skill_ids[]" value="<?= $skill['id'] ?>" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#6366f1;margin:0;">
+                          <input type="checkbox" id="pref_skill_<?= (int)$skill['id'] ?>" name="skill_ids[]" value="<?= (int)$skill['id'] ?>" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:#6366f1;margin:0;">
                           <?= htmlspecialchars($skill['name']) ?>
                         </label>
                       <?php endforeach; ?>
@@ -1086,6 +1086,16 @@ foreach ($allSkills as $skill) {
   const btnSearchJobseekers = document.getElementById('btnSearchJobseekers');
   const btnPostJob = document.getElementById('btnPostJob');
   const btnCancelJobPost = document.getElementById('btnCancelJobPost');
+
+  function setEmployerMessagesNavActive() {
+    localStorage.setItem('emp_active_page', 'home'); // don't restore messages on reload
+    btnHome.classList.remove('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    btnSearchJobseekers.classList.remove('active');
+    btnPostJob.classList.remove('active');
+    btnMessages.classList.add('active');
+  }
   
   const dashboardContent = document.getElementById('dashboardContent');
   const profileEditContent = document.getElementById('profileEditContent');
@@ -1191,12 +1201,13 @@ foreach ($allSkills as $skill) {
       document.getElementById('pref_employment_type').value = prefs.employment_type || 'FULL_TIME';
       
       // Clear all skill checkboxes first
-      document.querySelectorAll('input[name="skill_ids[]"]').forEach(cb => cb.checked = false);
+      document.querySelectorAll('#prefSkillsContainer input[name="skill_ids[]"]').forEach(cb => cb.checked = false);
       
       // Check saved skills
       if (prefs.skill_ids && prefs.skill_ids.length > 0) {
         prefs.skill_ids.forEach(skillId => {
-          const checkbox = document.getElementById('pref_skill_' + skillId);
+          const checkbox = document.getElementById('pref_skill_' + skillId)
+            || document.querySelector(`#prefSkillsContainer input[name="skill_ids[]"][value="${skillId}"]`);
           if (checkbox) checkbox.checked = true;
         });
       }
@@ -2072,9 +2083,9 @@ function viewJobseekerProfile(el) {
 
   // Details
   let details = '';
-  if (js.bachelors_degree) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Education</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.bachelors_degree}</div></div></div>`;
-  if (js.gender) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Gender</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.gender.charAt(0)+js.gender.slice(1).toLowerCase()}</div></div></div>`;
-  if (js.resume_url) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📎</span><div><div style="font-size:12px;color:#64748b;">Resume</div><a href="/QuickHire/Public/${js.resume_url}" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a></div></div>`;
+  if (js.bachelors_degree) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">🎓</span><div><div style="font-size:12px;color:#64748b;">Education</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.bachelors_degree}</div></div></div>`;
+  if (js.gender) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">👤</span><div><div style="font-size:12px;color:#64748b;">Gender</div><div style="font-size:14px;font-weight:600;color:#e2e8f0;">${js.gender.charAt(0)+js.gender.slice(1).toLowerCase()}</div></div></div>`;
+  if (js.resume_url) details += `<div style="display:flex;gap:10px;align-items:center;"><span style="font-size:18px;">📄</span><div><div style="font-size:12px;color:#64748b;">Resume</div><a href="/QuickHire/Public/${js.resume_url}" target="_blank" style="font-size:14px;font-weight:600;color:#6366f1;text-decoration:none;">View Resume</a></div></div>`;
   document.getElementById('jsProfileDetails').innerHTML = details || '<span style="color:#64748b;font-size:13px;">No details available.</span>';
 
   // Message button
@@ -2132,6 +2143,7 @@ async function startConversationWithJobseeker(jobseekerId, buttonElement, jobPos
       
       // Open messaging panel first
       messagingPanel.classList.add('open');
+      setEmployerMessagesNavActive();
       
       // Load conversations to get the latest list
       await loadConversations();
@@ -2269,8 +2281,8 @@ btnMessages.addEventListener('click', (e) => {
   e.stopPropagation();
   
   try {
-    localStorage.setItem('emp_active_page', 'home'); // don't restore messages on reload
     messagingPanel.classList.add('open');
+    setEmployerMessagesNavActive();
 
     // Reset chat header to default state when opening fresh
     window.currentConversationId = null;
@@ -2313,14 +2325,6 @@ btnMessages.addEventListener('click', (e) => {
         });
     }
 
-    // Update active states
-    btnHome.classList.remove('active');
-    btnEditProfile.classList.remove('active');
-    btnEditProfile2.classList.remove('active');
-    btnSearchJobseekers.classList.remove('active');
-    btnPostJob.classList.remove('active');
-    btnMessages.classList.add('active');
-    
   } catch (error) {
     console.error('Error opening messaging panel:', error);
     // Fallback: close the panel if there's an error

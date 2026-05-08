@@ -80,12 +80,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
 
             <div class="video-grid">
                 <div class="video-card">
-                    <div class="video-label">Your Video</div>
                     <video id="localVideo" autoplay playsinline muted></video>
                     <div class="video-name" id="localVideoName">Loading...</div>
                 </div>
                 <div class="video-card">
-                    <div class="video-label">Partner's Video</div>
                     <video id="remoteVideo" autoplay playsinline></video>
                     <div class="video-name" id="remoteVideoName">Waiting...</div>
                 </div>
@@ -608,6 +606,10 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         async function findNextMatchAuto() {
+            if (MY_ROLE !== 'EMPLOYER') {
+                window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+                return;
+            }
             
             // Show "Finding next match..." in the interface
             showFindingNextMatch();
@@ -730,16 +732,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         function showFindingNextMatch() {
-            // Update video labels to show "Finding next match..."
-            const labels = document.querySelectorAll('.video-label');
-            labels.forEach(label => {
-                if (label.textContent.includes('Your')) {
-                    label.textContent = 'Your Video (Finding next match...)';
-                } else {
-                    label.textContent = 'Connecting to next match...';
-                }
-            });
-            
             // Show overlay message
             const overlay = document.createElement('div');
             overlay.id = 'findingOverlay';
@@ -767,16 +759,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         }
 
         function hideFindingNextMatch() {
-            // Restore original video labels
-            const labels = document.querySelectorAll('.video-label');
-            labels.forEach(label => {
-                if (label.textContent.includes('Your')) {
-                    label.textContent = 'Your Video';
-                } else {
-                    label.textContent = "Partner's Video";
-                }
-            });
-            
             const overlay = document.getElementById('findingOverlay');
             if (overlay) {
                 overlay.remove();

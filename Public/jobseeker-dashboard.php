@@ -19,6 +19,7 @@ if (Auth::role() !== 'JOBSEEKER') {
 // Read flash messages before closing session
 $flashError   = \Rongie\QuickHire\Core\Session::flash('error');
 $flashSuccess  = \Rongie\QuickHire\Core\Session::flash('success');
+$csrfToken = \Rongie\QuickHire\Core\Csrf::token();
 
 // Release session lock before heavy DB work — prevents blocking AJAX requests
 if (session_status() === PHP_SESSION_ACTIVE) {
@@ -107,7 +108,7 @@ foreach ($allSkills as $skill) {
     <?php endif; ?>
 
     <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data" id="jsProfileForm">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
       <input type="hidden" name="profile_type" value="JOBSEEKER">
 
       <!-- -- STEP 1: Basic Info -- -->
@@ -694,26 +695,9 @@ foreach ($allSkills as $skill) {
         </select>
         <select id="jobFilterCountry" style="padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; min-width:140px;">
           <option value="">All Countries</option>
-          <option value="Philippines">Philippines</option>
-          <option value="United States">United States</option>
-          <option value="United Kingdom">United Kingdom</option>
-          <option value="Canada">Canada</option>
-          <option value="Australia">Australia</option>
-          <option value="India">India</option>
-          <option value="Singapore">Singapore</option>
-          <option value="Malaysia">Malaysia</option>
-          <option value="Germany">Germany</option>
-          <option value="France">France</option>
-          <option value="Japan">Japan</option>
-          <option value="Indonesia">Indonesia</option>
-          <option value="Vietnam">Vietnam</option>
-          <option value="Pakistan">Pakistan</option>
-          <option value="Bangladesh">Bangladesh</option>
-          <option value="United Arab Emirates">United Arab Emirates</option>
-          <option value="Saudi Arabia">Saudi Arabia</option>
-          <option value="South Korea">South Korea</option>
-          <option value="Brazil">Brazil</option>
-          <option value="Mexico">Mexico</option>
+          <?php foreach (['Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh','Belgium','Brazil','Canada','China','Colombia','Denmark','Egypt','Finland','France','Germany','Greece','India','Indonesia','Ireland','Italy','Japan','Malaysia','Mexico','Netherlands','New Zealand','Norway','Pakistan','Philippines','Poland','Portugal','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam'] as $c): ?>
+            <option value="<?= $c ?>"><?= $c ?></option>
+          <?php endforeach; ?>
         </select>
         <button class="btn outline" id="btnClearFilters" style="padding:10px 16px; white-space:nowrap;">Clear</button>
       </div>
@@ -731,7 +715,7 @@ foreach ($allSkills as $skill) {
     <div class="card" id="profileEditContent" style="display:none; max-width: none; width: 100%;">
 
       <form method="POST" action="/QuickHire/Public/actions/save_profile.php" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(\Rongie\QuickHire\Core\Csrf::token()) ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
         <input type="hidden" name="profile_type" value="JOBSEEKER">
 
         <div class="grid">
@@ -943,7 +927,7 @@ foreach ($allSkills as $skill) {
         </div>
 
         <div style="margin-top:24px; display:flex; gap:10px; justify-content:flex-end;">
-          <button type="submit" class="btn primary">Save Profile</button>
+          <button type="submit" class="btn primary">Save Changes</button>
           <button type="button" class="btn outline" id="btnCancelEdit">Cancel</button>
         </div>
       </form>
@@ -1146,6 +1130,15 @@ foreach ($allSkills as $skill) {
   const myProfileContent   = document.getElementById('myProfileContent');
   const btnCancelEdit = document.getElementById('btnCancelEdit');
 
+  function setMessagesNavActive() {
+    localStorage.setItem('js_active_page', 'home'); // don't restore messages on reload
+    btnHome.classList.remove('active');
+    btnBrowseJobs.classList.remove('active');
+    btnEditProfile.classList.remove('active');
+    btnEditProfile2.classList.remove('active');
+    document.getElementById('btnMessages')?.classList.add('active');
+  }
+
   // Job Browsing Functionality
   let currentJobOffset = 0;
   const jobsPerPage = 10;
@@ -1327,6 +1320,10 @@ foreach ($allSkills as $skill) {
     document.querySelector('.subtitle').textContent = 'Discover job opportunities from employers looking for candidates like you.';
     
     if (loadJobs !== false) {
+      localStorage.removeItem('js_job_detail_index');
+      localStorage.removeItem('js_job_detail_id');
+      const filterBar = document.getElementById('jobFilterBar');
+      if (filterBar) filterBar.style.display = 'flex';
       loadJobListings();
     }
   }
@@ -1583,6 +1580,8 @@ foreach ($allSkills as $skill) {
       currentJobOffset = 0;
       allJobsLoaded = false;
       container.innerHTML = '<div class="loading">Loading job opportunities...</div>';
+      const filterBar = document.getElementById('jobFilterBar');
+      if (filterBar) filterBar.style.display = 'flex';
       loadMoreContainer.style.display = 'none';
     }
 
@@ -1915,6 +1914,7 @@ foreach ($allSkills as $skill) {
         
         // Open messaging panel
         messagingPanel.classList.add('open');
+        setMessagesNavActive();
         
         // Load conversations first
         await loadConversations();
@@ -2036,18 +2036,11 @@ foreach ($allSkills as $skill) {
 
   // Show messaging panel
   function showMessaging() {
-    localStorage.setItem('js_active_page', 'home'); // don't restore messages on reload
     const panel = document.getElementById('messagingPanel');
     if (!panel) return;
     
     panel.classList.add('open');
-
-    // Update active states
-    btnHome.classList.remove('active');
-    btnBrowseJobs.classList.remove('active');
-    btnEditProfile.classList.remove('active');
-    btnEditProfile2.classList.remove('active');
-    document.getElementById('btnMessages')?.classList.add('active');
+    setMessagesNavActive();
     
     // Reset chat header to default state when opening fresh
     currentConversationId = null;

@@ -11,6 +11,13 @@ use Rongie\QuickHire\Services\ProfileService;
 Session::start();
 Auth::requireLogin();
 
+$dashboard = Auth::role() === 'EMPLOYER'
+    ? '/QuickHire/Public/employer-dashboard.php'
+    : '/QuickHire/Public/jobseeker-dashboard.php';
+
+header('Location: ' . $dashboard);
+exit;
+
 $config = require __DIR__ . '/../Config/config.php';
 $db = new Database($config['db']);
 
