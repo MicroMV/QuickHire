@@ -612,7 +612,7 @@ function public_url(string $path): string
             Type DELETE to confirm
             <input name="confirm_delete" autocomplete="off" placeholder="DELETE" required style="margin-top:5px;width:100%;padding:8px 10px;border:1px solid rgba(239,68,68,0.45);border-radius:9px;background:rgba(15,23,42,0.65);color:#f8fafc;">
           </label>
-          <button class="btn danger" type="submit" style="justify-self:start;background:#dc2626;color:white;border-color:#dc2626;padding:8px 12px;font-size:13px;">Delete My Account</button>
+          <button class="btn danger" type="submit" style="justify-self:start;color:white;border-color:rgba(185,28,28,0.6);padding:8px 12px;font-size:13px;">Delete My Account</button>
         </form>
       </section>
     </div>
@@ -1848,11 +1848,11 @@ function public_url(string $path): string
             <div class="job-post-status status-${statusClass}">${statusText}</div>
           </div>
           <div class="job-post-meta">
-            <span>📅 ${new Date(job.created_at).toLocaleDateString()}</span>
-            ${job.role_title ? `<span>🎯 ${job.role_title}</span>` : ''}
-            ${job.employment_type ? `<span>💼 ${job.employment_type.replace('_', ' ')}</span>` : ''}
-            ${job.country ? `<span>🌍 ${job.country}</span>` : ''}
-            ${rateDisplay ? `<span>💰 ${rateDisplay}</span>` : ''}${hoursDisplay ? `<span>⏰ ${hoursDisplay}</span>` : ''}
+            <span><span class="meta-label">Date:</span> ${new Date(job.created_at).toLocaleDateString()}</span>
+            ${job.role_title ? `<span><span class="meta-label">Role:</span> ${job.role_title}</span>` : ''}
+            ${job.employment_type ? `<span><span class="meta-label">Type:</span> ${job.employment_type.replace('_', ' ')}</span>` : ''}
+            ${job.country ? `<span><span class="meta-label">Location:</span> ${job.country}</span>` : ''}
+            ${rateDisplay ? `<span><span class="meta-label">Rate:</span> ${rateDisplay}</span>` : ''}${hoursDisplay ? `<span><span class="meta-label">Hours:</span> ${hoursDisplay}</span>` : ''}
           </div>
           <div class="job-post-description">
             ${job.description.length > 150 ? job.description.substring(0, 150) + '...' : job.description}
@@ -2087,16 +2087,16 @@ function displaySearchResults(results, query) {
           </div>
           <div class="search-result-details">
             <div class="search-result-detail">
-              💰 ${jobseeker.rate_per_hour || '0'}/hr
+              <span class="meta-label">Rate:</span> ${jobseeker.rate_per_hour || '0'}/hr
             </div>
             <div class="search-result-detail">
-              🌍 ${jobseeker.country || 'Not specified'}
+              <span class="meta-label">Location:</span> ${jobseeker.country || 'Not specified'}
             </div>
             <div class="search-result-detail">
-              ⏰ ${jobseeker.available_time || 'N/A'}h/day
+              <span class="meta-label">Hours:</span> ${jobseeker.available_time || 'N/A'}h/day
             </div>
             <div class="search-result-detail">
-              🗣️ ${jobseeker.english_mastery || 'Not specified'}
+              <span class="meta-label">English:</span> ${jobseeker.english_mastery || 'Not specified'}
             </div>
           </div>
           <div class="search-result-skills">

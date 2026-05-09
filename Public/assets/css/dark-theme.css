@@ -230,6 +230,32 @@ body {
   box-shadow: 0 0 20px rgba(99,102,241,0.3) !important;
 }
 
+.btn.primary:hover {
+  box-shadow: 0 0 12px rgba(99,102,241,0.2) !important;
+  opacity: 0.9 !important;
+}
+
+.btn.primary:active {
+  box-shadow: none !important;
+  opacity: 0.8 !important;
+}
+
+/* Plain .btn (e.g. Update Password) */
+.btn:not(.primary):not(.outline):not(.danger) {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  color: var(--text-primary) !important;
+}
+
+.btn:not(.primary):not(.outline):not(.danger):hover {
+  background: rgba(255,255,255,0.11) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}
+
+.btn:not(.primary):not(.outline):not(.danger):active {
+  background: rgba(255,255,255,0.07) !important;
+}
+
 .btn.outline {
   background: var(--bg-card) !important;
   border: 1px solid var(--border-primary) !important;
@@ -240,6 +266,28 @@ body {
 .btn.outline:hover {
   border-color: rgba(99,102,241,0.4) !important;
   background: rgba(99,102,241,0.05) !important;
+}
+
+/* Danger button (e.g. Delete My Account) */
+.btn.danger {
+  background: rgba(185,28,28,0.75) !important;
+  border-color: rgba(185,28,28,0.6) !important;
+  color: white !important;
+  box-shadow: none !important;
+}
+
+.btn.danger:hover {
+  background: rgba(185,28,28,0.85) !important;
+}
+
+.btn.danger:active {
+  background: rgba(153,27,27,0.9) !important;
+}
+
+/* Remove bright focus outline on all buttons */
+.btn:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.25) !important;
 }
 
 /* Form elements */

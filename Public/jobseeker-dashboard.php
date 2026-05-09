@@ -646,7 +646,13 @@ function public_url(string $path): string
       <div class="js-waiting-orbit" aria-hidden="true">
         <span></span>
         <span></span>
-        <div class="js-waiting-core">QH</div>
+        <div class="js-waiting-core">
+          <?php if (!empty($profile['profile_picture_url'])): ?>
+            <img src="<?= htmlspecialchars(public_url($profile['profile_picture_url'])) ?>" alt="Your avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">
+          <?php else: ?>
+            <?= strtoupper(substr($userInfo['first_name'] ?? 'U', 0, 1)) ?>
+          <?php endif; ?>
+        </div>
       </div>
 
       <div class="js-waiting-kicker">Live matching</div>
@@ -1054,7 +1060,7 @@ function public_url(string $path): string
             Type DELETE to confirm
             <input name="confirm_delete" autocomplete="off" placeholder="DELETE" required style="margin-top:5px;width:100%;padding:8px 10px;border:1px solid rgba(239,68,68,0.45);border-radius:9px;background:rgba(15,23,42,0.65);color:#f8fafc;">
           </label>
-          <button class="btn danger" type="submit" style="justify-self:start;background:#dc2626;color:white;border-color:#dc2626;padding:8px 12px;font-size:13px;">Delete My Account</button>
+          <button class="btn danger" type="submit" style="justify-self:start;color:white;border-color:rgba(185,28,28,0.6);padding:8px 12px;font-size:13px;">Delete My Account</button>
         </form>
       </section>
     </div>
@@ -1082,21 +1088,24 @@ function public_url(string $path): string
       <div style="padding:64px 32px 32px;">
         <h2 style="margin:0 0 4px;font-size:26px;font-weight:900;color:#f8fafc;"><?= htmlspecialchars(($userInfo['first_name'] ?? '') . ' ' . ($userInfo['last_name'] ?? '')) ?></h2>
         <p style="margin:0 0 6px;color:#6366f1;font-weight:600;font-size:16px;"><?= htmlspecialchars($profile['role_title'] ?? '') ?></p>
-        <p style="margin:0 0 20px;color:#64748b;font-size:14px;">
-          <?= htmlspecialchars($profile['country'] ?? '') ?>
-          <?php if (!empty($profile['portfolio_url'])): ?>
-             <a href="<?= htmlspecialchars($profile['portfolio_url']) ?>" target="_blank" style="color:#6366f1;text-decoration:none;"><?= htmlspecialchars($profile['portfolio_url']) ?></a>
-          <?php endif; ?>
-        </p>
+        <p style="margin:0 0 4px;color:#64748b;font-size:14px;"><?= htmlspecialchars($profile['country'] ?? '') ?></p>
+        <?php if (!empty($profile['portfolio_url'])): ?>
+          <p style="margin:0 0 20px;font-size:13px;">
+            <span style="font-weight:600;opacity:0.6;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;margin-right:4px;">Portfolio:</span>
+            <a href="<?= htmlspecialchars($profile['portfolio_url']) ?>" target="_blank" style="color:#6366f1;text-decoration:none;"><?= htmlspecialchars($profile['portfolio_url']) ?></a>
+          </p>
+        <?php else: ?>
+          <div style="margin-bottom:20px;"></div>
+        <?php endif; ?>
 
         <!-- Stats pills -->
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;">
-          <span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;">💰 $<?= htmlspecialchars($profile['rate_per_hour'] ?? '0') ?>/hr</span>
-          <span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;">⏰ <?= htmlspecialchars($profile['available_time'] ?? '') ?>h/day</span>
-          <span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;">🗣️ <?= htmlspecialchars($profile['english_mastery'] ?? '') ?></span>
-          <span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;">💼 <?= htmlspecialchars(str_replace('_', '-', $profile['employment_type'] ?? '')) ?></span>
+          <span style="padding:8px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:20px;color:#a5b4fc;font-size:13px;font-weight:600;"><span style="font-weight:600;opacity:0.6;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;margin-right:3px;">Rate:</span> $<?= htmlspecialchars($profile['rate_per_hour'] ?? '0') ?>/hr</span>
+          <span style="padding:8px 16px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:20px;color:#34d399;font-size:13px;font-weight:600;"><span style="font-weight:600;opacity:0.6;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;margin-right:3px;">Hours:</span><?= htmlspecialchars($profile['available_time'] ?? '') ?>h/day</span>
+          <span style="padding:8px 16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:20px;color:#fbbf24;font-size:13px;font-weight:600;"><span style="font-weight:600;opacity:0.6;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;margin-right:3px;">English:</span><?= htmlspecialchars($profile['english_mastery'] ?? '') ?></span>
+          <span style="padding:8px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:20px;color:#c084fc;font-size:13px;font-weight:600;"><span style="font-weight:600;opacity:0.6;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;margin-right:3px;">Type:</span><?= htmlspecialchars(str_replace('_', '-', $profile['employment_type'] ?? '')) ?></span>
           <?php if (!empty($profile['age'])): ?>
-            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;">🎂 <?= htmlspecialchars($profile['age']) ?> yrs</span>
+            <span style="padding:8px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;color:#94a3b8;font-size:13px;font-weight:600;"><span style="font-weight:600;opacity:0.6;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;margin-right:3px;">Age:</span><?= htmlspecialchars($profile['age']) ?> yrs</span>
           <?php endif; ?>
         </div>
 
@@ -2050,10 +2059,10 @@ function useAvatarPhoto() {
           <div class="job-card-title">${job.title}</div>
           
           <div class="job-card-meta">
-            ${job.role_title ? `<span class="meta-tag">🎯 ${job.role_title}</span>` : ''}
-            ${job.employment_type ? `<span class="meta-tag">💼 ${job.employment_type.replace('_', ' ')}</span>` : ''}
-            ${rateDisplay ? `<span class="meta-tag">💰 ${rateDisplay}</span>` : ''}
-            ${hoursDisplay ? `<span class="meta-tag">⏰ ${hoursDisplay}</span>` : ''}
+            ${job.role_title ? `<span class="meta-tag"><span class="meta-label">Role:</span> ${job.role_title}</span>` : ''}
+            ${job.employment_type ? `<span class="meta-tag"><span class="meta-label">Type:</span> ${job.employment_type.replace('_', ' ')}</span>` : ''}
+            ${rateDisplay ? `<span class="meta-tag"><span class="meta-label">Rate:</span> ${rateDisplay}</span>` : ''}
+            ${hoursDisplay ? `<span class="meta-tag"><span class="meta-label">Hours:</span> ${hoursDisplay}</span>` : ''}
           </div>
           
           <div class="job-card-description">
@@ -2116,10 +2125,10 @@ function useAvatarPhoto() {
         <div class="job-detail-title" style="color:var(--text-primary,#f8fafc);">${job.title}</div>
         
         <div class="job-detail-meta">
-          ${job.role_title ? `<span class="meta-tag">🎯 ${job.role_title}</span>` : ''}
-          ${job.employment_type ? `<span class="meta-tag">💼 ${job.employment_type.replace('_', ' ')}</span>` : ''}
-          ${rateDisplay ? `<span class="meta-tag">💰 ${rateDisplay}</span>` : ''}
-          ${hoursDisplay ? `<span class="meta-tag">⏰ ${hoursDisplay}</span>` : ''}
+          ${job.role_title ? `<span class="meta-tag"><span class="meta-label">Role:</span> ${job.role_title}</span>` : ''}
+          ${job.employment_type ? `<span class="meta-tag"><span class="meta-label">Type:</span> ${job.employment_type.replace('_', ' ')}</span>` : ''}
+          ${rateDisplay ? `<span class="meta-tag"><span class="meta-label">Rate:</span> ${rateDisplay}</span>` : ''}
+          ${hoursDisplay ? `<span class="meta-tag"><span class="meta-label">Hours:</span> ${hoursDisplay}</span>` : ''}
         </div>
         
         <div class="job-detail-section">
