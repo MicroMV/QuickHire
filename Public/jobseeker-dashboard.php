@@ -2553,7 +2553,7 @@ function useAvatarPhoto() {
       }
       
       html += `
-        <div class="conversation-item ${isActive ? 'active' : ''}" onclick="openConversation(${Number.parseInt(conv.id, 10)}, '${escapeJsString(participantName)}', '${escapeJsString(conv.other_profile_picture_url || '')}')">
+        <div class="conversation-item ${isActive ? 'active' : ''}" data-conversation-id="${Number.parseInt(conv.id, 10)}" onclick="openConversation(${Number.parseInt(conv.id, 10)}, '${escapeJsString(participantName)}', '${escapeJsString(conv.other_profile_picture_url || '')}')">
           <div class="conversation-avatar" style="position: relative;">
             ${avatarHtml}
             ${statusDot(conv.other_last_active)}
@@ -2764,6 +2764,26 @@ function useAvatarPhoto() {
     container.scrollTop = container.scrollHeight;
   }
 
+  function appendLocalMessage(text) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+    const formatted = escapeHtml(text).replace(/\n/g, '<br>');
+    const html = `
+      <div class="message own">
+        <div class="message-avatar">You</div>
+        <div class="message-content">
+          <div class="message-text">${formatted}</div>
+          <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
+        </div>
+      </div>
+    `;
+    if (container.querySelector('.empty-state')) {
+      container.innerHTML = '';
+    }
+    container.insertAdjacentHTML('beforeend', html);
+    container.scrollTop = container.scrollHeight;
+  }
+
   // Send message
   document.getElementById('messageForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -2773,13 +2793,14 @@ function useAvatarPhoto() {
     const messageInput = document.getElementById('messageInput');
     const fileInput = document.getElementById('fileInput');
     const messageText = messageInput.value.trim();
+    const hasFile = !!fileInput.files[0];
     
-    if (!messageText && !fileInput.files[0]) return;
+    if (!messageText && !hasFile) return;
     
     const formData = new FormData();
     formData.append('conversation_id', currentConversationId);
     if (messageText) formData.append('message', messageText);
-    if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+    if (hasFile) formData.append('file', fileInput.files[0]);
     
     try {
       const response = await fetch('/QuickHire/Public/actions/send_message.php', {
@@ -2790,6 +2811,7 @@ function useAvatarPhoto() {
       const data = await response.json();
       
       if (data.ok) {
+        const previewText = messageText || (hasFile ? 'Sent a file' : 'Sent a message');
         messageInput.value = '';
         fileInput.value = '';
         removeFilePreview();
@@ -2799,11 +2821,23 @@ function useAvatarPhoto() {
           window.pendingConversation = null;
         }
         
-        // Reload messages immediately to show the sent message
-        await loadMessages(currentConversationId);
-        
-        // Refresh conversations to update last message and move conversation to top
-        await loadConversations();
+        const conversationItem = document.querySelector(`.conversation-item[data-conversation-id="${currentConversationId}"]`);
+        if (conversationItem) {
+          const previewEl = conversationItem.querySelector('.conversation-preview');
+          if (previewEl) {
+            previewEl.textContent = previewText;
+          }
+        }
+        const conv = currentConversations.find(c => parseInt(c.id, 10) === parseInt(currentConversationId, 10));
+        if (conv) {
+          conv.last_message = previewText;
+        }
+
+        if (hasFile) {
+          await loadMessages(currentConversationId);
+        } else if (messageText) {
+          appendLocalMessage(messageText);
+        }
       } else {
         showToast('Failed to send message: ' + data.error, 'error');
       }
