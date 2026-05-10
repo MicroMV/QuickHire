@@ -42,14 +42,15 @@ class MatchmakingService
             $queueId = (int)$this->pdo->lastInsertId();
 
             if (!empty($skillIds)) {
-                // Save to queue skills
-                $ins = $this->pdo->prepare("INSERT INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
-                foreach ($skillIds as $sid) $ins->execute([$queueId, (int)$sid]);
+                // Save to queue skills (deduplicated)
+                $uniqueSkills = array_values(array_unique(array_map('intval', $skillIds)));
+                $ins = $this->pdo->prepare("INSERT IGNORE INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
+                foreach ($uniqueSkills as $sid) $ins->execute([$queueId, $sid]);
                 
-                // Also save to employer_required_skills for persistence
+                // Persist to employer_required_skills
                 $this->pdo->prepare("DELETE FROM employer_required_skills WHERE employer_user_id = ?")->execute([$employerId]);
-                $empIns = $this->pdo->prepare("INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
-                foreach ($skillIds as $sid) $empIns->execute([$employerId, (int)$sid]);
+                $empIns = $this->pdo->prepare("INSERT IGNORE INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
+                foreach ($uniqueSkills as $sid) $empIns->execute([$employerId, $sid]);
             }
 
             $this->pdo->commit();
@@ -167,42 +168,82 @@ class MatchmakingService
                 $reqSkillIds = $this->getEmployerRequiredSkillIds($userId);
             }
 
-            // Find jobseekers
-            $candidates = $this->pdo->query("
-              SELECT u.id AS user_id, p.*
-              FROM users u
-              JOIN jobseeker_profiles p ON p.user_id = u.id
-              WHERE u.role='JOBSEEKER' AND u.is_profile_complete=1
-            ")->fetchAll();
+            $criteria = [
+                'role_title'      => $q['wanted_role'] ?? '',
+                'employment_type' => $q['employment_type'] ?? 'PART_TIME',
+                'country'         => $q['wanted_country'] ?? '',
+            ];
 
-            $best = null;
+            // ── Pass 1: prefer jobseekers who are actively waiting in a WAITING room ──
+            // A jobseeker is "waiting" if they have a WAITING call and have sent a
+            // heartbeat signal within the last 15 seconds (same logic as getAvailableEmployerRooms).
+            $waitingCandidates = $this->pdo->prepare("
+                SELECT DISTINCT u.id AS user_id, p.*
+                FROM users u
+                JOIN jobseeker_profiles p ON p.user_id = u.id
+                JOIN calls c ON c.jobseeker_user_id = u.id AND c.status = 'WAITING'
+                WHERE u.role = 'JOBSEEKER'
+                  AND u.is_profile_complete = 1
+                  AND EXISTS (
+                      SELECT 1 FROM webrtc_signals s
+                      WHERE s.room_code = c.room_code
+                        AND s.sender_id  = u.id
+                        AND s.message_type = 'heartbeat'
+                        AND s.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 15 SECOND)
+                  )
+            ");
+            $waitingCandidates->execute();
+            $waiting = $waitingCandidates->fetchAll();
+
+            $best      = null;
             $bestScore = 0;
 
-            foreach ($candidates as $js) {
+            foreach ($waiting as $js) {
                 $jobseekerId = (int)$js['user_id'];
-
-                // Skip current partner and users in active calls
                 if ($jobseekerId === $skipUserId) continue;
                 if ($this->isInActiveCall($jobseekerId)) continue;
 
                 $jsSkillIds = $this->getJobseekerSkillIds($jobseekerId);
+                $score = $this->engine->score($criteria, $js, $reqSkillIds, $jsSkillIds);
 
-                $score = $this->engine->score(
-                    [
-                      'role_title' => $q['wanted_role'] ?? '',
-                      'employment_type' => $q['employment_type'] ?? 'PART_TIME',
-                      'country' => $q['wanted_country'] ?? ''
-                    ],
-                    $js,
-                    $reqSkillIds,
-                    $jsSkillIds
-                );
-
-                if ($score >= 80 && $score > $bestScore) {
+                if ($score >= 60 && $score > $bestScore) {
                     $bestScore = $score;
                     $best = $jobseekerId;
                 }
             }
+
+            // ── Pass 2: fall back to any complete-profile jobseeker not in an active call ──
+            if (!$best) {
+                $allCandidates = $this->pdo->prepare("
+                    SELECT u.id AS user_id, p.*
+                    FROM users u
+                    JOIN jobseeker_profiles p ON p.user_id = u.id
+                    WHERE u.role = 'JOBSEEKER' AND u.is_profile_complete = 1
+                ");
+                $allCandidates->execute();
+                $all = $allCandidates->fetchAll();
+
+                foreach ($all as $js) {
+                    $jobseekerId = (int)$js['user_id'];
+                    if ($jobseekerId === $skipUserId) continue;
+                    if ($this->isInActiveCall($jobseekerId)) continue;
+                    // Note: do NOT skip jobseekers waiting on the dashboard overlay —
+                    // they have no call row so isInWaitingCall would wrongly exclude them.
+                    // Only skip if they are assigned to another employer's RINGING/IN_CALL.
+
+                    $jsSkillIds = $this->getJobseekerSkillIds($jobseekerId);
+                    $score = $this->engine->score($criteria, $js, $reqSkillIds, $jsSkillIds);
+
+                    error_log("NEXT_MATCH: Candidate JS#{$jobseekerId} score={$score} criteria=" . json_encode($criteria));
+
+                    if ($score >= 40 && $score > $bestScore) {
+                        $bestScore = $score;
+                        $best = $jobseekerId;
+                    }
+                }
+            }
+
+            error_log("NEXT_MATCH: Best candidate JS#{$best} score={$bestScore} for employer #{$userId}");
 
             if (!$best) return null;
 
@@ -217,8 +258,6 @@ class MatchmakingService
 
         } else {
             // JOBSEEKERS CANNOT CREATE NEW CALLS
-            // They can only join existing calls created by employers
-            // This method should not be used for jobseekers to create new matches
             return null;
         }
     }
@@ -265,19 +304,23 @@ class MatchmakingService
         return (bool)$st->fetch();
     }
 
+    private function isInWaitingCall(int $userId): bool
+    {
+        $st = $this->pdo->prepare("
+          SELECT id FROM calls
+          WHERE status = 'WAITING'
+            AND (employer_user_id=? OR jobseeker_user_id=?)
+          LIMIT 1
+        ");
+        $st->execute([$userId, $userId]);
+        return (bool)$st->fetch();
+    }
+
     /**
      * Get available employer rooms that match jobseeker criteria
      */
     public function getAvailableEmployerRooms(int $jobseekerId): array
     {
-        // Get jobseeker profile
-        $jsProfile = $this->pdo->prepare("
-            SELECT jp.*, u.id as user_id
-            FROM jobseeker_profiles jp
-            JOIN users u ON u.id = jp.user_id
-            WHERE u.id = ? AND u.role = 'JOBSEEKER' AND u.is_profile_complete = 1
-        ")->execute([$jobseekerId]);
-        
         $jobseeker = $this->pdo->prepare("
             SELECT jp.*, u.id as user_id
             FROM jobseeker_profiles jp
@@ -428,22 +471,22 @@ class MatchmakingService
 
             $queueId = (int)$this->pdo->lastInsertId();
 
-            // Save skills if provided - but don't overwrite existing skills if empty
+            // Save skills — deduplicate to avoid unique_queue_skill violations
             if (!empty($skillIds)) {
-                $ins = $this->pdo->prepare("INSERT INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
-                foreach ($skillIds as $sid) $ins->execute([$queueId, (int)$sid]);
-                
-                // Only update employer_required_skills if skills are actually provided
-                // Don't delete existing skills if no skills are provided
+                $uniqueSkills = array_values(array_unique(array_map('intval', $skillIds)));
+                $ins = $this->pdo->prepare("INSERT IGNORE INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
+                foreach ($uniqueSkills as $sid) $ins->execute([$queueId, $sid]);
+
+                // Persist to employer_required_skills (replace all)
                 $this->pdo->prepare("DELETE FROM employer_required_skills WHERE employer_user_id = ?")->execute([$employerId]);
-                $empIns = $this->pdo->prepare("INSERT INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
-                foreach ($skillIds as $sid) $empIns->execute([$employerId, (int)$sid]);
+                $empIns = $this->pdo->prepare("INSERT IGNORE INTO employer_required_skills (employer_user_id, skill_id) VALUES (?, ?)");
+                foreach ($uniqueSkills as $sid) $empIns->execute([$employerId, $sid]);
             } else {
-                // If no skills provided, use existing employer skills for the queue
-                $existingSkills = $this->getEmployerRequiredSkillIds($employerId);
+                // No skills passed — copy from employer_required_skills (deduplicated)
+                $existingSkills = array_values(array_unique($this->getEmployerRequiredSkillIds($employerId)));
                 if (!empty($existingSkills)) {
-                    $ins = $this->pdo->prepare("INSERT INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
-                    foreach ($existingSkills as $sid) $ins->execute([$queueId, (int)$sid]);
+                    $ins = $this->pdo->prepare("INSERT IGNORE INTO matchmaking_queue_skills (queue_id, skill_id) VALUES (?, ?)");
+                    foreach ($existingSkills as $sid) $ins->execute([$queueId, $sid]);
                 }
             }
 

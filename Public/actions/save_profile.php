@@ -55,6 +55,9 @@ $resumeRel = 'uploads/resumes';
 
 try {
     if ($role === 'JOBSEEKER' && $type === 'JOBSEEKER') {
+        // Log avatar data length for debugging
+        $avatarLen = strlen($_POST['captured_avatar'] ?? '');
+        error_log("SAVE_PROFILE: captured_avatar length={$avatarLen} user={$userId}");
         $service->saveJobseeker($userId, $_POST, $_FILES, $avatarAbs, $avatarRel, $resumeAbs, $resumeRel);
         Session::flash('success', 'Profile saved!');
         header("Location: /QuickHire/Public/jobseeker-dashboard.php");
@@ -62,6 +65,8 @@ try {
     }
 
     if ($role === 'EMPLOYER' && $type === 'EMPLOYER') {
+        $avatarLen = strlen($_POST['captured_avatar'] ?? '');
+        error_log("SAVE_PROFILE: captured_avatar length={$avatarLen} user={$userId}");
         $service->saveEmployer($userId, $_POST, $_FILES, $avatarAbs, $avatarRel);
         Session::flash('success', 'Profile saved!');
         header("Location: /QuickHire/Public/employer-dashboard.php");

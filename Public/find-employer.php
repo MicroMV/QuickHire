@@ -124,30 +124,56 @@ if (!$jobseeker) {
 
     async function findEmployer() {
       try {
+        // Always check for a direct RINGING assignment first
+        const direct = await checkDirectCall();
+        if (direct) return;
+
         const res = await fetch(ROOM_ENDPOINT);
         const data = await res.json();
 
         if (!data.ok) {
-          showError(data.error || 'No match found');
+          // Keep polling every 3s
+          setTimeout(findEmployer, 3000);
           return;
         }
 
-        ROOM = data.room;
-        log('Match found! Room: ' + ROOM);
-
-        await initMedia();
-        initPeer();
-        showScreen('callScreen');
-
-        await sendSignal('join', { joined: true });
-        setTimeout(() => makeOffer().catch(() => {}), 900);
-
-        pollSignals();
-        startCallTimer();
+        await connectToRoom(data.room, data.employer_name);
       } catch (e) {
         log('Error: ' + e.message);
         showError('Connection error: ' + e.message);
       }
+    }
+
+    // Check if an employer assigned us directly (via "Next Jobseeker")
+    async function checkDirectCall() {
+      try {
+        const res = await fetch('/QuickHire/Public/actions/check_waiting_calls.php');
+        const data = await res.json();
+        if (data.ok && data.has_call && data.room) {
+          log('Matched via employer next — joining room: ' + data.room);
+          await connectToRoom(data.room, null);
+          return true;
+        }
+      } catch (e) {
+        log('checkDirectCall error: ' + e.message);
+      }
+      return false;
+    }
+
+    async function connectToRoom(room, employerName) {
+      ROOM = room;
+      log('Match found! Room: ' + ROOM);
+      if (employerName) document.getElementById('employerName').textContent = employerName;
+
+      await initMedia();
+      initPeer();
+      showScreen('callScreen');
+
+      await sendSignal('join', { joined: true });
+      setTimeout(() => makeOffer().catch(() => {}), 900);
+
+      pollSignals();
+      startCallTimer();
     }
 
     async function sendSignal(type, payload) {
@@ -301,8 +327,12 @@ if (!$jobseeker) {
       document.getElementById('btnMic').textContent = '🎤 Mic: ' + (track.enabled ? 'ON' : 'OFF');
     });
 
-    // Start finding employer
-    findEmployer();
+    // Start finding employer — check for a direct RINGING call first, then search WAITING rooms
+    async function start() {
+      const direct = await checkDirectCall();
+      if (!direct) findEmployer();
+    }
+    start();
   </script>
 </body>
 </html>

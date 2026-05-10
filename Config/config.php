@@ -17,6 +17,10 @@ return [
     'password' => 'ephs gzdy udmh uvpd',
     'from_email' => 'quickhireee@gmail.com',
     'from_name' => 'QuickHire'
+  ],
+  'recaptcha' => [
+    'site_key'   => '6LeezOAsAAAAAAuRJgP9jkeCAuM-CNZ_cWYN4Yy7',
+    'secret_key' => '6LeezOAsAAAAAJ0ryexMmSUkCSBscsdy-hZBtIat',
   ]
 ]; 
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require __DIR__ . '/../vendor/autoload.php';
 
 use Rongie\QuickHire\Core\Session;
@@ -1504,6 +1504,21 @@ function useAvatarPhoto() {
     waitingRequestRunning = true;
 
     try {
+      // First: check if an employer assigned us directly via "Next Jobseeker"
+      const ringedRes = await fetch('/QuickHire/Public/actions/check_waiting_calls.php', {
+        headers: { 'Accept': 'application/json' }
+      });
+      const ringedData = await ringedRes.json();
+
+      if (ringedData.ok && ringedData.has_call && ringedData.room) {
+        waitingCopyEl.textContent = 'Employer found. Opening your call room...';
+        clearInterval(waitingTimer);
+        clearInterval(waitingPoller);
+        window.location.href = '/QuickHire/Public/call.php?room=' + encodeURIComponent(ringedData.room);
+        return;
+      }
+
+      // Second: look for a matching WAITING employer room
       const response = await fetch('/QuickHire/Public/actions/find_employer.php', {
         headers: { 'Accept': 'application/json' }
       });
@@ -1519,7 +1534,8 @@ function useAvatarPhoto() {
         return;
       }
 
-      if (!data.waiting) {
+      // Only stop if it's a hard error (not just "no employers yet")
+      if (!data.waiting && data.error && !data.error.includes('No employers')) {
         stopWaiting(data.error || 'Unable to find employers right now.', 'error');
       }
     } catch (error) {

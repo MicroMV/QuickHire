@@ -4,9 +4,15 @@ require __DIR__ . '/../vendor/autoload.php';
 use Rongie\QuickHire\Core\Session;
 use Rongie\QuickHire\Core\Auth;
 use Rongie\QuickHire\Core\Database;
+use Rongie\QuickHire\Core\Csrf;
 
 Session::start();
 Auth::requireLogin();
+
+// Never cache the call page — each room load must be fresh
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 $room = preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['room'] ?? '');
 if ($room === '') {
@@ -64,6 +70,38 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
     $pdo->prepare("UPDATE calls SET status='IN_CALL' WHERE room_code=? AND status='RINGING'")->execute([$room]);
     $call['status'] = 'IN_CALL';
 }
+
+// Load employer's saved queue criteria for the "Next Jobseeker" form
+$nextJobseekerForm = '';
+if ($isEmployer) {
+    $qStmt = $pdo->prepare("SELECT mq.*, GROUP_CONCAT(mqs.skill_id) as skill_ids
+        FROM matchmaking_queue mq
+        LEFT JOIN matchmaking_queue_skills mqs ON mqs.queue_id = mq.id
+        WHERE mq.user_id = ? AND mq.role = 'EMPLOYER'
+        ORDER BY mq.id DESC LIMIT 1");
+    $qStmt->execute([$uid]);
+    $savedQ = $qStmt->fetch();
+
+    $csrfToken = Csrf::token();
+
+    if ($savedQ) {
+        $skillInputs = '';
+        if (!empty($savedQ['skill_ids'])) {
+            foreach (explode(',', $savedQ['skill_ids']) as $sid) {
+                $sid = (int)$sid;
+                if ($sid > 0) $skillInputs .= '<input type="hidden" name="skill_ids[]" value="' . $sid . '">';
+            }
+        }
+        $nextJobseekerForm = '
+        <form id="nextJobseekerForm" method="POST" action="/QuickHire/Public/actions/find_match.php" style="display:none;">
+            <input type="hidden" name="csrf_token" value="' . htmlspecialchars($csrfToken) . '">
+            <input type="hidden" name="role_title" value="' . htmlspecialchars($savedQ['wanted_role'] ?? '') . '">
+            <input type="hidden" name="country" value="' . htmlspecialchars($savedQ['wanted_country'] ?? '') . '">
+            <input type="hidden" name="employment_type" value="' . htmlspecialchars($savedQ['employment_type'] ?? 'FULL_TIME') . '">
+            ' . $skillInputs . '
+        </form>';
+    }
+}
 ?>
 
 
@@ -108,6 +146,7 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                 <button id="btnHang" class="danger">📞 End Call</button>
             </div>
         </div>
+        <?= $nextJobseekerForm ?>
 
         <!-- Chat Section -->
         <div class="chat-section">
@@ -221,7 +260,6 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         let statusCheckInterval;
         
         function startStatusMonitoring() {
-            // Check call status every 10 seconds - less frequent to reduce interference
             statusCheckInterval = setInterval(async () => {
                 if (!isLeavingPage && polling) {
                     try {
@@ -233,26 +271,24 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
                             stopHeartbeat();
                             stopStatusMonitoring();
                             
-                            // Redirect based on role
                             if (MY_ROLE === 'EMPLOYER') {
-                                window.location.href = '/QuickHire/Public/employer-dashboard.php';
+                                // Jobseeker left — go find the next one
+                                nextMatch();
                             } else {
                                 returnJobseekerToWaiting();
                             }
                         }
                         
-                        // Update partner name if status changed (someone joined)
                         if (data.ok && data.status === 'IN_CALL') {
                             const currentPartnerName = document.getElementById('remoteVideoName').textContent;
                             if (currentPartnerName === 'Waiting...') {
-                                // Partner joined, update name
                                 loadParticipantNames();
                             }
                         }
                     } catch (error) {
                     }
                 }
-            }, 10000); // Check every 10 seconds
+            }, 10000);
         }
         
         function stopStatusMonitoring() {
@@ -672,240 +708,78 @@ if ($call['status'] === 'WAITING' && $isJobseeker) {
         function endCall() {
             if (isLeavingPage) return;
             polling = false;
-            cleanupCall();
+            isLeavingPage = true;
+            cleanupStarted = true;
+            stopHeartbeat();
+            stopStatusMonitoring();
+
+            // Notify the other participant we're leaving
+            fetch(actionUrl("cleanup_call.php"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ room: ROOM }),
+                keepalive: true
+            }).catch(() => {});
+
+            if (pc) { pc.close(); pc = null; }
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
 
             if (MY_ROLE === 'EMPLOYER') {
-                // Employer auto-finds next match
-                findNextMatchAuto();
+                submitNextJobseeker();
             } else {
-                // Jobseeker returns to dashboard when partner leaves
                 returnJobseekerToWaiting();
             }
         }
 
-        async function findNextMatchAuto() {
+        // Submit the hidden form to find_match.php — same as clicking Find Employer from dashboard
+        function submitNextJobseeker() {
+            const form = document.getElementById('nextJobseekerForm');
+            if (form) {
+                form.submit();
+            } else {
+                window.location.href = '/QuickHire/Public/employer-dashboard.php';
+            }
+        }
+
+        function nextMatch() {
             if (MY_ROLE !== 'EMPLOYER') {
-                window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
+                window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
                 return;
             }
-            
-            // Show "Finding next match..." in the interface
-            showFindingNextMatch();
-            
-            try {
-                const response = await fetch(actionUrl("next_match.php"), {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ room: ROOM })
-                });
-                const data = await response.json();
-                
-                if (data.ok && data.room) {
-                    // Update room code and restart call
-                    ROOM = data.room;
-                    restartCall();
-                } else if (data.redirect === 'dashboard') {
-                    // Jobseeker should return to dashboard
-                    window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
-                } else {
-                    // Try to find a completely new match (employers only)
-                    await findNewMatch();
-                }
-            } catch (error) {
-                // Fallback: try to find new match
-                await findNewMatch();
-            }
-        }
+            // Guard against double-click
+            if (isLeavingPage) return;
+            isLeavingPage = true;
+            cleanupStarted = true;
+            polling = false;
+            stopHeartbeat();
+            stopStatusMonitoring();
 
-        async function findNewMatch() {
-            try {
-                if (MY_ROLE === 'EMPLOYER') {
-                    const preferences = getSavedMatchingPreferences();
+            // Notify current jobseeker we're leaving
+            fetch(actionUrl("cleanup_call.php"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ room: ROOM }),
+                keepalive: true
+            }).catch(() => {});
 
-                    if (!preferences) {
-                        alert('Please set your matching preferences before finding another jobseeker.');
-                        window.location.href = '/QuickHire/Public/employer-dashboard.php';
-                        return;
-                    }
+            if (pc) { pc.close(); pc = null; }
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
 
-                    const formData = new FormData();
-                    formData.append('role_title', preferences.role_title);
-                    formData.append('country', preferences.country);
-                    formData.append('employment_type', preferences.employment_type || 'FULL_TIME');
-
-                    if (preferences.skill_ids && preferences.skill_ids.length > 0) {
-                        preferences.skill_ids.forEach(skillId => {
-                            formData.append('skill_ids[]', skillId);
-                        });
-                    }
-
-                    const response = await fetch(actionUrl('find_match.php'), {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (response.redirected) {
-                        // Extract room from redirect URL
-                        const url = new URL(response.url);
-                        const roomParam = url.searchParams.get('room');
-                        if (roomParam) {
-                            ROOM = roomParam;
-                            restartCall();
-                            return;
-                        }
-                    }
-                    
-                    // No match found for employer
-                    showNoMatchFound();
-                    
-                } else {
-                    // Jobseekers can't create new matches - redirect to dashboard
-                    window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
-                }
-                
-            } catch (error) {
-                if (MY_ROLE === 'JOBSEEKER') {
-                    // Redirect jobseekers to dashboard on error
-                    window.location.href = '/QuickHire/Public/jobseeker-dashboard.php';
-                } else {
-                    showNoMatchFound();
-                }
-            }
-        }
-
-        function restartCall() {
-            isLeavingPage = false;
-            cleanupStarted = false;
-            
-            // Reset try again counter on successful match
-            resetTryAgainCounter();
-            
-            // Reset variables
-            afterSignalId = 0;
-            polling = true;
-            
-            // Clear chat messages and dedup sets for the new room
-            document.getElementById('chatMessages').innerHTML = '';
-            displayedChatIds.clear();
-            sendingChatMessage = false;
-            
-            // Hide "finding match" message
-            hideFindingNextMatch();
-            
-            // Reset name displays
-            document.getElementById('remoteVideoName').textContent = 'Waiting...';
-            
-            // Initialize new peer connection
-            initPeer();
-            
-            // Send join signal for new room
-            sendSignal("join", { joined: true });
-            
-            // Restart polling
-            pollSignals();
-            startHeartbeat();
-            startStatusMonitoring();
-            
-            // Reload participant names for new call
-            setTimeout(() => loadParticipantNames(), 1000);
-            
-        }
-
-        function showFindingNextMatch() {
-            // Show overlay message
-            const overlay = document.createElement('div');
-            overlay.id = 'findingOverlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: #0f172a;
-                padding: 30px 40px;
-                border-radius: 16px;
-                z-index: 9999;
-                color: #f8fafc;
-                font-size: 20px;
-                font-weight: 900;
-                text-align: center;
-                border: 1px solid rgba(255,255,255,0.1);
-                box-shadow: 0 24px 60px rgba(0,0,0,0.5);
-            `;
-            overlay.innerHTML = `
-                <div style="margin-bottom: 15px;">🔍 Finding next match...</div>
-                <div style="font-size: 14px; opacity: 0.8;">Keep your camera ready!</div>
-            `;
-            document.body.appendChild(overlay);
-        }
-
-        function hideFindingNextMatch() {
-            const overlay = document.getElementById('findingOverlay');
-            if (overlay) {
-                overlay.remove();
-            }
-        }
-
-        function showNoMatchFound() {
-            const overlay = document.getElementById('findingOverlay');
-            if (overlay) {
-                overlay.innerHTML = `
-                    <div style="margin-bottom:20px;font-size:22px;font-weight:900;color:#f8fafc;">😔 No more matches available</div>
-                    <div style="font-size:14px;margin-bottom:25px;color:#94a3b8;">Try again later or return to dashboard</div>
-                    <button onclick="findNextMatchAuto()" 
-                            style="padding:11px 22px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-right:10px;font-size:14px;">
-                        Try Again
-                    </button>
-                    <button onclick="window.location.href='/QuickHire/Public/' + (MY_ROLE === 'EMPLOYER' ? 'employer' : 'jobseeker') + '-dashboard.php'" 
-                            style="padding:11px 22px;background:rgba(255,255,255,0.08);color:#e2e8f0;border:1px solid rgba(255,255,255,0.15);border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">
-                        Dashboard
-                    </button>
-                `;
-            }
-        }
-
-        async function nextMatch() {
-            let message;
-            
-            if (MY_ROLE === 'EMPLOYER') {
-                message = "Skip to next jobseeker?";
-            } else {
-                message = "End call and return to dashboard? (Jobseekers cannot initiate new matches)";
-            }
-            
-            if (!confirm(message)) return;
-            
-            cleanupCall();
-            
-            if (MY_ROLE === 'EMPLOYER') {
-                // Employers can find next match
-                // Don't stop camera - keep it running for next match
-                findNextMatchAuto();
-            } else {
-                // Jobseekers return to dashboard
-                window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
-            }
+            // Submit form → find_match.php → new WAITING room → call.php?room=NEW
+            submitNextJobseeker();
         }
 
         document.getElementById('btnHang').addEventListener('click', () => {
-            let message, choice;
-            
             if (MY_ROLE === 'EMPLOYER') {
-                message = "End call and find another jobseeker? (Cancel to return to dashboard)";
-                choice = confirm(message);
+                const choice = confirm("End call and find another jobseeker? (Cancel to return to dashboard)");
                 if (choice) {
-                    // Employer can find another match
-                    cleanupCall();
-                    findNextMatchAuto();
+                    nextMatch();
                 } else {
-                    // Return to dashboard
                     cleanupCall();
                     window.location.href = "/QuickHire/Public/employer-dashboard.php";
                 }
             } else {
-                // Jobseeker - can only return to dashboard
-                message = "End call and return to dashboard?";
-                choice = confirm(message);
-                if (choice) {
+                if (confirm("End call and return to dashboard?")) {
                     cleanupCall();
                     window.location.href = "/QuickHire/Public/jobseeker-dashboard.php";
                 }

@@ -40,14 +40,17 @@ class FileUpload
             return null;
         }
 
+        // If it doesn't look like a valid data URL at all, treat it as "no new photo"
+        // rather than throwing — this handles browser form-replay on hard refresh
+        // where the field value may be stale, truncated, or otherwise invalid.
         if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+\/=]+)$/', $dataUrl, $matches)) {
-            throw new Exception("Avatar must be captured from the camera.");
+            return null;
         }
 
         $imageType = strtolower($matches[1]) === 'jpg' ? 'jpeg' : strtolower($matches[1]);
         $binary = base64_decode($matches[2], true);
         if ($binary === false || strlen($binary) === 0) {
-            throw new Exception("Captured avatar could not be read.");
+            return null; // Corrupt data — fall back to existing avatar
         }
         if (strlen($binary) > $this->maxBytes) {
             throw new Exception("Captured avatar is too large (max 5MB).");
@@ -55,7 +58,7 @@ class FileUpload
 
         $info = @getimagesizefromstring($binary);
         if (!$info || empty($info['mime']) || !in_array($info['mime'], $this->allowedImageTypes, true)) {
-            throw new Exception("Captured avatar must be JPG, PNG, or WEBP.");
+            return null; // Not a valid image — fall back to existing avatar
         }
 
         $ext = $imageType === 'jpeg' ? 'jpg' : $imageType;

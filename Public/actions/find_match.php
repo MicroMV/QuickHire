@@ -45,15 +45,16 @@ $criteria = [
 ];
 
 try {
-  // CLEANUP: Delete ALL old rooms (not just this employer's)
+  // CLEANUP: Delete stale rooms older than 2 minutes (only WAITING/RINGING/MISSED, not IN_CALL)
   $pdo = $db->pdo();
   $pdo->prepare("
     DELETE FROM calls 
     WHERE status IN ('WAITING', 'RINGING', 'MISSED')
     AND created_at < DATE_SUB(NOW(), INTERVAL 2 MINUTE)
-  ")->execute();
+    AND employer_user_id = ?
+  ")->execute([Auth::userId()]);
   
-  // Also delete this employer's old rooms regardless of age
+  // Also delete this employer's older completed rooms to keep the table clean
   $pdo->prepare("
     DELETE FROM calls 
     WHERE employer_user_id = ? 

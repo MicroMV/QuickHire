@@ -20,6 +20,7 @@ if (Auth::isLoggedIn()) {
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landingPage.css">
   <link rel="stylesheet" href="/QuickHire/Public/assets/css/landing-new.css">
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body class="landing-body">
 
@@ -219,6 +220,8 @@ if (Auth::isLoggedIn()) {
       $authError = \Rongie\QuickHire\Core\Session::flash('error');
       $authSuccess = \Rongie\QuickHire\Core\Session::flash('success');
       $csrfToken = \Rongie\QuickHire\Core\Csrf::token();
+      $rcConfig = require __DIR__ . '/../Config/config.php';
+      $rcSiteKey = htmlspecialchars($rcConfig['recaptcha']['site_key'] ?? '');
     ?>
 
     <!-- TABS -->
@@ -245,6 +248,9 @@ if (Auth::isLoggedIn()) {
         <input type="password" name="password" placeholder="••••••••" required>
       </div>
       <button type="button" onclick="switchTab('forgot')" class="ln-forgot-link">Forgot password?</button>
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">
+        <div class="g-recaptcha" data-sitekey="<?= $rcSiteKey ?>" data-theme="dark"></div>
+      </div>
       <button type="submit" class="ln-btn-primary ln-btn-full">Sign In</button>
       <p class="ln-auth-agreement">
         <span class="ln-auth-agreement-check" aria-hidden="true">&#10003;</span>
@@ -275,6 +281,9 @@ if (Auth::isLoggedIn()) {
       <div class="ln-form-group"><label>Email</label><input type="email" name="email" placeholder="you@example.com" required></div>
       <div class="ln-form-group"><label>Password</label><input type="password" name="password" placeholder="Min. 8 characters" required></div>
       <div class="ln-form-group"><label>Confirm Password</label><input type="password" name="password_confirm" placeholder="Repeat password" required></div>
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">
+        <div class="g-recaptcha" data-sitekey="<?= $rcSiteKey ?>" data-theme="dark"></div>
+      </div>
       <button type="submit" class="ln-btn-primary ln-btn-full">Create Account</button>
     </form>
 
