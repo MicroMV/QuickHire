@@ -147,7 +147,7 @@ class JobService
                 $params[] = $type;
             }
             if ($country !== '') {
-                $where[] = 'ep.country = ?';
+                $where[] = 'jp.country = ?';
                 $params[] = $country;
             }
 

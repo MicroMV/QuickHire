@@ -402,7 +402,7 @@ function public_url(string $path): string
       <button id="btnSettings" type="button">⚙️ Settings</button>
 
       <div class="nav-section-label">SESSION</div>
-      <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
+      <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;" onsubmit="return confirm('Are you sure you want to logout?');">
         <button class="danger" type="submit">🚪 Logout</button>
       </form>
     </nav>

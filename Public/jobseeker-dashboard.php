@@ -635,7 +635,7 @@ function public_url(string $path): string
       <button id="btnSettings" type="button">⚙️ Settings</button>
 
       <div class="nav-section-label">SESSION</div>
-      <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;">
+      <form method="POST" action="/QuickHire/Public/actions/logout.php" style="margin:0;" onsubmit="return confirm('Are you sure you want to logout?');">
         <button class="danger" type="submit">🚪 Logout</button>
       </form>
     </nav>
@@ -793,7 +793,7 @@ function public_url(string $path): string
         </select>
         <select id="jobFilterCountry" style="padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; min-width:140px;">
           <option value="">All Countries</option>
-          <?php foreach (['Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh','Belgium','Brazil','Canada','China','Colombia','Denmark','Egypt','Finland','France','Germany','Greece','India','Indonesia','Ireland','Italy','Japan','Malaysia','Mexico','Netherlands','New Zealand','Norway','Pakistan','Philippines','Poland','Portugal','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam'] as $c): ?>
+          <?php foreach (['Remote','Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bangladesh','Belgium','Brazil','Canada','China','Colombia','Denmark','Egypt','Finland','France','Germany','Greece','India','Indonesia','Ireland','Italy','Japan','Malaysia','Mexico','Netherlands','New Zealand','Norway','Pakistan','Philippines','Poland','Portugal','Russia','Saudi Arabia','Singapore','South Africa','South Korea','Spain','Sweden','Switzerland','Thailand','Turkey','United Arab Emirates','United Kingdom','United States','Vietnam'] as $c): ?>
             <option value="<?= $c ?>"><?= $c ?></option>
           <?php endforeach; ?>
         </select>
